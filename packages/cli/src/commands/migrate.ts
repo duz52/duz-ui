@@ -1,25 +1,34 @@
 /**
  * Agent UI — `agent-ui migrate` command.
  *
- * Migration is structural recognition followed by canonical replacement. For
- * each component file in the project's `ui` directory:
+ * Migration is structural recognition followed by canonical replacement. The
+ * command plans every component file in the project's `ui` directory before it
+ * writes anything, so a command that reports no change cannot make one:
  *
- * 1. Classify the file by name (migratable / presentation / explicit-semantics
- *    / unknown).
- * 2. For migratable names, fetch the Agent UI registry item, rewrite its import
- *    aliases to the project's aliases, and run `planMigration` to decide
- *    whether the file is stock (→ replace), already migrated (→ skip), or
- *    locally modified (→ refuse).
- * 3. Collect the `registryDependencies` of every migrated item, resolve them,
+ * 1. Load the project and create the registry client.
+ * 2. List the component files and plan every one of them — classify by name
+ *    (migratable / presentation / explicit-semantics / unknown), fetch the
+ *    Agent UI registry item, rewrite its import aliases to the project's
+ *    aliases, and run `planMigration` to decide whether the file is stock
+ *    (→ replace), already migrated (→ skip), or locally modified (→ refuse).
+ *    Planning is all reads.
+ * 3. If no outcome is `migrated`, print the report and return. Nothing has
+ *    been written.
+ * 4. Install the runtime (capability kernel + WebMCP adapter + utils); migrated
+ *    components import from it and would not compile without it.
+ * 5. Collect the `registryDependencies` of every migrated item, resolve them,
  *    and install them with `installItems` (no overwrite) so a missing
  *    dependency is created before the migrated file needs it. This runs before
  *    `applyMigration` so a failure to obtain a dependency stops the migration
  *    rather than leaving it half-applied.
- * 4. Apply every `migrated` outcome unless `--dry-run`.
- * 5. Install the union of migrated items' npm dependencies.
+ * 6. Apply every `migrated` outcome unless `--dry-run`.
+ * 7. Install the union of migrated items' npm dependencies.
+ * 8. Print the report.
  *
- * The runtime (capability kernel + WebMCP adapter + utils) is installed first,
- * because migrated components import from it and would not compile without it.
+ * `--dry-run` takes the same decision path and simply skips the writes in
+ * steps 4 to 7. Refreshing an already-installed runtime is `agent-ui init`'s
+ * job, not `migrate`'s — `migrate` writes when, and only when, it migrates
+ * something.
  */
 
 import { existsSync, readdirSync } from "node:fs"
@@ -43,6 +52,7 @@ export interface MigrateOptions {
   dryRun?: boolean
   registry?: string
   overwrite?: boolean
+  components?: string[]
 }
 
 interface FileResult {
@@ -170,7 +180,7 @@ function printReport(
 }
 
 export async function migrateCommand(options: MigrateOptions = {}): Promise<void> {
-  const { cwd = process.cwd(), dryRun = false, registry, overwrite = false } = options
+  const { cwd = process.cwd(), dryRun = false, registry, overwrite = false, components } = options
 
   let config: ProjectConfig
   try {
@@ -183,23 +193,9 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
 
   const client = createRegistryClient(registry ?? defaultRegistrySource())
 
-  // Ensure the runtime is present — migrated components import from it.
-  let runtimeItems: RegistryItem[]
-  try {
-    runtimeItems = await client.resolve(["agent-ui-runtime", "utils"])
-  } catch (cause) {
-    error("Could not read the Agent UI registry.", cause)
-    process.exitCode = 1
-    return
-  }
-
-  if (!dryRun) {
-    await installItems(config, runtimeItems)
-  }
-
   // List component files directly inside the ui directory.
   const uiDir = config.resolved.ui
-  const componentFiles: string[] = existsSync(uiDir)
+  const allComponentFiles: string[] = existsSync(uiDir)
     ? readdirSync(uiDir, { withFileTypes: true })
         .filter(
           (d) =>
@@ -209,6 +205,31 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
         .map((d) => d.name)
         .sort()
     : []
+
+  // Narrow the plan to named components when requested. A name with no
+  // matching file is a mistake worth stopping for: the developer asked for
+  // something that is not there, and silently migrating the rest would hide
+  // it. Report every such name, set a non-zero exit, and write nothing.
+  let componentFiles: string[]
+  if (components && components.length > 0) {
+    const available = new Set(
+      allComponentFiles.map((fileName) => fileName.replace(/\.(tsx|jsx)$/, "")),
+    )
+    const missing = components.filter((name) => !available.has(name))
+    if (missing.length > 0) {
+      for (const name of missing) {
+        error(`The project has no component file for "${name}".`)
+      }
+      process.exitCode = 1
+      return
+    }
+    const wanted = new Set(components)
+    componentFiles = allComponentFiles.filter((fileName) =>
+      wanted.has(fileName.replace(/\.(tsx|jsx)$/, "")),
+    )
+  } else {
+    componentFiles = allComponentFiles
+  }
 
   // Classify, fetch replacement, and plan migration for each file.
   const results: FileResult[] = []
@@ -281,6 +302,26 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     }
   }
 
+  // If nothing will be migrated, report and return without writing anything.
+  if (migratedItems.length === 0) {
+    printReport(results, [], dryRun, overwrite)
+    return
+  }
+
+  // Ensure the runtime is present — migrated components import from it.
+  let runtimeItems: RegistryItem[]
+  try {
+    runtimeItems = await client.resolve(["agent-ui-runtime", "utils"])
+  } catch (cause) {
+    error("Could not read the Agent UI registry.", cause)
+    process.exitCode = 1
+    return
+  }
+
+  if (!dryRun) {
+    await installItems(config, runtimeItems)
+  }
+
   // Collect the registry dependencies of every migrated item, minus the
   // runtime already installed above. Resolving them pulls in transitive deps
   // (e.g. button → utils); installItems creates missing files and leaves
@@ -328,7 +369,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
   // Install the union of the migrated items' npm dependencies. The component
   // files themselves were just written by applyMigration, so installItems must
   // not run again here — it would rewrite what migration produced.
-  if (migratedItems.length > 0 && !dryRun) {
+  if (!dryRun) {
     const dependencies = [
       ...new Set(migratedItems.flatMap((item) => item.dependencies)),
     ]

@@ -100,19 +100,26 @@ program
 program
   .command("migrate")
   .description("Upgrade supported shadcn components in place.")
+  .argument("[components...]", "components to migrate; omit to migrate every supported component")
   .option("--dry-run", "print the plan without writing anything")
   .option("--overwrite", "replace recognised components whose source differs from known stock")
   .option(...YES)
   .action(
-    guard(async (options: { dryRun?: boolean; overwrite?: boolean }) => {
-      const { cwd, registry } = globals()
-      await migrateCommand({
-        cwd,
-        registry,
-        dryRun: options.dryRun,
-        overwrite: options.overwrite,
-      })
-    }),
+    guard(
+      async (
+        components: string[],
+        options: { dryRun?: boolean; overwrite?: boolean },
+      ) => {
+        const { cwd, registry } = globals()
+        await migrateCommand({
+          cwd,
+          registry,
+          dryRun: options.dryRun,
+          overwrite: options.overwrite,
+          components,
+        })
+      },
+    ),
   )
 
 program

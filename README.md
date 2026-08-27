@@ -10,8 +10,23 @@ automatically.
 npx agent-ui migrate
 ```
 
-Run this on an existing shadcn-based React site and supported components become
-agent-operable without application-level WebMCP integration code.
+Run this on an existing shadcn-based React site. A component whose source is
+stock is upgraded automatically. A component that is recognised but has drifted
+from every known stock source is left untouched and named in the report; hand
+it over with `--overwrite`:
+
+```bash
+npx agent-ui migrate --overwrite
+```
+
+A component whose exports the replacement would not preserve is refused, and
+`--overwrite` does not override that. Either way the application writes no
+agent code and no call site changes. `migrate` accepts component names, so
+ownership can be handed over one component at a time:
+
+```bash
+npx agent-ui migrate checkbox --overwrite
+```
 
 ```bash
 npx agent-ui add data-table
