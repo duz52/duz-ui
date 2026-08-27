@@ -33,6 +33,7 @@ const PRESENTATION_COMPONENTS = new Set([
   "tooltip",
   "table",
   "label",
+  "pagination",
 ])
 
 const MIGRATABLE_NAMES = new Set(SIGNATURES.map((s) => s.name))

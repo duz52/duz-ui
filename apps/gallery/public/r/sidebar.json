@@ -29,11 +29,15 @@
     }
   ],
   "agentUi": {
-    "kind": "disclosure",
-    "actions": [
-      "open",
-      "close",
-      "toggle"
+    "capabilities": [
+      {
+        "kind": "disclosure",
+        "actions": [
+          "open",
+          "close",
+          "toggle"
+        ]
+      }
     ],
     "status": "agent-native"
   }

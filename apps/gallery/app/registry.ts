@@ -16,11 +16,13 @@ export interface GalleryItem {
   dependencies: string[]
   registryDependencies: string[]
   files: { path: string; content: string; target: string }[]
-  agentUi?: {
-    kind: string
-    actions: string[]
-    status: "agent-native" | "presentation" | "explicit-semantics"
-  }
+  agentUi?:
+    | {
+        capabilities: { kind: string; actions: string[] }[]
+        status: "agent-native"
+      }
+    | { status: "presentation" }
+    | { status: "explicit-semantics" }
 }
 
 const REGISTRY_INDEX = "registry.json"

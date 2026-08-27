@@ -21,10 +21,14 @@
     }
   ],
   "agentUi": {
-    "kind": "dialog",
-    "actions": [
-      "open",
-      "close"
+    "capabilities": [
+      {
+        "kind": "dialog",
+        "actions": [
+          "open",
+          "close"
+        ]
+      }
     ],
     "status": "agent-native"
   }

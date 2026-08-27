@@ -18,10 +18,14 @@
     }
   ],
   "agentUi": {
-    "kind": "input",
-    "actions": [
-      "set_value",
-      "clear"
+    "capabilities": [
+      {
+        "kind": "input",
+        "actions": [
+          "set_value",
+          "clear"
+        ]
+      }
     ],
     "status": "agent-native"
   }

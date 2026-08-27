@@ -21,9 +21,13 @@
     }
   ],
   "agentUi": {
-    "kind": "tabs",
-    "actions": [
-      "select"
+    "capabilities": [
+      {
+        "kind": "tabs",
+        "actions": [
+          "select"
+        ]
+      }
     ],
     "status": "agent-native"
   }

@@ -55,6 +55,14 @@ export function expectStringArray(input: unknown, field: string): string[] {
   return value as string[]
 }
 
+export function expectNumberArray(input: unknown, field: string): number[] {
+  const value = expectObject(input)[field]
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "number")) {
+    reject(`"${field}" must be an array of numbers.`)
+  }
+  return value as number[]
+}
+
 export function expectOneOf<T extends string>(
   value: string,
   allowed: readonly T[],

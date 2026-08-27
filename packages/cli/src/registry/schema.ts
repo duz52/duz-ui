@@ -8,16 +8,27 @@
 import { z } from "zod"
 
 /**
- * Agent capability metadata for a component. `kind` and `actions` exist only
- * for an agent-native component: a presentation-only component has no semantic
- * surface, and a business action's meaning is supplied by the application, not
- * by the component.
+ * Agent capability metadata for a component. `capabilities` exist only for an
+ * agent-native component: a presentation-only component has no semantic
+ * surface, and a business action's meaning is supplied by the application,
+ * not by the component. A single file may expose more than one capability
+ * (for example a dropdown menu whose root is a disclosure, whose checkbox
+ * item is a checkbox, and whose radio group is a select), so `capabilities`
+ * is always a list — even when a component exposes exactly one. There is no
+ * single-capability shorthand alongside it: two ways to say the same thing is
+ * how a data model starts lying.
  */
 export const agentUiMetaSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("agent-native"),
-    kind: z.string(),
-    actions: z.array(z.string()),
+    capabilities: z
+      .array(
+        z.object({
+          kind: z.string(),
+          actions: z.array(z.string()),
+        }),
+      )
+      .min(1),
   }),
   z.object({ status: z.literal("presentation") }),
   z.object({ status: z.literal("explicit-semantics") }),
