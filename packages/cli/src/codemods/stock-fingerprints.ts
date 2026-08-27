@@ -5,14 +5,26 @@
  */
 
 export const STOCK_FINGERPRINTS: Record<string, string[]> = {
+  "accordion": [
+    "1e5023f1396d824820b156ee1c7616c8f18c85f024ab7f5e13f1a1adad14c88e"
+  ],
+  "alert-dialog": [
+    "badc93be08bda16b229d8e085ed17b41ba17184bd9e7b09fa853f474af4020b9"
+  ],
   "button": [
     "a38223148f93974bbdf8b148037f47e76863a587030a4ef012265a9a3cf79284"
   ],
   "checkbox": [
     "0388888c89caea7c18f710775657531412e13d32634ca6afd79dbc143b8a2a23"
   ],
+  "collapsible": [
+    "e3fa1e37ee944c85da913968d096cae863b908838804371d6d1ee94af7dc00c2"
+  ],
   "dialog": [
     "3715d8d640364a0a3853ed3d88a39b72f0dc3b5a4ff337c0899f436cdb99afa0"
+  ],
+  "input-otp": [
+    "ae1dc0761812107f7f69197f1ffad1096221b0360f31047acd83847ab6ecd521"
   ],
   "input": [
     "8a27ea9e35ce088cd6e60b369b949de9cd16e8f39e4b449287e10a3f7d28e1d0"
@@ -20,13 +32,46 @@ export const STOCK_FINGERPRINTS: Record<string, string[]> = {
   "label": [
     "6fa2849dcebe1d76f608212f84adbd885a2bd69c0ebbe533108e7e6dbcb36f81"
   ],
+  "popover": [
+    "2ebfea05946a2162c497df7651ae045d779df024b3249523e1403d9becb08568"
+  ],
+  "radio-group": [
+    "8b676ed3183d65c1a7d17cd7e64cc6f56592358a09dc2312f7557f6d6803deb3"
+  ],
   "select": [
     "ee013964c28199b8a777f8d9075bb8bb779a628f3795c134e3b1f35f0bd5cfa6"
+  ],
+  "separator": [
+    "80dc0b46396fd18521378d512d1933c8da48e6877ed48a33c286bd2fb484bfc8"
+  ],
+  "sheet": [
+    "6097b37018782e5adbe4f7adc23ba4d81ad6b0b3fc5948a87f91903104ce6843"
+  ],
+  "sidebar": [
+    "be0f579de3d8b105f5310cd73758530e4268203a61d5a167fe80d3957140cae2"
+  ],
+  "skeleton": [
+    "c043cbb127469bdb4d69d676dbb29ab230edee147c3d87b067af91fa76821b7e"
+  ],
+  "slider": [
+    "e55a5dc06388df4cfb882fb2ad6c59ccd8af78641f7b55153041139bd597b86f"
+  ],
+  "switch": [
+    "85e754ec1e197b27d0288df9ac83b2ae66c5798f6d9c3f96585f279e5bde4a21"
   ],
   "table": [
     "bd162fa9723f26efe664c0845a74a8c55359fbb13ed3a964bc481d33646feb96"
   ],
   "tabs": [
     "59a2fe29d086fd1fd9cc4a87a2dd87d4861b54dded124c790845077a35038ebb"
+  ],
+  "textarea": [
+    "4bb9151be33a65ad20130b8f95bb0d3efe06cc58537daae46740536ad6171300"
+  ],
+  "toggle": [
+    "d17c4fe62536174c6ff18d6321a59ca9108a89d787dd2f92441a813553a36cf9"
+  ],
+  "tooltip": [
+    "db2756995e710e269e052872b895a8ef6e3864eeb7a142f88cdc379cb4e946dc"
   ]
 }

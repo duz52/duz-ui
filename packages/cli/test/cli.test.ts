@@ -17,7 +17,10 @@ const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, "../../..")
 const cli = join(repoRoot, "packages/cli/dist/index.js")
 const registry = join(repoRoot, "apps/gallery/public/r")
-const fixtures = join(here, "fixtures/shadcn")
+// The fingerprints are generated from these bytes; reading a copy would test a
+// copy that can silently drift from the source the fingerprints were computed
+// against.
+const fixtures = join(repoRoot, "docs/internal/reference/shadcn")
 
 function createProject(components: string[]): string {
   const dir = mkdtempSync(join(tmpdir(), "agent-ui-cli-"))
@@ -368,6 +371,55 @@ test("migrate accepts named components and leaves the rest alone", () => {
       result.output,
       /tabs/,
       "the report must not mention an un-named component",
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("migrate with a named component leaves other drifted components untouched", () => {
+  const dir = createProject(["checkbox", "tabs"])
+  const checkboxFile = join(dir, "src/components/ui/checkbox.tsx")
+  const tabsFile = join(dir, "src/components/ui/tabs.tsx")
+
+  // Drift both: change one class string in each so neither is a known stock
+  // source. Without --overwrite each would be reported as needs-overwrite.
+  const checkboxDrifted = readFileSync(checkboxFile, "utf8").replace(
+    "transition-shadow outline-none",
+    "transition-shadow outline-none bg-red-500",
+  )
+  writeFileSync(checkboxFile, checkboxDrifted)
+  const tabsDrifted = readFileSync(tabsFile, "utf8").replace(
+    "flex-1 outline-none",
+    "flex-1 outline-none bg-red-500",
+  )
+  writeFileSync(tabsFile, tabsDrifted)
+
+  try {
+    const result = run(dir, ["migrate", "checkbox", "--overwrite"])
+    assert.equal(result.status, 0, result.output)
+
+    // The named drifted component was replaced.
+    assert.match(
+      readFileSync(checkboxFile, "utf8"),
+      /useCapability/,
+      "the named drifted component must be replaced",
+    )
+
+    // The un-named drifted component is byte-identical to what was written.
+    assert.equal(
+      readFileSync(tabsFile, "utf8"),
+      tabsDrifted,
+      "a drifted component that was not named must be left untouched",
+    )
+
+    // --overwrite is scoped to what the developer named; a drifted component
+    // they did not name is not swept up by it, so the report does not mention
+    // it at all.
+    assert.doesNotMatch(
+      result.output,
+      /tabs/,
+      "the report must not mention a component the developer did not name",
     )
   } finally {
     rmSync(dir, { recursive: true, force: true })

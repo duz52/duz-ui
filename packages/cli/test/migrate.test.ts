@@ -5,24 +5,56 @@
 
 import { describe, it } from "node:test"
 import * as assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { planMigration, applyMigration } from "../src/codemods/index.js"
 import { classify } from "../src/codemods/classify.js"
+import { SIGNATURES } from "../src/codemods/signatures.js"
+import { loadProject } from "../src/project/config.js"
+import { rewriteAliases } from "../src/registry/install.js"
 import { withTempProject } from "./helpers.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const fixturesDir = join(__dirname, "fixtures", "shadcn")
-const agentUiFixturesDir = join(__dirname, "fixtures", "agent-ui")
+// The fingerprints in stock-fingerprints.ts are generated from these bytes,
+// so a test that reads anything else is testing a copy that can silently
+// drift from the source the fingerprints were computed against.
+const fixturesDir = join(__dirname, "../../../docs/internal/reference/shadcn")
 
 function readFixture(name: string): string {
   return readFileSync(join(fixturesDir, `${name}.tsx`), "utf8")
 }
 
-function readReplacement(name: string): string {
-  return readFileSync(join(agentUiFixturesDir, `${name}.tsx`), "utf8")
+/**
+ * Build a minimal replacement that carries the Agent UI runtime import and
+ * exports every name the signature requires. Derived from SIGNATURES so a
+ * signature added tomorrow is covered without anyone remembering to hand-write
+ * a matching stub. The stub is intentionally minimal — the recognition test
+ * checks that planMigration identifies known stock, not that the replacement is
+ * the real Agent UI implementation.
+ */
+function stubReplacement(name: string): string {
+  const signature = SIGNATURES.find((s) => s.name === name)
+  if (!signature) {
+    throw new Error(`No signature for "${name}"`)
+  }
+  const exports = [...signature.requiredExports, ...signature.internalDeclarations]
+  const functions = signature.requiredExports
+    .map((n) => `function ${n}() {\n  return null\n}`)
+    .join("\n")
+  const consts = signature.internalDeclarations
+    .map((n) => `const ${n} = null`)
+    .join("\n")
+  const body = [functions, consts].filter((s) => s.length > 0).join("\n")
+  return [
+    'import { useCapability } from "@/lib/agent-ui/use-capability"',
+    "",
+    body,
+    "",
+    `export { ${exports.join(", ")} }`,
+    "",
+  ].join("\n")
 }
 
 /**
@@ -47,18 +79,27 @@ const AGENT_UI_REPLACEMENT = [
 
 const RUNTIME_PREFIX = "@/lib/agent-ui/"
 
-function plan(
+/**
+ * Wraps `planMigration` with the same inputs the `agent-ui migrate` command
+ * supplies: the project config is loaded with `loadProject` against the
+ * temp project, never hand-constructed. A test that invents its own config
+ * is testing a fiction.
+ */
+async function plan(
+  dir: string,
   file: string,
   component: string,
-  replacement = readReplacement(component),
+  replacement = stubReplacement(component),
   overwrite = false,
 ) {
+  const config = await loadProject(dir)
   return planMigration({
     file,
     component,
     replacement,
     runtimeImportPrefix: RUNTIME_PREFIX,
     overwrite,
+    config,
   })
 }
 
@@ -67,19 +108,21 @@ describe("planMigration — recognition", () => {
     await withTempProject(
       { "components/ui/tabs.tsx": readFixture("tabs") },
       async (dir) => {
-        const outcome = plan(join(dir, "components/ui/tabs.tsx"), "tabs")
+        const outcome = await plan(dir, join(dir, "components/ui/tabs.tsx"), "tabs")
         assert.equal(outcome.status, "migrated")
       },
     )
   })
 
   it("recognises every migratable stock component", async () => {
-    const names = ["tabs", "select", "checkbox", "dialog", "input"]
+    // Derived from SIGNATURES so a signature added tomorrow is covered
+    // without anyone remembering to extend a hardcoded list.
+    const names = SIGNATURES.map((s) => s.name)
     for (const name of names) {
       await withTempProject(
         { [`components/ui/${name}.tsx`]: readFixture(name) },
         async (dir) => {
-          const outcome = plan(join(dir, `components/ui/${name}.tsx`), name)
+          const outcome = await plan(dir, join(dir, `components/ui/${name}.tsx`), name)
           assert.equal(outcome.status, "migrated", `${name} should be migratable`)
         },
       )
@@ -95,7 +138,7 @@ describe("planMigration — idempotence (spec section 18)", () => {
         const file = join(dir, "components/ui/tabs.tsx")
         const before = readFileSync(file, "utf8")
 
-        const outcome = plan(file, "tabs", AGENT_UI_REPLACEMENT)
+        const outcome = await plan(dir, file, "tabs", AGENT_UI_REPLACEMENT)
         assert.equal(outcome.status, "already-migrated")
 
         // applyMigration on a non-migrated outcome is a no-op.
@@ -121,7 +164,7 @@ describe("planMigration — locally modified is refused", () => {
         const file = join(dir, "components/ui/tabs.tsx")
         const before = readFileSync(file, "utf8")
 
-        const outcome = plan(file, "tabs")
+        const outcome = await plan(dir, file, "tabs")
         assert.equal(outcome.status, "unsupported")
         if (outcome.status === "unsupported") {
           assert.match(outcome.reason, /SelectSkeleton/)
@@ -143,7 +186,7 @@ describe("planMigration — missing export is refused", () => {
       { "components/ui/tabs.tsx": modified },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
-        const outcome = plan(file, "tabs")
+        const outcome = await plan(dir, file, "tabs")
         assert.equal(outcome.status, "unsupported")
         if (outcome.status === "unsupported") {
           assert.match(outcome.reason, /TabsContent/)
@@ -155,11 +198,12 @@ describe("planMigration — missing export is refused", () => {
 
 describe("recognition and compatibility are separate facts", () => {
   it("refuses a replacement that would drop an export", async () => {
-    const replacement = readReplacement("tabs").replace(", TabsContent", "")
+    const replacement = stubReplacement("tabs").replace(", TabsContent", "")
     await withTempProject(
       { "components/ui/tabs.tsx": readFixture("tabs") },
       async (dir) => {
-        const outcome = plan(
+        const outcome = await plan(
+          dir,
           join(dir, "components/ui/tabs.tsx"),
           "tabs",
           replacement,
@@ -182,7 +226,7 @@ describe("recognition and compatibility are separate facts", () => {
       { "components/ui/tabs.tsx": modified },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
-        const outcome = plan(file, "tabs")
+        const outcome = await plan(dir, file, "tabs")
         assert.equal(outcome.status, "unsupported")
         if (outcome.status === "unsupported") {
           assert.match(
@@ -213,10 +257,10 @@ describe("ownership gate", () => {
         const file = join(dir, "components/ui/checkbox.tsx")
         const before = readFileSync(file, "utf8")
 
-        const outcome = plan(file, "checkbox")
+        const outcome = await plan(dir, file, "checkbox")
         assert.equal(outcome.status, "needs-overwrite")
 
-        applyMigration(outcome, readReplacement("checkbox"))
+        applyMigration(outcome, stubReplacement("checkbox"))
 
         const after = readFileSync(file, "utf8")
         assert.equal(before, after)
@@ -229,7 +273,7 @@ describe("ownership gate", () => {
       { "components/ui/checkbox.tsx": driftedCheckbox },
       async (dir) => {
         const file = join(dir, "components/ui/checkbox.tsx")
-        const outcome = plan(file, "checkbox", readReplacement("checkbox"), true)
+        const outcome = await plan(dir, file, "checkbox", stubReplacement("checkbox"), true)
         assert.equal(outcome.status, "migrated")
       },
     )
@@ -246,7 +290,7 @@ describe("ownership gate", () => {
       { "components/ui/checkbox.tsx": driftedWithExtraExport },
       async (dir) => {
         const file = join(dir, "components/ui/checkbox.tsx")
-        const outcome = plan(file, "checkbox", readReplacement("checkbox"), true)
+        const outcome = await plan(dir, file, "checkbox", stubReplacement("checkbox"), true)
         assert.equal(outcome.status, "unsupported")
         if (outcome.status === "unsupported") {
           assert.match(outcome.reason, /Loader2/)
@@ -259,8 +303,62 @@ describe("ownership gate", () => {
     await withTempProject(
       { "components/ui/checkbox.tsx": readFixture("checkbox") },
       async (dir) => {
-        const outcome = plan(join(dir, "components/ui/checkbox.tsx"), "checkbox")
+        const outcome = await plan(dir, join(dir, "components/ui/checkbox.tsx"), "checkbox")
         assert.equal(outcome.status, "migrated")
+      },
+    )
+  })
+})
+
+describe("aliases are configuration, not drift", () => {
+  // A project whose components.json sets non-default aliases: utils → @/utils
+  // and ui → @/ui. The stock fixture's import specifiers are rewritten to
+  // match, the same way install.ts would when writing the file.
+  const nonDefaultAliases = JSON.stringify({
+    tsx: true,
+    aliases: { components: "@/components", ui: "@/ui", lib: "@/lib", utils: "@/utils" },
+  })
+
+  it("migrates a stock fixture whose imports use non-default aliases", async () => {
+    await withTempProject(
+      {
+        "components.json": nonDefaultAliases,
+        "components/ui/checkbox.tsx": readFixture("checkbox"),
+      },
+      async (dir) => {
+        const config = await loadProject(dir)
+        // Build the source by rewriting the fixture's specifiers, not by
+        // hand-writing a second copy.
+        const source = rewriteAliases(readFixture("checkbox"), config)
+        const file = join(dir, "components/ui/checkbox.tsx")
+        writeFileSync(file, source)
+
+        const outcome = await plan(dir, file, "checkbox", stubReplacement("checkbox"), false)
+        assert.equal(outcome.status, "migrated")
+      },
+    )
+  })
+
+  it("still reports needs-overwrite when a class string is changed under non-default aliases", async () => {
+    await withTempProject(
+      {
+        "components.json": nonDefaultAliases,
+        "components/ui/checkbox.tsx": readFixture("checkbox"),
+      },
+      async (dir) => {
+        const config = await loadProject(dir)
+        // Rewrite specifiers to non-default aliases, then introduce real drift
+        // by changing a class string. Canonicalising imports must not hide
+        // this real modification.
+        const source = rewriteAliases(
+          readFixture("checkbox").replace("rounded-[4px]", "rounded-lg"),
+          config,
+        )
+        const file = join(dir, "components/ui/checkbox.tsx")
+        writeFileSync(file, source)
+
+        const outcome = await plan(dir, file, "checkbox", stubReplacement("checkbox"), false)
+        assert.equal(outcome.status, "needs-overwrite")
       },
     )
   })

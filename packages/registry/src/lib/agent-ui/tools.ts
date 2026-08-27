@@ -107,6 +107,27 @@ const KIND_TOOLS: readonly KindToolDef[] = [
     inputSchema: {},
   },
   {
+    kind: "disclosure",
+    name: "disclosure_open",
+    action: "open",
+    description: "Open a collapsible or popover element.",
+    inputSchema: {},
+  },
+  {
+    kind: "disclosure",
+    name: "disclosure_close",
+    action: "close",
+    description: "Close a collapsible or popover element.",
+    inputSchema: {},
+  },
+  {
+    kind: "disclosure",
+    name: "disclosure_toggle",
+    action: "toggle",
+    description: "Toggle the open state of a collapsible or popover element.",
+    inputSchema: {},
+  },
+  {
     kind: "input",
     name: "input_set_value",
     action: "set_value",

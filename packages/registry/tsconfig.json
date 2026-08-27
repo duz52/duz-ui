@@ -12,6 +12,9 @@
       ],
       "@/components/ui/*": [
         "./src/ui/*"
+      ],
+      "@/hooks/*": [
+        "./src/hooks/*"
       ]
     }
   },

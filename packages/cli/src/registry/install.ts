@@ -1,15 +1,18 @@
 /**
  * Agent UI — registry install logic shared by `init`, `add` and `migrate`.
  *
- * `rewriteAliases` is the single place canonical registry aliases are mapped
- * onto the project's own aliases. `installItems` writes each file to its
+ * `rewriteAliases` maps canonical registry aliases onto the project's own
+ * aliases when writing files; `canonicaliseAliases` is its inverse, used by
+ * the migration codemod to fingerprint a project's files as if they used the
+ * canonical aliases. Both are driven by one rule list so the two directions
+ * can never drift apart. `installItems` writes each file to its
  * target path, reporting created / updated / unchanged / retained / refused,
  * and installs the union of the items' npm dependencies. Files under
  * `components/ui/` are project-owned once they land: a differing file is left
  * untouched (`refused`) unless `overwrite` is set, in which case it is rewritten
- * (`updated`). The runtime under `lib/agent-ui/` is ours and is always
- * create-or-overwrite. `lib/utils.ts` (see `PROJECT_OWNED_TARGETS`) is created
- * when missing but never rewritten.
+ * (`updated`). The runtime under `lib/agent-ui/` and hooks under `hooks/` are
+ * ours and are always create-or-overwrite. `lib/utils.ts` (see
+ * `PROJECT_OWNED_TARGETS`) is created when missing but never rewritten.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -42,17 +45,37 @@ export interface WrittenFile {
 }
 
 /**
- * Rewrite canonical registry aliases to the project's own aliases, in import
- * specifiers only. Longest prefix wins so `@/lib/agent-ui/` is matched before
- * `@/lib/utils`.
+ * Canonical-to-project alias rules, derived from the project config. Both
+ * `rewriteAliases` (canonical → project) and `canonicaliseAliases`
+ * (project → canonical) read from this list so the two directions can never
+ * drift apart.
+ *
+ * Each caller sorts longest-prefix-first on its own "from" side so the more
+ * specific rule always wins. This matters because `utils` is usually
+ * `@/lib/utils` and `lib` is usually `@/lib`: a rule keyed on the shorter
+ * `@/lib` prefix could shadow `@/lib/utils` if declaration order happened to
+ * put it first. The sort makes the precedence explicit rather than relying on
+ * the array happening to be in the right order.
  */
-export function rewriteAliases(content: string, config: ProjectConfig): string {
-  const rules: Array<[string, string]> = [
+function aliasRules(config: ProjectConfig): Array<[string, string]> {
+  return [
     ["@/lib/agent-ui/", `${config.aliases.lib}/agent-ui/`],
     ["@/components/ui/", `${config.aliases.ui}/`],
     ["@/lib/utils", config.aliases.utils],
+    ["@/hooks/", `${config.aliases.hooks}/`],
   ]
+}
 
+/**
+ * Rewrite `from "..."` import specifiers in `content` whose prefix matches a
+ * rule, replacing the matched prefix with the rule's target. Specifiers that
+ * match no rule are left untouched. Shared by `rewriteAliases` and
+ * `canonicaliseAliases` so both directions apply rules the same way.
+ */
+function rewriteSpecifiers(
+  content: string,
+  rules: Array<[string, string]>,
+): string {
   return content.replace(
     /(from\s+)(["'])([^"']+)\2/g,
     (match, keyword: string, quote: string, specifier: string) => {
@@ -64,6 +87,32 @@ export function rewriteAliases(content: string, config: ProjectConfig): string {
       return match
     },
   )
+}
+
+/**
+ * Rewrite canonical registry aliases to the project's own aliases, in import
+ * specifiers only. Longest canonical prefix wins so `@/lib/agent-ui/` is
+ * matched before `@/lib/utils`.
+ */
+export function rewriteAliases(content: string, config: ProjectConfig): string {
+  const rules = aliasRules(config).sort((a, b) => b[0].length - a[0].length)
+  return rewriteSpecifiers(content, rules)
+}
+
+/**
+ * Rewrite a project's own alias prefixes back to the canonical registry
+ * aliases, in import specifiers only — the inverse of `rewriteAliases`, over
+ * the same `from "..."` specifiers and nothing else. Used by the migration
+ * codemod to fingerprint a project's files as if they used the canonical
+ * aliases: an alias is project configuration, not evidence that a file was
+ * modified. A project using the canonical aliases already is unaffected —
+ * every rule is a no-op for it.
+ */
+export function canonicaliseAliases(content: string, config: ProjectConfig): string {
+  const rules = aliasRules(config)
+    .map(([canonical, project]) => [project, canonical] as [string, string])
+    .sort((a, b) => b[0].length - a[0].length)
+  return rewriteSpecifiers(content, rules)
 }
 
 /**
@@ -111,9 +160,9 @@ export async function installItems(
           // lands. Leave it untouched and let the caller decide what to do.
           status = "refused"
         } else {
-          // Runtime files (lib/agent-ui/) are ours: overwriting is how they
-          // are upgraded. A components/ui/ file reaches here only when the
-          // caller passed `overwrite`.
+          // Runtime files (lib/agent-ui/) and hooks (hooks/) are ours:
+          // overwriting is how they are upgraded. A components/ui/ file
+          // reaches here only when the caller passed `overwrite`.
           status = "updated"
           if (!dryRun) {
             writeFileSync(dest, content, "utf8")
@@ -142,7 +191,8 @@ export async function installItems(
 /**
  * Resolve a registry `target` (project-relative) to an absolute path.
  * `lib/...` maps under the `lib` alias's directory; `components/ui/...` maps
- * under the `ui` alias's directory.
+ * under the `ui` alias's directory; `hooks/...` maps under the `hooks`
+ * alias's directory.
  */
 function resolveTarget(target: string, config: ProjectConfig): string {
   // `utils` has its own alias, which a project may point somewhere other than
@@ -156,6 +206,9 @@ function resolveTarget(target: string, config: ProjectConfig): string {
   }
   if (target.startsWith("components/ui/")) {
     return join(config.resolved.ui, target.slice("components/ui/".length))
+  }
+  if (target.startsWith("hooks/")) {
+    return join(config.resolved.hooks, target.slice("hooks/".length))
   }
   throw new Error(`Unknown target path: ${target}`)
 }

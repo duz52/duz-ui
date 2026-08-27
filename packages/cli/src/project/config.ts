@@ -13,8 +13,8 @@ import { aliasToDir } from "./paths.js"
 export interface ProjectConfig {
   cwd: string
   tsx: boolean
-  aliases: { components: string; ui: string; lib: string; utils: string }
-  resolved: { ui: string; lib: string; utils: string }
+  aliases: { components: string; ui: string; lib: string; utils: string; hooks: string }
+  resolved: { ui: string; lib: string; utils: string; hooks: string }
   packageJsonPath: string
 }
 
@@ -48,6 +48,7 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
     ui: componentsJson.aliases?.ui ?? "@/components/ui",
     lib: componentsJson.aliases?.lib ?? "@/lib",
     utils: componentsJson.aliases?.utils ?? "@/lib/utils",
+    hooks: componentsJson.aliases?.hooks ?? "@/hooks",
   }
 
   const paths = readPaths(cwd)
@@ -56,12 +57,13 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
   const uiDir = resolveAliasPath(aliases.ui, paths, cwd)
   const utilsBase = resolveAliasPath(aliases.utils, paths, cwd)
   const utilsFile = resolveUtilsFile(utilsBase)
+  const hooksDir = resolveAliasPath(aliases.hooks, paths, cwd)
 
   return {
     cwd,
     tsx,
     aliases,
-    resolved: { ui: uiDir, lib: libDir, utils: utilsFile },
+    resolved: { ui: uiDir, lib: libDir, utils: utilsFile, hooks: hooksDir },
     packageJsonPath,
   }
 }

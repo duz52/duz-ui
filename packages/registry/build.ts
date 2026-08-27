@@ -10,7 +10,7 @@ const outputDir = resolve(__dirname, "..", "..", "apps", "gallery", "public", "r
 interface RegistryFile {
   path: string
   content: string
-  type: "registry:lib" | "registry:ui"
+  type: "registry:lib" | "registry:ui" | "registry:hook"
   target: string
 }
 
@@ -44,6 +44,9 @@ function fileMeta(src: string): { type: RegistryFile["type"]; target: string } {
   }
   if (src.startsWith("ui/")) {
     return { type: "registry:ui", target: `components/ui/${src.slice("ui/".length)}` }
+  }
+  if (src.startsWith("hooks/")) {
+    return { type: "registry:hook", target: src }
   }
   throw new Error(`Unrecognized source path: ${src}`)
 }
