@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": [
+      "webmcp-types",
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/*": [
+        "./src/lib/*"
+      ],
+      "@/components/ui/*": [
+        "./src/ui/*"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "build.ts"
+  ]
+}

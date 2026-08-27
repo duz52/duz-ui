@@ -1,0 +1,20 @@
+{
+  "name": "agent-ui-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build:registry": "pnpm --filter @agent-ui/registry build",
+    "build:cli": "pnpm --filter agent-ui build",
+    "sync:gallery": "pnpm build:registry && pnpm build:cli && node scripts/sync-gallery.mjs",
+    "build": "pnpm sync:gallery && pnpm --filter gallery build",
+    "dev": "pnpm --filter gallery dev",
+    "deploy": "pnpm build && pnpm --filter gallery exec wrangler deploy",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "verify": "pnpm sync:gallery && pnpm typecheck && pnpm test && pnpm --filter gallery build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
