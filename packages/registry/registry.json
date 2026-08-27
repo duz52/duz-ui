@@ -1,0 +1,246 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "agent-ui",
+  "homepage": "https://agent-ui.dev",
+  "items": [
+    {
+      "name": "agent-ui-runtime",
+      "type": "registry:lib",
+      "title": "Agent UI Runtime",
+      "description": "The capability kernel, registry, WebMCP bridge and hooks that every agent-native component binds to.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "sources": [
+        "lib/agent-ui/agent-action.tsx",
+        "lib/agent-ui/agent-provider.tsx",
+        "lib/agent-ui/capability.ts",
+        "lib/agent-ui/registry.ts",
+        "lib/agent-ui/tools.ts",
+        "lib/agent-ui/use-capabilities.ts",
+        "lib/agent-ui/use-capability.ts",
+        "lib/agent-ui/use-controllable-state.ts",
+        "lib/agent-ui/validate.ts",
+        "lib/agent-ui/webmcp.ts"
+      ]
+    },
+    {
+      "name": "utils",
+      "type": "registry:lib",
+      "title": "Utils",
+      "description": "The cn helper that merges Tailwind class names, required by every component.",
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "registryDependencies": [],
+      "sources": [
+        "lib/utils.ts"
+      ]
+    },
+    {
+      "name": "button",
+      "type": "registry:ui",
+      "title": "Button",
+      "description": "A polymorphic button with variant and size presets, styled for agent-driven interfaces.",
+      "dependencies": [
+        "radix-ui",
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/button.tsx"
+      ],
+      "agentUi": {
+        "status": "explicit-semantics"
+      }
+    },
+    {
+      "name": "label",
+      "type": "registry:ui",
+      "title": "Label",
+      "description": "An accessible form label built on Radix Label.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/label.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "table",
+      "type": "registry:ui",
+      "title": "Table",
+      "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/table.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "tabs",
+      "type": "registry:ui",
+      "title": "Tabs",
+      "description": "A tabbed container whose active tab is readable and selectable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/tabs.tsx"
+      ],
+      "agentUi": {
+        "kind": "tabs",
+        "actions": [
+          "select"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "select",
+      "type": "registry:ui",
+      "title": "Select",
+      "description": "A dropdown select whose chosen value and options are readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/select.tsx"
+      ],
+      "agentUi": {
+        "kind": "select",
+        "actions": [
+          "choose",
+          "clear"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "checkbox",
+      "type": "registry:ui",
+      "title": "Checkbox",
+      "description": "A checkbox whose checked state is readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/checkbox.tsx"
+      ],
+      "agentUi": {
+        "kind": "checkbox",
+        "actions": [
+          "set"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "dialog",
+      "type": "registry:ui",
+      "title": "Dialog",
+      "description": "A modal dialog whose open state and title are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "button"
+      ],
+      "sources": [
+        "ui/dialog.tsx"
+      ],
+      "agentUi": {
+        "kind": "dialog",
+        "actions": [
+          "open",
+          "close"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "input",
+      "type": "registry:ui",
+      "title": "Input",
+      "description": "A text input whose value is readable and settable by an agent through the native value channel.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/input.tsx"
+      ],
+      "agentUi": {
+        "kind": "input",
+        "actions": [
+          "set_value",
+          "clear"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "data-table",
+      "type": "registry:ui",
+      "title": "DataTable",
+      "description": "A TanStack-powered data table exposing filter, sort, row selection, pagination and column visibility to an agent.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "table",
+        "button",
+        "checkbox"
+      ],
+      "sources": [
+        "ui/data-table.tsx"
+      ],
+      "agentUi": {
+        "kind": "data-table",
+        "actions": [
+          "filter",
+          "sort",
+          "select_rows",
+          "set_page",
+          "set_column_visibility"
+        ],
+        "status": "agent-native"
+      }
+    }
+  ]
+}
