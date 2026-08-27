@@ -78,23 +78,40 @@ program
   .argument("<components...>", "components to install, e.g. data-table")
   .description("Install agent-native components.")
   .option("--dry-run", "print the plan without writing anything")
+  .option("--overwrite", "overwrite project-owned component files that differ")
   .option(...YES)
   .action(
-    guard(async (components: string[], options: { dryRun?: boolean }) => {
-      const { cwd, registry } = globals()
-      await addCommand(components, { cwd, registry, dryRun: options.dryRun })
-    }),
+    guard(
+      async (
+        components: string[],
+        options: { dryRun?: boolean; overwrite?: boolean },
+      ) => {
+        const { cwd, registry } = globals()
+        await addCommand(components, {
+          cwd,
+          registry,
+          dryRun: options.dryRun,
+          overwrite: options.overwrite,
+        })
+      },
+    ),
   )
 
 program
   .command("migrate")
   .description("Upgrade supported shadcn components in place.")
   .option("--dry-run", "print the plan without writing anything")
+  .option("--overwrite", "replace recognised components whose source differs from known stock")
   .option(...YES)
   .action(
-    guard(async (options: { dryRun?: boolean }) => {
+    guard(async (options: { dryRun?: boolean; overwrite?: boolean }) => {
       const { cwd, registry } = globals()
-      await migrateCommand({ cwd, registry, dryRun: options.dryRun })
+      await migrateCommand({
+        cwd,
+        registry,
+        dryRun: options.dryRun,
+        overwrite: options.overwrite,
+      })
     }),
   )
 

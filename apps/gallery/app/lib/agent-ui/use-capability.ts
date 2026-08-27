@@ -83,8 +83,10 @@ export function useCapability<
 
   const config = resolveConfig(agent)
   // The binding asks the runtime for the registry and knows nothing about
-  // any protocol.
-  const { registry } = getAgentUIRuntime()
+  // any protocol. Lookup is pure: it creates the runtime object and connects
+  // nothing.
+  const runtime = getAgentUIRuntime()
+  const { registry } = runtime
   const generatedId = registry.createId(kind, React.useId())
   const id = config ? (config.id ?? generatedId) : undefined
   const label = config?.label ?? defaultLabel
@@ -133,6 +135,10 @@ export function useCapability<
   React.useEffect(() => {
     if (!id) return
 
+    // The adapter is connected because a capability committed, so a
+    // discarded render connects nothing and `agent={false}` connects nothing.
+    runtime.activate()
+
     const capability: Capability<State, Actions> = {
       id,
       kind,
@@ -162,7 +168,7 @@ export function useCapability<
       unregister()
       setRegistered(false)
     }
-  }, [registry, id, kind, label, actionNames, waitForCommit])
+  }, [runtime, registry, id, kind, label, actionNames, waitForCommit])
 
   return { id, registered }
 }
