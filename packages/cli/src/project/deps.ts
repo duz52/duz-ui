@@ -59,8 +59,7 @@ export async function ensureDependencies(
   if (result.status !== 0) {
     // Reporting these as installed would be a lie the next build would expose.
     throw new Error(
-      `The component files are written, but installing their dependencies failed. ` +
-        `Install them yourself: ${command} ${args.join(" ")} ${missing.join(" ")}`,
+      `Could not install dependencies. Install them with: ${command} ${args.join(" ")} ${missing.join(" ")}`,
     )
   }
   return missing

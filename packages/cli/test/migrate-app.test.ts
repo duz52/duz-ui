@@ -74,7 +74,7 @@ interface MigrationResult {
  * migrated items — their npm deps are pre-satisfied in the fixture, and a
  * test that reaches the network is not a test.
  */
-async function runMigration(dir: string): Promise<MigrationResult> {
+async function runMigration(dir: string, overwrite: boolean = false): Promise<MigrationResult> {
   const config = await loadProject(dir)
   const client = createRegistryClient(registryDir)
 
@@ -133,6 +133,7 @@ async function runMigration(dir: string): Promise<MigrationResult> {
       component,
       replacement,
       runtimeImportPrefix,
+      overwrite,
     })
     results.push({ outcome, replacement })
   }
@@ -166,31 +167,57 @@ function snapshotSrc(dir: string): Map<string, string> {
 }
 
 describe("migrate against a legacy shadcn app", () => {
-  it("recognises the older generation, migrates it, and preserves project-owned code", async () => {
+  it("recognises the older generation as needs-overwrite and leaves bytes unchanged", async () => {
     await withTempProject(readFixtureFiles(), async (dir) => {
+      const uiDir = join(dir, "src/components/ui")
+      const before = new Map<string, string>()
+      for (const name of readdirSync(uiDir)) {
+        before.set(name, readFileSync(join(uiDir, name), "utf8"))
+      }
+
       const first = await runMigration(dir)
 
-      // 1. tabs, checkbox and select are all migrated — the older generation
-      //    (scoped imports, no tabsListVariants) is recognised.
-      assert.equal(first.outcomes.get("tabs")?.status, "migrated")
-      assert.equal(first.outcomes.get("checkbox")?.status, "migrated")
-      assert.equal(first.outcomes.get("select")?.status, "migrated")
+      // 1. tabs, checkbox and select are needs-overwrite — the older
+      //    generation is recognised but its source differs from known stock.
+      assert.equal(first.outcomes.get("tabs")?.status, "needs-overwrite")
+      assert.equal(first.outcomes.get("checkbox")?.status, "needs-overwrite")
+      assert.equal(first.outcomes.get("select")?.status, "needs-overwrite")
 
       // 2. card is presentation and button is explicit-semantics.
       assert.equal(first.outcomes.get("card")?.status, "presentation")
       assert.equal(first.outcomes.get("button")?.status, "explicit-semantics")
 
-      // 3. The app's own extra function in lib/utils.ts survives migration.
-      //    This is the regression test for a bug that deleted three functions
-      //    from a real project's utils.ts.
+      // 3. No component file may change on a plain run.
+      for (const [name, content] of before) {
+        assert.equal(
+          readFileSync(join(uiDir, name), "utf8"),
+          content,
+          `component ${name} must be left untouched`,
+        )
+      }
+    })
+  })
+
+  it("with overwrite, migrates the older generation and preserves project-owned code", async () => {
+    await withTempProject(readFixtureFiles(), async (dir) => {
+      const result = await runMigration(dir, true)
+
+      // tabs, checkbox and select migrate when overwrite is given.
+      assert.equal(result.outcomes.get("tabs")?.status, "migrated")
+      assert.equal(result.outcomes.get("checkbox")?.status, "migrated")
+      assert.equal(result.outcomes.get("select")?.status, "migrated")
+
+      // The app's own extra function in lib/utils.ts survives migration.
+      // This is the regression test for a bug that deleted three functions
+      // from a real project's utils.ts.
       const utilsContent = readFileSync(join(dir, "src/lib/utils.ts"), "utf8")
       assert.match(utilsContent, /formatPrice/, "project-owned code in utils.ts must survive migration")
     })
   })
 
-  it("is idempotent — a second pass yields zero migrated outcomes and byte-identical files", async () => {
+  it("is idempotent — a second pass after overwrite yields zero migrated outcomes and byte-identical files", async () => {
     await withTempProject(readFixtureFiles(), async (dir) => {
-      await runMigration(dir)
+      await runMigration(dir, true)
       const snapshot = snapshotSrc(dir)
 
       const second = await runMigration(dir)

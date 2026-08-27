@@ -14,9 +14,12 @@
 import { Project, SyntaxKind, type SourceFile } from "ts-morph"
 import { writeFileSync } from "node:fs"
 import { SIGNATURES, type ComponentSignature } from "./signatures.js"
+import { fingerprintSource } from "./fingerprint.js"
+import { STOCK_FINGERPRINTS } from "./stock-fingerprints.js"
 
 export type MigrationOutcome =
   | { status: "migrated"; component: string; file: string }
+  | { status: "needs-overwrite"; component: string; file: string }
   | { status: "already-migrated"; component: string; file: string }
   | { status: "unsupported"; component: string; file: string; reason: string }
   | { status: "presentation"; component: string }
@@ -32,6 +35,11 @@ export interface MigrateFileInput {
   replacement: string
   /** Alias prefix that identifies an installed Agent UI runtime import. */
   runtimeImportPrefix: string
+  /**
+   * Permission to replace a supported but customised implementation. Defaults
+   * to false, which leaves the file untouched and reports `needs-overwrite`.
+   */
+  overwrite?: boolean
 }
 
 function findSignature(name: string): ComponentSignature | undefined {
@@ -39,17 +47,13 @@ function findSignature(name: string): ComponentSignature | undefined {
 }
 
 /**
- * Decide whether `sourceFile` is unmodified stock shadcn output for the
- * component described by `signature` — a fact about the file alone, with no
- * reference to the replacement. Returns `undefined` when the file is stock, or
- * the reason string when it is not.
- *
- * Checks, in order: every required export is present; exactly one import from
- * an allowed primitive module (when the signature declares one); and every
- * top-level statement is a stock construct (imports, re-exports, allowed
- * function/variable declarations, and prologue string directives).
+ * Is this a shadcn component family we support? Returns `undefined` when the
+ * file has every required export, exactly one primitive import (when the
+ * signature declares one) and only stock top-level declarations, or the
+ * reason string when it does not. A fact about the file alone, with no
+ * reference to the replacement.
  */
-function recognizeStockSource(
+function recognizeCandidate(
   sourceFile: SourceFile,
   signature: ComponentSignature,
 ): string | undefined {
@@ -118,13 +122,13 @@ function recognizeStockSource(
 }
 
 /**
- * Decide whether `replacement` can stand in for `sourceFile` without losing a
- * public name — a fact about the pair, with no reference to whether the file
- * is stock. Returns `undefined` when every export of the file is also exported
- * by the replacement, or the reason string naming the first export the
- * replacement drops. The replacement is parsed in memory.
+ * Does the public contract survive the swap? Returns `undefined` when every
+ * export of the file is also exported by the replacement, or the reason
+ * string naming the first export the replacement drops. A fact about the
+ * pair, with no reference to whether the file is stock. The replacement is
+ * parsed in memory.
  */
-function replacementIsCompatible(
+function replacementPreservesExports(
   sourceFile: SourceFile,
   replacement: string,
 ): string | undefined {
@@ -146,6 +150,21 @@ function replacementIsCompatible(
 }
 
 /**
+ * Do we know this exact source? Returns `true` when the fingerprint of the
+ * file's full text is among the stock fingerprints recorded for `component`.
+ * A component with no recorded fingerprints is not known stock, so the answer
+ * is `false`.
+ */
+function matchesKnownStock(
+  sourceFile: SourceFile,
+  component: string,
+): boolean {
+  const known = STOCK_FINGERPRINTS[component]
+  if (!known) return false
+  return known.includes(fingerprintSource(sourceFile.getFullText()))
+}
+
+/**
  * Decide what migration should do with a single file. The decision is purely
  * syntactic — no type checking, no tsconfig needed. The file is parsed fresh
  * from disk each call so the outcome always reflects the current bytes.
@@ -155,16 +174,16 @@ function replacementIsCompatible(
  *    This runs before a signature is looked up because it is a fact about the
  *    file's history, not about either fact below.
  * 2. Signature lookup — no signature for the component means `unknown`.
- * 3. Recognition (`recognizeStockSource`) — a reason means the file is not
- *    stock shadcn output, so the outcome is `unsupported`.
- * 4. Compatibility (`replacementIsCompatible`) — a reason means the replacement
- *    would drop an export, so the outcome is `unsupported`.
- * 5. `migrated`.
- *
- * Recognition runs before compatibility because recognition failing means the
- * developer changed the file — the more actionable diagnosis — whereas
- * reaching compatibility means the file is stock, so a failure there is a
- * defect in the Agent UI registry item rather than in the user's project.
+ * 3. `recognizeCandidate` — a reason means the file is not a shadcn component
+ *    family we support, so the outcome is `unsupported`.
+ * 4. `replacementPreservesExports` — a reason means the replacement would drop
+ *    an export, so the outcome is `unsupported`. This step sits before step 5
+ *    deliberately: the flag can never buy an API break.
+ * 5. `matchesKnownStock` — the file is unmodified stock, so the outcome is
+ *    `migrated`.
+ * 6. Otherwise the file is a supported family with a customised implementation:
+ *    `overwrite` true replaces it (`migrated`), false leaves it
+ *    (`needs-overwrite`).
  */
 export function planMigration(input: MigrateFileInput): MigrationOutcome {
   const { file, component, runtimeImportPrefix } = input
@@ -198,35 +217,42 @@ export function planMigration(input: MigrateFileInput): MigrationOutcome {
     return { status: "unknown", component }
   }
 
-  // 3. Recognition — a reason means the file is not stock shadcn output.
-  const recognitionReason = recognizeStockSource(sourceFile, signature)
-  if (recognitionReason) {
-    return { status: "unsupported", component, file, reason: recognitionReason }
+  // 3. Candidate recognition — a reason means the file is not a supported
+  //    shadcn component family.
+  const candidateReason = recognizeCandidate(sourceFile, signature)
+  if (candidateReason) {
+    return { status: "unsupported", component, file, reason: candidateReason }
   }
 
-  // 4. Compatibility — a reason means the replacement would drop an export.
-  const compatibilityReason = replacementIsCompatible(
-    sourceFile,
-    input.replacement,
-  )
-  if (compatibilityReason) {
-    return {
-      status: "unsupported",
-      component,
-      file,
-      reason: compatibilityReason,
-    }
+  // 4. Export preservation — a reason means the replacement would drop an
+  //    export. `--overwrite` is permission to replace an implementation, never
+  //    permission to break the project's public API, so an export that the
+  //    replacement would remove is refused no matter what the flag says.
+  const exportReason = replacementPreservesExports(sourceFile, input.replacement)
+  if (exportReason) {
+    return { status: "unsupported", component, file, reason: exportReason }
   }
 
-  // 5. The file is stock and the replacement covers it.
-  return { status: "migrated", component, file }
+  // 5. Known stock source — the file is unmodified shadcn output, so replace it.
+  if (matchesKnownStock(sourceFile, component)) {
+    return { status: "migrated", component, file }
+  }
+
+  // 6. Supported family with a customised implementation. `overwrite` grants
+  //    permission to replace the implementation; without it the file is left
+  //    for the user to decide.
+  if (input.overwrite) {
+    return { status: "migrated", component, file }
+  }
+  return { status: "needs-overwrite", component, file }
 }
 
 /**
  * Write the replacement to disk for a `migrated` outcome. Performs no
  * transformation — the replacement was already alias-rewritten by the caller.
  * For every other status this is a no-op, which is what makes migration
- * idempotent: an already-migrated or unsupported file is never rewritten.
+ * idempotent: an already-migrated, needs-overwrite or unsupported file is
+ * never rewritten.
  */
 export function applyMigration(
   outcome: MigrationOutcome,

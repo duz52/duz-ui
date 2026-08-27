@@ -3,9 +3,13 @@
  *
  * `rewriteAliases` is the single place canonical registry aliases are mapped
  * onto the project's own aliases. `installItems` writes each file to its
- * target path, reporting created / updated / unchanged / retained, and
- * installs the union of the items' npm dependencies. Project-owned targets
- * (see `PROJECT_OWNED_TARGETS`) are created when missing but never rewritten.
+ * target path, reporting created / updated / unchanged / retained / refused,
+ * and installs the union of the items' npm dependencies. Files under
+ * `components/ui/` are project-owned once they land: a differing file is left
+ * untouched (`refused`) unless `overwrite` is set, in which case it is rewritten
+ * (`updated`). The runtime under `lib/agent-ui/` is ours and is always
+ * create-or-overwrite. `lib/utils.ts` (see `PROJECT_OWNED_TARGETS`) is created
+ * when missing but never rewritten.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -16,11 +20,25 @@ import type { RegistryItem } from "./schema.js"
 
 export interface InstallOptions {
   dryRun?: boolean
+  /**
+   * When true, a differing `components/ui/` file is rewritten as `updated`.
+   * When false (the default), it is left untouched and reported as `refused`.
+   */
+  overwrite?: boolean
 }
 
 export interface WrittenFile {
+  /**
+   * `created` — the file did not exist and was written.
+   * `updated` — the file existed and differed; it was rewritten.
+   * `unchanged` — the file existed and was byte-identical.
+   * `retained` — a project-owned target (`lib/utils.ts`) that already
+   *   existed; never rewritten.
+   * `refused` — a project-owned `components/ui/` file that differed and was
+   *   left untouched because `overwrite` was not set.
+   */
   target: string
-  status: "created" | "updated" | "unchanged" | "retained"
+  status: "created" | "updated" | "unchanged" | "retained" | "refused"
 }
 
 /**
@@ -62,6 +80,7 @@ export async function installItems(
   options?: InstallOptions,
 ): Promise<{ files: WrittenFile[]; installedDependencies: string[] }> {
   const dryRun = options?.dryRun ?? false
+  const overwrite = options?.overwrite ?? false
   const files: WrittenFile[] = []
 
   for (const item of items) {
@@ -72,7 +91,7 @@ export async function installItems(
 
       let status: WrittenFile["status"]
       if (PROJECT_OWNED_TARGETS.has(file.target) && exists) {
-        // Project-owned: leave an existing file alone.
+        // Project-owned utils: leave an existing file alone.
         status = "retained"
       } else if (!exists) {
         status = "created"
@@ -84,7 +103,17 @@ export async function installItems(
         const existing = readFileSync(dest, "utf8")
         if (existing === content) {
           status = "unchanged"
+        } else if (
+          file.target.startsWith("components/ui/") &&
+          !overwrite
+        ) {
+          // Project-owned component: the project owns this file once it
+          // lands. Leave it untouched and let the caller decide what to do.
+          status = "refused"
         } else {
+          // Runtime files (lib/agent-ui/) are ours: overwriting is how they
+          // are upgraded. A components/ui/ file reaches here only when the
+          // caller passed `overwrite`.
           status = "updated"
           if (!dryRun) {
             writeFileSync(dest, content, "utf8")

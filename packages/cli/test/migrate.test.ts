@@ -51,12 +51,14 @@ function plan(
   file: string,
   component: string,
   replacement = readReplacement(component),
+  overwrite = false,
 ) {
   return planMigration({
     file,
     component,
     replacement,
     runtimeImportPrefix: RUNTIME_PREFIX,
+    overwrite,
   })
 }
 
@@ -188,6 +190,77 @@ describe("recognition and compatibility are separate facts", () => {
             /unexpected top-level declaration "myHelper"/,
           )
         }
+      },
+    )
+  })
+})
+
+describe("ownership gate", () => {
+  // Drift is produced by changing one Tailwind class string in the vendored
+  // stock fixture, not by hand-writing a second copy of the component. The
+  // fingerprint is sensitive to class-string changes, so this is no longer
+  // known stock; the exports and top-level declarations are unchanged, so it
+  // is still a recognised candidate with a preserved public contract.
+  const driftedCheckbox = readFixture("checkbox").replace(
+    "rounded-[4px]",
+    "rounded-lg",
+  )
+
+  it("reports needs-overwrite for a drifted stock file and leaves bytes unchanged", async () => {
+    await withTempProject(
+      { "components/ui/checkbox.tsx": driftedCheckbox },
+      async (dir) => {
+        const file = join(dir, "components/ui/checkbox.tsx")
+        const before = readFileSync(file, "utf8")
+
+        const outcome = plan(file, "checkbox")
+        assert.equal(outcome.status, "needs-overwrite")
+
+        applyMigration(outcome, readReplacement("checkbox"))
+
+        const after = readFileSync(file, "utf8")
+        assert.equal(before, after)
+      },
+    )
+  })
+
+  it("migrates the same drifted file when overwrite is true", async () => {
+    await withTempProject(
+      { "components/ui/checkbox.tsx": driftedCheckbox },
+      async (dir) => {
+        const file = join(dir, "components/ui/checkbox.tsx")
+        const outcome = plan(file, "checkbox", readReplacement("checkbox"), true)
+        assert.equal(outcome.status, "migrated")
+      },
+    )
+  })
+
+  it("refuses a drifted file that exports a name the replacement drops, even with overwrite", async () => {
+    // Re-exporting an extra name from an external module keeps the file a
+    // recognised candidate (export declarations are always allowed and the
+    // primitive-import count is unchanged) while breaking export preservation.
+    const driftedWithExtraExport =
+      driftedCheckbox + '\nexport { Loader2 } from "lucide-react"\n'
+
+    await withTempProject(
+      { "components/ui/checkbox.tsx": driftedWithExtraExport },
+      async (dir) => {
+        const file = join(dir, "components/ui/checkbox.tsx")
+        const outcome = plan(file, "checkbox", readReplacement("checkbox"), true)
+        assert.equal(outcome.status, "unsupported")
+        if (outcome.status === "unsupported") {
+          assert.match(outcome.reason, /Loader2/)
+        }
+      },
+    )
+  })
+
+  it("migrates an untouched stock file without any flag", async () => {
+    await withTempProject(
+      { "components/ui/checkbox.tsx": readFixture("checkbox") },
+      async (dir) => {
+        const outcome = plan(join(dir, "components/ui/checkbox.tsx"), "checkbox")
+        assert.equal(outcome.status, "migrated")
       },
     )
   })

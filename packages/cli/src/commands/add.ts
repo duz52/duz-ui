@@ -10,13 +10,14 @@ import { loadProject } from "../project/config.js"
 import { createRegistryClient, defaultRegistrySource } from "../registry/client.js"
 import { installItems } from "../registry/install.js"
 import type { AgentUiMeta, RegistryItem } from "../registry/schema.js"
-import { blank, info, step, title } from "../ui/log.js"
+import { blank, info, step, title, warn } from "../ui/log.js"
 import { reportDependencies, reportFiles } from "./init.js"
 
 export interface AddOptions {
   cwd?: string
   dryRun?: boolean
   registry?: string
+  overwrite?: boolean
 }
 
 /** One line describing what an installed component gives an agent. */
@@ -36,7 +37,8 @@ export async function addCommand(
   components: string[],
   options: AddOptions = {},
 ): Promise<void> {
-  const { cwd = process.cwd(), dryRun = false, registry } = options
+  const { cwd = process.cwd(), dryRun = false, registry, overwrite = false } =
+    options
 
   const config = await loadProject(cwd)
   const client = createRegistryClient(registry ?? defaultRegistrySource())
@@ -58,12 +60,27 @@ export async function addCommand(
   }
 
   const items = await client.resolve(components)
-  const result = await installItems(config, items, { dryRun })
+  const result = await installItems(config, items, { dryRun, overwrite })
+
+  const refused = result.files.filter((f) => f.status === "refused")
+  const reported = result.files.filter((f) => f.status !== "refused")
 
   title(dryRun ? "Agent UI add (dry run)" : "Agent UI add")
   blank()
-  reportFiles(result.files)
+  reportFiles(reported)
   reportDependencies(result.installedDependencies)
+
+  if (refused.length > 0) {
+    blank()
+    info("Project-owned files left untouched:")
+    for (const file of refused) {
+      warn(`  ${file.target}`)
+    }
+    blank()
+    warn("Run with --overwrite to replace them.")
+    process.exitCode = 1
+    return
+  }
 
   blank()
   info("Agent capabilities")

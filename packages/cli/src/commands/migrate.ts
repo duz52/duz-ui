@@ -10,8 +10,13 @@
  *    aliases to the project's aliases, and run `planMigration` to decide
  *    whether the file is stock (→ replace), already migrated (→ skip), or
  *    locally modified (→ refuse).
- * 3. Apply every `migrated` outcome unless `--dry-run`.
- * 4. Install the union of migrated items' npm dependencies.
+ * 3. Collect the `registryDependencies` of every migrated item, resolve them,
+ *    and install them with `installItems` (no overwrite) so a missing
+ *    dependency is created before the migrated file needs it. This runs before
+ *    `applyMigration` so a failure to obtain a dependency stops the migration
+ *    rather than leaving it half-applied.
+ * 4. Apply every `migrated` outcome unless `--dry-run`.
+ * 5. Install the union of migrated items' npm dependencies.
  *
  * The runtime (capability kernel + WebMCP adapter + utils) is installed first,
  * because migrated components import from it and would not compile without it.
@@ -31,12 +36,13 @@ import { ensureDependencies } from "../project/deps.js"
 import { createRegistryClient, defaultRegistrySource } from "../registry/client.js"
 import { installItems, rewriteAliases } from "../registry/install.js"
 import type { RegistryItem } from "../registry/schema.js"
-import { blank, error, info, success, title, warn } from "../ui/log.js"
+import { blank, error, info, step, success, title, warn } from "../ui/log.js"
 
 export interface MigrateOptions {
   cwd?: string
   dryRun?: boolean
   registry?: string
+  overwrite?: boolean
 }
 
 interface FileResult {
@@ -52,7 +58,12 @@ function line(name: string, description: string, columnWidth: number): string {
   return `- ${name.padEnd(columnWidth)}${description}`
 }
 
-function printReport(results: FileResult[], dryRun: boolean): void {
+function printReport(
+  results: FileResult[],
+  createdDependencyTargets: string[],
+  dryRun: boolean,
+  overwrite: boolean,
+): void {
   const longestName = results.reduce(
     (max, r) => Math.max(max, r.outcome.component.length),
     0,
@@ -61,6 +72,7 @@ function printReport(results: FileResult[], dryRun: boolean): void {
 
   const migrated: Extract<MigrationOutcome, { status: "migrated" }>[] = []
   const alreadyMigrated: Extract<MigrationOutcome, { status: "already-migrated" }>[] = []
+  const needsOverwrite: Extract<MigrationOutcome, { status: "needs-overwrite" }>[] = []
   const unsupported: Extract<MigrationOutcome, { status: "unsupported" }>[] = []
   const presentation: Extract<MigrationOutcome, { status: "presentation" }>[] = []
   const explicitSemantics: Extract<MigrationOutcome, { status: "explicit-semantics" }>[] = []
@@ -70,6 +82,9 @@ function printReport(results: FileResult[], dryRun: boolean): void {
     switch (outcome.status) {
       case "migrated":
         migrated.push(outcome)
+        break
+      case "needs-overwrite":
+        needsOverwrite.push(outcome)
         break
       case "already-migrated":
         alreadyMigrated.push(outcome)
@@ -107,6 +122,15 @@ function printReport(results: FileResult[], dryRun: boolean): void {
     printedAny = true
   }
 
+  if (needsOverwrite.length > 0) {
+    if (printedAny) blank()
+    info("Needs overwrite:")
+    for (const o of needsOverwrite) {
+      warn(line(o.component, "source differs from known stock", columnWidth))
+    }
+    printedAny = true
+  }
+
   const skipped = [...presentation, ...explicitSemantics, ...unknown]
   if (skipped.length > 0) {
     if (printedAny) blank()
@@ -123,15 +147,30 @@ function printReport(results: FileResult[], dryRun: boolean): void {
     printedAny = true
   }
 
+  if (createdDependencyTargets.length > 0) {
+    if (printedAny) blank()
+    info(
+      dryRun ? "Dependencies that would be created:" : "Dependencies created:",
+    )
+    for (const target of createdDependencyTargets) {
+      step(target)
+    }
+    printedAny = true
+  }
+
   if (printedAny) blank()
   const count = migrated.length
   const noun = count === 1 ? "component" : "components"
   const verb = dryRun ? "would be upgraded" : "upgraded"
   info(`${count} ${noun} ${verb}`)
+
+  if (needsOverwrite.length > 0 && !overwrite) {
+    info("Run with --overwrite to replace the components listed above.")
+  }
 }
 
 export async function migrateCommand(options: MigrateOptions = {}): Promise<void> {
-  const { cwd = process.cwd(), dryRun = false, registry } = options
+  const { cwd = process.cwd(), dryRun = false, registry, overwrite = false } = options
 
   let config: ProjectConfig
   try {
@@ -232,6 +271,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
       component,
       replacement,
       runtimeImportPrefix,
+      overwrite,
     })
 
     results.push({ outcome, replacement })
@@ -239,6 +279,43 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     if (outcome.status === "migrated") {
       migratedItems.push(item)
     }
+  }
+
+  // Collect the registry dependencies of every migrated item, minus the
+  // runtime already installed above. Resolving them pulls in transitive deps
+  // (e.g. button → utils); installItems creates missing files and leaves
+  // project-owned ones alone (no overwrite), so a missing dependency is
+  // created before the migrated file needs it and an existing one is kept.
+  // This runs before applyMigration so a failure to obtain a dependency stops
+  // the migration rather than leaving it half-applied.
+  const RUNTIME_ALREADY_INSTALLED = new Set(["agent-ui-runtime", "utils"])
+  const dependencyNames = new Set<string>()
+  for (const item of migratedItems) {
+    for (const dep of item.registryDependencies) {
+      if (!RUNTIME_ALREADY_INSTALLED.has(dep)) dependencyNames.add(dep)
+    }
+  }
+
+  let dependencyItems: RegistryItem[] = []
+  if (dependencyNames.size > 0) {
+    try {
+      const resolved = await client.resolve([...dependencyNames])
+      dependencyItems = resolved.filter(
+        (item) => !RUNTIME_ALREADY_INSTALLED.has(item.name),
+      )
+    } catch (cause) {
+      error("Could not read the Agent UI registry.", cause)
+      process.exitCode = 1
+      return
+    }
+  }
+
+  let createdDependencyTargets: string[] = []
+  if (dependencyItems.length > 0) {
+    const depResult = await installItems(config, dependencyItems, { dryRun })
+    createdDependencyTargets = depResult.files
+      .filter((f) => f.status === "created")
+      .map((f) => f.target)
   }
 
   // Apply migrations (unless --dry-run).
@@ -258,5 +335,5 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     await ensureDependencies(config, dependencies)
   }
 
-  printReport(results, dryRun)
+  printReport(results, createdDependencyTargets, dryRun, overwrite)
 }

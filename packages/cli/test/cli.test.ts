@@ -136,6 +136,50 @@ test("add refuses an unknown component and names the real ones", () => {
   }
 })
 
+test("add refuses to overwrite a customised component", () => {
+  const dir = createProject([])
+  try {
+    // Install the component so the project owns it.
+    const first = run(dir, ["add", "tabs"])
+    assert.equal(first.status, 0, first.output)
+
+    const file = join(dir, "src/components/ui/tabs.tsx")
+    const customised = `${readFileSync(file, "utf8")}// local customisation\n`
+    writeFileSync(file, customised)
+
+    // Re-running without --overwrite must refuse, leave the file untouched,
+    // and point the developer at --overwrite.
+    const refused = run(dir, ["add", "tabs"])
+    assert.notEqual(refused.status, 0, refused.output)
+    assert.equal(
+      readFileSync(file, "utf8"),
+      customised,
+      "a customised file must be left untouched",
+    )
+    assert.match(
+      refused.output,
+      /components\/ui\/tabs\.tsx/,
+      "the output must name the refused file",
+    )
+    assert.match(
+      refused.output,
+      /--overwrite/,
+      "the output must mention --overwrite",
+    )
+
+    // --overwrite replaces the customised file with the registry version.
+    const overwritten = run(dir, ["add", "--overwrite", "tabs"])
+    assert.equal(overwritten.status, 0, overwritten.output)
+    assert.notEqual(
+      readFileSync(file, "utf8"),
+      customised,
+      "--overwrite must replace the customised file",
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test("migrate upgrades stock shadcn components and leaves call sites alone", () => {
   const dir = createProject(["tabs", "select", "checkbox", "dialog", "input", "button", "label"])
   const callSite = join(dir, "src/app.tsx")
@@ -188,6 +232,26 @@ test("migrate is idempotent", () => {
   }
 })
 
+test("migrate installs a registry dependency the project is missing", () => {
+  // A project that has a stock dialog.tsx but no button.tsx. The migrated
+  // dialog imports @/components/ui/button, which the registry lists as a
+  // registryDependency of dialog.
+  const dir = createProject(["dialog"])
+  try {
+    const result = run(dir, ["migrate"])
+    assert.equal(result.status, 0, result.output)
+
+    assert.ok(
+      existsSync(join(dir, "src/components/ui/button.tsx")),
+      "migrate must create a missing registry dependency",
+    )
+    assert.match(result.output, /Dependencies created:/)
+    assert.match(result.output, /components\/ui\/button\.tsx/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test("migrate refuses a locally modified component", () => {
   const dir = createProject(["tabs"])
   const file = join(dir, "src/components/ui/tabs.tsx")
@@ -199,6 +263,44 @@ test("migrate refuses a locally modified component", () => {
     assert.equal(result.status, 0, result.output)
     assert.equal(readFileSync(file, "utf8"), modified, "a modified file must be left alone")
     assert.match(result.output, /TabsSkeleton/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("migrate reports needs-overwrite for a drifted component and --overwrite replaces it", () => {
+  const dir = createProject(["tabs"])
+  const file = join(dir, "src/components/ui/tabs.tsx")
+  // Drift: change a Tailwind class so the source differs from known stock
+  // without altering the structure or the public exports.
+  const stock = readFileSync(file, "utf8")
+  const drifted = stock.replace("flex-1 outline-none", "flex-1 outline-none bg-red-500")
+  writeFileSync(file, drifted)
+
+  try {
+    const result = run(dir, ["migrate"])
+    assert.equal(result.status, 0, result.output)
+
+    // The output names the component under the needs-overwrite section and
+    // points the developer at --overwrite.
+    assert.match(result.output, /Needs overwrite:/)
+    assert.match(result.output, /tabs/)
+    assert.match(result.output, /source differs from known stock/)
+    assert.match(result.output, /--overwrite/)
+
+    // The drifted file is left untouched.
+    assert.equal(
+      readFileSync(file, "utf8"),
+      drifted,
+      "a drifted file must be left untouched without --overwrite",
+    )
+
+    // --overwrite replaces the drifted file with the agent-native version.
+    const overwritten = run(dir, ["migrate", "--overwrite"])
+    assert.equal(overwritten.status, 0, overwritten.output)
+    const replaced = readFileSync(file, "utf8")
+    assert.notEqual(replaced, drifted, "--overwrite must replace the drifted file")
+    assert.match(replaced, /useCapability/, "the replacement must carry the capability binding")
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
