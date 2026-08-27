@@ -50,14 +50,14 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   reportDependencies(result.installedDependencies)
 
   blank()
-  info("Mount the provider once at the root of your app:")
-  blank()
-  info(`  import { AgentUIProvider } from "${config.aliases.lib}/agent-ui/agent-provider"`)
-  blank()
-  info(providerHint(config))
+  info(runtimeHint(config))
 }
 
-function providerHint(config: ProjectConfig): string {
+function runtimeHint(config: ProjectConfig): string {
   const where = relative(config.cwd, config.resolved.lib) || "."
-  return `  Runtime installed in ${where}. Components stay ordinary React without WebMCP.`
+  return [
+    `Runtime installed in ${where}.`,
+    "Nothing to mount or wire: a component with an `agent` prop registers itself and connects the adapter on mount.",
+    "Without a WebMCP-capable browser the components stay ordinary React.",
+  ].join("\n")
 }

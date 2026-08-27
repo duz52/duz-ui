@@ -13,7 +13,7 @@ import * as React from "react"
 
 import type { Capability, CapabilityResult, CapabilityState } from "./capability"
 import { CapabilityError } from "./capability"
-import { getCapabilityRegistry } from "./registry"
+import { getAgentUIRuntime } from "./runtime"
 
 /** Value of the `agent` prop that every agent-operable component accepts. */
 export type AgentConfig = {
@@ -82,7 +82,9 @@ export function useCapability<
   const { agent, kind, defaultLabel, read, actions } = options
 
   const config = resolveConfig(agent)
-  const registry = getCapabilityRegistry()
+  // The binding asks the runtime for the registry and knows nothing about
+  // any protocol.
+  const { registry } = getAgentUIRuntime()
   const generatedId = registry.createId(kind, React.useId())
   const id = config ? (config.id ?? generatedId) : undefined
   const label = config?.label ?? defaultLabel

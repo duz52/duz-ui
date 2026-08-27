@@ -12,13 +12,15 @@
       "registryDependencies": [],
       "sources": [
         "lib/agent-ui/agent-action.tsx",
-        "lib/agent-ui/agent-provider.tsx",
+        "lib/agent-ui/agent-identity.ts",
         "lib/agent-ui/capability.ts",
         "lib/agent-ui/registry.ts",
+        "lib/agent-ui/runtime.ts",
         "lib/agent-ui/tools.ts",
         "lib/agent-ui/use-capabilities.ts",
         "lib/agent-ui/use-capability.ts",
         "lib/agent-ui/use-controllable-state.ts",
+        "lib/agent-ui/use-merged-ref.ts",
         "lib/agent-ui/validate.ts",
         "lib/agent-ui/webmcp.ts"
       ]
