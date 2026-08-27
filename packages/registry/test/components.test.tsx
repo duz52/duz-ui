@@ -20,6 +20,7 @@ globals["window"] = dom.window
 globals["document"] = dom.window.document
 globals["HTMLElement"] = dom.window.HTMLElement
 globals["HTMLInputElement"] = dom.window.HTMLInputElement
+globals["HTMLFormElement"] = dom.window.HTMLFormElement
 globals["Event"] = dom.window.Event
 globals["MouseEvent"] = dom.window.MouseEvent
 globals["Node"] = dom.window.Node
@@ -61,6 +62,9 @@ let Tabs: typeof import("../src/ui/tabs")
 let Checkbox: typeof import("../src/ui/checkbox")
 let Input: typeof import("../src/ui/input")
 let DataTable: typeof import("../src/ui/data-table")
+let Collapsible: typeof import("../src/ui/collapsible")
+let Switch: typeof import("../src/ui/switch")
+let Textarea: typeof import("../src/ui/textarea")
 
 before(async () => {
   React = await import("react")
@@ -72,6 +76,9 @@ before(async () => {
   Checkbox = await import("../src/ui/checkbox")
   Input = await import("../src/ui/input")
   DataTable = await import("../src/ui/data-table")
+  Collapsible = await import("../src/ui/collapsible")
+  Switch = await import("../src/ui/switch")
+  Textarea = await import("../src/ui/textarea")
 })
 
 async function withAct<T>(fn: () => Promise<T>): Promise<T> {
@@ -343,4 +350,88 @@ test("the tool surface follows what is mounted", async () => {
     createAgentTools(registry).map((candidate) => candidate.name),
     ["ui_list", "ui_read"],
   )
+})
+
+test("a mounted Collapsible exposes the disclosure tools and refuses when disabled", async () => {
+  const tree = await mount(
+    React.createElement(Collapsible.Collapsible, {
+      agent: { id: "shipping", label: "Shipping details" },
+    }),
+  )
+
+  const capability = registry.get("shipping")
+  assert.ok(capability)
+  assert.equal(capability.kind, "disclosure")
+  assert.deepEqual(capability.actions, ["close", "open", "toggle"])
+
+  assert.deepEqual(registry.read("shipping"), { open: false, disabled: false })
+
+  const opened = JSON.parse(
+    await tool("disclosure_open").execute({ target: "shipping" }),
+  )
+  assert.equal(opened.state.open, true)
+  assert.equal(opened.state.disabled, false)
+
+  const toggled = JSON.parse(
+    await tool("disclosure_toggle").execute({ target: "shipping" }),
+  )
+  assert.equal(toggled.state.open, false)
+
+  await tree.unmount()
+
+  const disabled = await mount(
+    React.createElement(Collapsible.Collapsible, {
+      agent: { id: "shipping" },
+      disabled: true,
+    }),
+  )
+  assert.deepEqual(registry.read("shipping"), { open: false, disabled: true })
+
+  await assert.rejects(
+    () => tool("disclosure_open").execute({ target: "shipping" }),
+    /disabled/,
+  )
+  await assert.rejects(
+    () => tool("disclosure_close").execute({ target: "shipping" }),
+    /disabled/,
+  )
+  await assert.rejects(
+    () => tool("disclosure_toggle").execute({ target: "shipping" }),
+    /disabled/,
+  )
+  assert.deepEqual(registry.read("shipping"), { open: false, disabled: true })
+
+  await disabled.unmount()
+})
+
+test("components that share a kind share its tools", async () => {
+  const switchTree = await mount(
+    React.createElement(Switch.Switch, { agent: { id: "alerts" } }),
+  )
+  const switchTools = createAgentTools(registry).map((candidate) => candidate.name)
+  assert.ok(
+    switchTools.includes("checkbox_set"),
+    "Switch shares the checkbox tool surface",
+  )
+  assert.equal(
+    switchTools.includes("switch_set"),
+    false,
+    "a shared kind adds no new tool",
+  )
+  await switchTree.unmount()
+
+  const textareaTree = await mount(
+    React.createElement(Textarea.Textarea, { agent: { id: "notes" } }),
+  )
+  const textareaTools = createAgentTools(registry).map((candidate) => candidate.name)
+  assert.ok(
+    textareaTools.includes("input_set_value"),
+    "Textarea shares the input tool surface",
+  )
+  assert.equal(
+    textareaTools.includes("textarea_set_value"),
+    false,
+    "a shared kind adds no new tool",
+  )
+  await textareaTree.unmount()
 })

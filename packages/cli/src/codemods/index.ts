@@ -16,6 +16,8 @@ import { writeFileSync } from "node:fs"
 import { SIGNATURES, type ComponentSignature } from "./signatures.js"
 import { fingerprintSource } from "./fingerprint.js"
 import { STOCK_FINGERPRINTS } from "./stock-fingerprints.js"
+import type { ProjectConfig } from "../project/config.js"
+import { canonicaliseAliases } from "../registry/install.js"
 
 export type MigrationOutcome =
   | { status: "migrated"; component: string; file: string }
@@ -40,6 +42,14 @@ export interface MigrateFileInput {
    * to false, which leaves the file untouched and reports `needs-overwrite`.
    */
   overwrite?: boolean
+  /**
+   * Project config carrying the file's aliases. An alias is project
+   * configuration, not evidence of modification: `matchesKnownStock`
+   * canonicalises the file's import specifiers back to the registry's before
+   * fingerprinting, so a stock file in a project with non-default aliases
+   * still matches its stock fingerprint.
+   */
+  config: ProjectConfig
 }
 
 function findSignature(name: string): ComponentSignature | undefined {
@@ -94,6 +104,16 @@ function recognizeCandidate(
       const name = fn.getName()
       if (name && allowed.has(name)) continue
       return `unexpected top-level declaration "${name ?? "(anonymous)"}"`
+    }
+
+    // Type aliases and interfaces are name-checked like functions: an added type is evidence the file was modified.
+    const typeDecl =
+      statement.asKind(SyntaxKind.TypeAliasDeclaration) ??
+      statement.asKind(SyntaxKind.InterfaceDeclaration)
+    if (typeDecl) {
+      const name = typeDecl.getName()
+      if (allowed.has(name)) continue
+      return `unexpected top-level declaration "${name}"`
     }
 
     // Variable statements must declare only allowed names.
@@ -151,17 +171,27 @@ function replacementPreservesExports(
 
 /**
  * Do we know this exact source? Returns `true` when the fingerprint of the
- * file's full text is among the stock fingerprints recorded for `component`.
- * A component with no recorded fingerprints is not known stock, so the answer
- * is `false`.
+ * file's text — canonicalised to the registry's aliases — is among the stock
+ * fingerprints recorded for `component`. A component with no recorded
+ * fingerprints is not known stock, so the answer is `false`.
+ *
+ * Only the fingerprint uses the canonical form. `recognizeCandidate` and
+ * `replacementPreservesExports` keep reading the file as written — they
+ * check exports and the primitive package, neither of which is alias-shaped.
  */
 function matchesKnownStock(
   sourceFile: SourceFile,
   component: string,
+  config: ProjectConfig,
 ): boolean {
   const known = STOCK_FINGERPRINTS[component]
   if (!known) return false
-  return known.includes(fingerprintSource(sourceFile.getFullText()))
+  // An alias is project configuration, not evidence that a file was modified.
+  // Canonicalise the project's aliases back to the registry's before
+  // fingerprinting, so a stock file in a project with non-default aliases
+  // still matches its stock fingerprint.
+  const text = canonicaliseAliases(sourceFile.getFullText(), config)
+  return known.includes(fingerprintSource(text))
 }
 
 /**
@@ -179,8 +209,10 @@ function matchesKnownStock(
  * 4. `replacementPreservesExports` — a reason means the replacement would drop
  *    an export, so the outcome is `unsupported`. This step sits before step 5
  *    deliberately: the flag can never buy an API break.
- * 5. `matchesKnownStock` — the file is unmodified stock, so the outcome is
- *    `migrated`.
+ * 5. `matchesKnownStock` — the file's import specifiers are canonicalised
+ *    back to the registry's aliases (an alias is configuration, not drift),
+ *    then fingerprinted; a match means the file is unmodified stock, so the
+ *    outcome is `migrated`.
  * 6. Otherwise the file is a supported family with a customised implementation:
  *    `overwrite` true replaces it (`migrated`), false leaves it
  *    (`needs-overwrite`).
@@ -234,7 +266,7 @@ export function planMigration(input: MigrateFileInput): MigrationOutcome {
   }
 
   // 5. Known stock source — the file is unmodified shadcn output, so replace it.
-  if (matchesKnownStock(sourceFile, component)) {
+  if (matchesKnownStock(sourceFile, component, input.config)) {
     return { status: "migrated", component, file }
   }
 

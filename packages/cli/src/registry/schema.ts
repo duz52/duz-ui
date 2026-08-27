@@ -23,17 +23,27 @@ export const agentUiMetaSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("explicit-semantics") }),
 ])
 
+/**
+ * The shadcn file/item type. A hook is its own type, not a lib or a ui
+ * component: it lands under `hooks/` and is create-or-overwrite.
+ */
+export const registryFileTypeSchema = z.enum([
+  "registry:lib",
+  "registry:ui",
+  "registry:hook",
+])
+
 export const registryFileSchema = z.object({
   path: z.string(),
   content: z.string(),
-  type: z.string(),
+  type: registryFileTypeSchema,
   target: z.string(),
 })
 
 export const registryItemSchema = z.object({
   $schema: z.string().optional(),
   name: z.string(),
-  type: z.string(),
+  type: registryFileTypeSchema,
   title: z.string().optional(),
   description: z.string().optional(),
   dependencies: z.array(z.string()).default([]),
@@ -45,7 +55,7 @@ export const registryItemSchema = z.object({
 /** The index carries item metadata without file contents, so it stays small. */
 const registryIndexItemSchema = z.object({
   name: z.string(),
-  type: z.string(),
+  type: registryFileTypeSchema,
   title: z.string().optional(),
   description: z.string().optional(),
   dependencies: z.array(z.string()).default([]),

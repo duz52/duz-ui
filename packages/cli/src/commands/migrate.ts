@@ -14,19 +14,24 @@
  *    Planning is all reads.
  * 3. If no outcome is `migrated`, print the report and return. Nothing has
  *    been written.
- * 4. Install the runtime (capability kernel + WebMCP adapter + utils); migrated
- *    components import from it and would not compile without it.
- * 5. Collect the `registryDependencies` of every migrated item, resolve them,
- *    and install them with `installItems` (no overwrite) so a missing
- *    dependency is created before the migrated file needs it. This runs before
- *    `applyMigration` so a failure to obtain a dependency stops the migration
- *    rather than leaving it half-applied.
- * 6. Apply every `migrated` outcome unless `--dry-run`.
- * 7. Install the union of migrated items' npm dependencies.
- * 8. Print the report.
+ * 4. Resolve the runtime (capability kernel + WebMCP adapter + utils) and the
+ *    `registryDependencies` of every migrated item. Resolution is all reads.
+ * 5. Install the runtime; migrated components import from it and would not
+ *    compile without it.
+ * 6. Install the resolved registry dependencies with `installItems` (no
+ *    overwrite) so a missing dependency is created before the migrated file
+ *    needs it. This runs before `applyMigration` so a failure to obtain a
+ *    dependency stops the migration rather than leaving it half-applied.
+ * 7. Apply every `migrated` outcome unless `--dry-run`.
+ * 8. Install the union of migrated items' npm dependencies.
+ * 9. Print the report.
+ *
+ * The phases read: plan everything, resolve everything, then write. Every
+ * failure that can be seen without touching the project should be found
+ * before the project is touched.
  *
  * `--dry-run` takes the same decision path and simply skips the writes in
- * steps 4 to 7. Refreshing an already-installed runtime is `agent-ui init`'s
+ * steps 5 to 8. Refreshing an already-installed runtime is `agent-ui init`'s
  * job, not `migrate`'s — `migrate` writes when, and only when, it migrates
  * something.
  */
@@ -293,6 +298,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
       replacement,
       runtimeImportPrefix,
       overwrite,
+      config,
     })
 
     results.push({ outcome, replacement })
@@ -308,7 +314,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     return
   }
 
-  // Ensure the runtime is present — migrated components import from it.
+  // Resolve the runtime — migrated components import from it.
   let runtimeItems: RegistryItem[]
   try {
     runtimeItems = await client.resolve(["agent-ui-runtime", "utils"])
@@ -318,17 +324,13 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     return
   }
 
-  if (!dryRun) {
-    await installItems(config, runtimeItems)
-  }
-
   // Collect the registry dependencies of every migrated item, minus the
-  // runtime already installed above. Resolving them pulls in transitive deps
+  // runtime already resolved above. Resolving them pulls in transitive deps
   // (e.g. button → utils); installItems creates missing files and leaves
   // project-owned ones alone (no overwrite), so a missing dependency is
   // created before the migrated file needs it and an existing one is kept.
-  // This runs before applyMigration so a failure to obtain a dependency stops
-  // the migration rather than leaving it half-applied.
+  // All resolution runs before any write, so a failure to obtain a
+  // dependency stops the migration before the project is touched.
   const RUNTIME_ALREADY_INSTALLED = new Set(["agent-ui-runtime", "utils"])
   const dependencyNames = new Set<string>()
   for (const item of migratedItems) {
@@ -349,6 +351,11 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
       process.exitCode = 1
       return
     }
+  }
+
+  // Install the runtime — migrated components import from it.
+  if (!dryRun) {
+    await installItems(config, runtimeItems)
   }
 
   let createdDependencyTargets: string[] = []

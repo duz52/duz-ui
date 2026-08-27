@@ -134,6 +134,7 @@ async function runMigration(dir: string, overwrite: boolean = false): Promise<Mi
       replacement,
       runtimeImportPrefix,
       overwrite,
+      config,
     })
     results.push({ outcome, replacement })
   }

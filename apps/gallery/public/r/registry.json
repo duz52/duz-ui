@@ -23,6 +23,14 @@
       "registryDependencies": []
     },
     {
+      "name": "use-mobile",
+      "type": "registry:hook",
+      "title": "use-mobile",
+      "description": "A React hook that reports whether the viewport is below the mobile breakpoint.",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
       "name": "button",
       "type": "registry:ui",
       "title": "Button",
@@ -43,6 +51,49 @@
       "type": "registry:ui",
       "title": "Label",
       "description": "An accessible form label built on Radix Label.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "separator",
+      "type": "registry:ui",
+      "title": "Separator",
+      "description": "A horizontal or vertical divider that visually separates content sections.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "skeleton",
+      "type": "registry:ui",
+      "title": "Skeleton",
+      "description": "A pulsing placeholder element that indicates content is loading.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "tooltip",
+      "type": "registry:ui",
+      "title": "Tooltip",
+      "description": "A hover-triggered popover that displays contextual information near an anchor element.",
       "dependencies": [
         "radix-ui"
       ],
@@ -173,6 +224,67 @@
       }
     },
     {
+      "name": "textarea",
+      "type": "registry:ui",
+      "title": "Textarea",
+      "description": "A multiline text input whose value is readable and settable by an agent through the native value channel.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "input",
+        "actions": [
+          "set_value",
+          "clear"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "switch",
+      "type": "registry:ui",
+      "title": "Switch",
+      "description": "A toggle switch whose checked state is readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "checkbox",
+        "actions": [
+          "set"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "radio-group",
+      "type": "registry:ui",
+      "title": "RadioGroup",
+      "description": "A radio group whose chosen value and available options are readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "select",
+        "actions": [
+          "choose",
+          "clear"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
       "name": "data-table",
       "type": "registry:ui",
       "title": "DataTable",
@@ -196,6 +308,146 @@
           "select_rows",
           "set_page",
           "set_column_visibility"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "sheet",
+      "type": "registry:ui",
+      "title": "Sheet",
+      "description": "A side panel whose open state and title are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "dialog",
+        "actions": [
+          "open",
+          "close"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "alert-dialog",
+      "type": "registry:ui",
+      "title": "AlertDialog",
+      "description": "A modal alert dialog whose open state and title are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "button"
+      ],
+      "agentUi": {
+        "kind": "dialog",
+        "actions": [
+          "open",
+          "close"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "toggle",
+      "type": "registry:ui",
+      "title": "Toggle",
+      "description": "A toggle button whose pressed state is readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "checkbox",
+        "actions": [
+          "set"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "collapsible",
+      "type": "registry:ui",
+      "title": "Collapsible",
+      "description": "A collapsible container whose open state is readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "disclosure",
+        "actions": [
+          "open",
+          "close",
+          "toggle"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "popover",
+      "type": "registry:ui",
+      "title": "Popover",
+      "description": "A popover whose open state is readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "kind": "disclosure",
+        "actions": [
+          "open",
+          "close",
+          "toggle"
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "sidebar",
+      "type": "registry:ui",
+      "title": "Sidebar",
+      "description": "A composable sidebar whose open state is readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "class-variance-authority",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "button",
+        "input",
+        "separator",
+        "sheet",
+        "skeleton",
+        "tooltip",
+        "use-mobile"
+      ],
+      "agentUi": {
+        "kind": "disclosure",
+        "actions": [
+          "open",
+          "close",
+          "toggle"
         ],
         "status": "agent-native"
       }
