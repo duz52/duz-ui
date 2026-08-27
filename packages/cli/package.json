@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "pretest": "pnpm --filter @agent-ui/registry build && pnpm run build",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },

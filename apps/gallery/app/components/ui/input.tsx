@@ -4,6 +4,8 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 
 // A native <input> has exactly one semantic channel for changing its value:
@@ -17,21 +19,6 @@ function setNativeValue(node: HTMLInputElement, value: string) {
   )
   descriptor?.set?.call(node, value)
   node.dispatchEvent(new Event("input", { bubbles: true }))
-}
-
-function mergeRefs<T>(
-  ...refs: (React.Ref<T> | undefined)[]
-): React.RefCallback<T> {
-  return (value) => {
-    for (const ref of refs) {
-      if (!ref) continue
-      if (typeof ref === "function") {
-        ref(value)
-      } else {
-        ref.current = value
-      }
-    }
-  }
 }
 
 function assertMutable(node: HTMLInputElement | null): HTMLInputElement {
@@ -70,11 +57,13 @@ function Input({
   agent?: AgentProp
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const label = useAccessibleName(inputRef, "Input")
+  const mergedRef = useMergedRef(ref, inputRef)
 
   useCapability<InputState, InputActions>({
-    agent,
+    agent: agentWithElementId(agent, props.id),
     kind: "input",
-    defaultLabel: "Input",
+    defaultLabel: label,
     read: () => {
       const node = inputRef.current
       if (!node) {
@@ -117,7 +106,7 @@ function Input({
         "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
         className
       )}
-      ref={mergeRefs(ref, inputRef)}
+      ref={mergedRef}
       {...props}
     />
   )

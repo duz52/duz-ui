@@ -19,8 +19,6 @@ const cli = join(repoRoot, "packages/cli/dist/index.js")
 const registry = join(repoRoot, "apps/gallery/public/r")
 const fixtures = join(here, "fixtures/shadcn")
 
-const ready = existsSync(cli) && existsSync(join(registry, "registry.json"))
-
 function createProject(components: string[]): string {
   const dir = mkdtempSync(join(tmpdir(), "agent-ui-cli-"))
   writeFileSync(
@@ -83,11 +81,7 @@ function run(dir: string, args: string[]) {
   return { ...result, output: `${result.stdout}${result.stderr}` }
 }
 
-test("the CLI is built and the registry is present", { skip: !ready }, () => {
-  assert.ok(ready, "run `pnpm build:registry && pnpm build:cli` first")
-})
-
-test("init installs the runtime and is safe to run twice", { skip: !ready }, () => {
+test("init installs the runtime and is safe to run twice", () => {
   const dir = createProject([])
   try {
     const first = run(dir, ["init"])
@@ -109,7 +103,7 @@ test("init installs the runtime and is safe to run twice", { skip: !ready }, () 
   }
 })
 
-test("add installs a component with its runtime and rewrites aliases", { skip: !ready }, () => {
+test("add installs a component with its runtime and rewrites aliases", () => {
   const dir = createProject([])
   try {
     const result = run(dir, ["add", "data-table"])
@@ -131,7 +125,7 @@ test("add installs a component with its runtime and rewrites aliases", { skip: !
   }
 })
 
-test("add refuses an unknown component and names the real ones", { skip: !ready }, () => {
+test("add refuses an unknown component and names the real ones", () => {
   const dir = createProject([])
   try {
     const result = run(dir, ["add", "carousel"])
@@ -142,7 +136,7 @@ test("add refuses an unknown component and names the real ones", { skip: !ready 
   }
 })
 
-test("migrate upgrades stock shadcn components and leaves call sites alone", { skip: !ready }, () => {
+test("migrate upgrades stock shadcn components and leaves call sites alone", () => {
   const dir = createProject(["tabs", "select", "checkbox", "dialog", "input", "button", "label"])
   const callSite = join(dir, "src/app.tsx")
   const callSiteSource = [
@@ -175,7 +169,7 @@ test("migrate upgrades stock shadcn components and leaves call sites alone", { s
   }
 })
 
-test("migrate is idempotent", { skip: !ready }, () => {
+test("migrate is idempotent", () => {
   const dir = createProject(["tabs", "checkbox"])
   try {
     assert.equal(run(dir, ["migrate"]).status, 0)
@@ -194,7 +188,7 @@ test("migrate is idempotent", { skip: !ready }, () => {
   }
 })
 
-test("migrate refuses a locally modified component", { skip: !ready }, () => {
+test("migrate refuses a locally modified component", () => {
   const dir = createProject(["tabs"])
   const file = join(dir, "src/components/ui/tabs.tsx")
   const modified = `${readFileSync(file, "utf8")}\nexport function TabsSkeleton() {\n  return null\n}\n`
@@ -210,7 +204,7 @@ test("migrate refuses a locally modified component", { skip: !ready }, () => {
   }
 })
 
-test("doctor reports facts and repairs nothing", { skip: !ready }, () => {
+test("doctor reports facts and repairs nothing", () => {
   const dir = createProject(["tabs", "button", "label"])
   try {
     run(dir, ["migrate"])
@@ -226,7 +220,7 @@ test("doctor reports facts and repairs nothing", { skip: !ready }, () => {
   }
 })
 
-test("doctor does not create anything in an untouched project", { skip: !ready }, () => {
+test("doctor does not create anything in an untouched project", () => {
   const dir = createProject(["tabs"])
   try {
     const result = run(dir, ["doctor"])

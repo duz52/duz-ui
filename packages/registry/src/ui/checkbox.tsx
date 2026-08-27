@@ -6,6 +6,8 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -26,11 +28,16 @@ function Checkbox({
   defaultChecked,
   onCheckedChange,
   disabled = false,
+  ref,
   agent,
   ...props
 }: React.ComponentProps<typeof CheckboxPrimitive.Root> & {
   agent?: AgentProp
 }) {
+  const elementRef = React.useRef<HTMLButtonElement>(null)
+  const label = useAccessibleName(elementRef, "Checkbox")
+  const mergedRef = useMergedRef(ref, elementRef)
+
   const [checked, setChecked] = useControllableState<Checked>({
     prop: checkedProp,
     defaultProp: defaultChecked ?? false,
@@ -38,9 +45,9 @@ function Checkbox({
   })
 
   useCapability<CheckboxState, CheckboxActions>({
-    agent,
+    agent: agentWithElementId(agent, props.id),
     kind: "checkbox",
-    defaultLabel: "Checkbox",
+    defaultLabel: label,
     read: () => ({ checked, disabled }),
     actions: {
       set(input) {
@@ -63,6 +70,7 @@ function Checkbox({
       checked={checked}
       onCheckedChange={setChecked}
       disabled={disabled}
+      ref={mergedRef}
       {...props}
     >
       <CheckboxPrimitive.Indicator

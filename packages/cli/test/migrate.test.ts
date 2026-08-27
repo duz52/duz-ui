@@ -15,9 +15,14 @@ import { withTempProject } from "./helpers.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const fixturesDir = join(__dirname, "fixtures", "shadcn")
+const agentUiFixturesDir = join(__dirname, "fixtures", "agent-ui")
 
 function readFixture(name: string): string {
   return readFileSync(join(fixturesDir, `${name}.tsx`), "utf8")
+}
+
+function readReplacement(name: string): string {
+  return readFileSync(join(agentUiFixturesDir, `${name}.tsx`), "utf8")
 }
 
 /**
@@ -42,7 +47,11 @@ const AGENT_UI_REPLACEMENT = [
 
 const RUNTIME_PREFIX = "@/lib/agent-ui/"
 
-function plan(file: string, component: string, replacement = "") {
+function plan(
+  file: string,
+  component: string,
+  replacement = readReplacement(component),
+) {
   return planMigration({
     file,
     component,
@@ -136,6 +145,48 @@ describe("planMigration — missing export is refused", () => {
         assert.equal(outcome.status, "unsupported")
         if (outcome.status === "unsupported") {
           assert.match(outcome.reason, /TabsContent/)
+        }
+      },
+    )
+  })
+})
+
+describe("recognition and compatibility are separate facts", () => {
+  it("refuses a replacement that would drop an export", async () => {
+    const replacement = readReplacement("tabs").replace(", TabsContent", "")
+    await withTempProject(
+      { "components/ui/tabs.tsx": readFixture("tabs") },
+      async (dir) => {
+        const outcome = plan(
+          join(dir, "components/ui/tabs.tsx"),
+          "tabs",
+          replacement,
+        )
+        assert.equal(outcome.status, "unsupported")
+        if (outcome.status === "unsupported") {
+          assert.match(outcome.reason, /TabsContent/)
+        }
+      },
+    )
+  })
+
+  it("refuses a locally modified file even when the replacement is export-compatible", async () => {
+    // Append a top-level helper that is not part of the stock signature. The
+    // file's exports are unchanged, so the replacement still covers every one
+    // (the stock file migrates with the same replacement); only recognition
+    // fails, naming the added declaration.
+    const modified = readFixture("tabs") + "\nconst myHelper = 1\n"
+    await withTempProject(
+      { "components/ui/tabs.tsx": modified },
+      async (dir) => {
+        const file = join(dir, "components/ui/tabs.tsx")
+        const outcome = plan(file, "tabs")
+        assert.equal(outcome.status, "unsupported")
+        if (outcome.status === "unsupported") {
+          assert.match(
+            outcome.reason,
+            /unexpected top-level declaration "myHelper"/,
+          )
         }
       },
     )

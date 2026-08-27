@@ -3,8 +3,9 @@
  *
  * `rewriteAliases` is the single place canonical registry aliases are mapped
  * onto the project's own aliases. `installItems` writes each file to its
- * target path, reporting created / updated / unchanged, and installs the
- * union of the items' npm dependencies.
+ * target path, reporting created / updated / unchanged / retained, and
+ * installs the union of the items' npm dependencies. Project-owned targets
+ * (see `PROJECT_OWNED_TARGETS`) are created when missing but never rewritten.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -19,7 +20,7 @@ export interface InstallOptions {
 
 export interface WrittenFile {
   target: string
-  status: "created" | "updated" | "unchanged"
+  status: "created" | "updated" | "unchanged" | "retained"
 }
 
 /**
@@ -47,6 +48,14 @@ export function rewriteAliases(content: string, config: ProjectConfig): string {
   )
 }
 
+/**
+ * Registry `target` values the project owns, not Agent UI. `installItems`
+ * creates these when missing but never overwrites an existing one: shadcn
+ * projects keep their own helpers next to `cn` in `lib/utils.ts`, and Agent UI
+ * only needs `cn` to exist there.
+ */
+const PROJECT_OWNED_TARGETS = new Set(["lib/utils.ts"])
+
 export async function installItems(
   config: ProjectConfig,
   items: RegistryItem[],
@@ -58,10 +67,14 @@ export async function installItems(
   for (const item of items) {
     for (const file of item.files) {
       const dest = resolveTarget(file.target, config)
+      const exists = existsSync(dest)
       const content = rewriteAliases(file.content, config)
 
       let status: WrittenFile["status"]
-      if (!existsSync(dest)) {
+      if (PROJECT_OWNED_TARGETS.has(file.target) && exists) {
+        // Project-owned: leave an existing file alone.
+        status = "retained"
+      } else if (!exists) {
         status = "created"
         if (!dryRun) {
           mkdirSync(dirname(dest), { recursive: true })

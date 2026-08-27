@@ -157,3 +157,4 @@ export function connectWebMCP(registry: CapabilityRegistry): () => void {
     controllers.clear()
   }
 }
+

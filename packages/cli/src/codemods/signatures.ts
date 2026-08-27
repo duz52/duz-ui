@@ -1,9 +1,9 @@
 /**
  * Agent UI — codemod component signatures.
  *
- * Each signature is the fingerprint of a stock shadcn/ui implementation that
+ * Each signature describes a stock shadcn/ui implementation that
  * `agent-ui migrate` can safely replace with the Agent UI version from the
- * registry. The lists are derived verbatim from the vendored stock sources in
+ * registry. Lists are derived from the vendored stock sources in
  * `docs/internal/reference/shadcn/*.tsx`. Do not edit them by hand unless the
  * stock source changes.
  */
@@ -11,7 +11,11 @@
 export interface ComponentSignature {
   /** Registry item name, and the expected file base name. */
   name: string
-  /** Named exports the stock implementation must provide. */
+  /**
+   * Minimum public API that identifies the component. Every name here must be
+   * exported by the stock file; a stock file from any generation that omits one
+   * of these is not the component we recognise.
+   */
   requiredExports: string[]
   /**
    * Module specifiers the stock implementation may import its primitive from.
@@ -20,8 +24,9 @@ export interface ComponentSignature {
    */
   primitiveModules: string[]
   /**
-   * Top-level declaration names the stock implementation is allowed to define
-   * beyond `requiredExports` (variants objects and internal helpers).
+   * Every other top-level name a stock generation may define (variants objects,
+   * internal helpers). A stock file may define any subset of these; the
+   * local-modification check allows exactly the names listed here.
    */
   internalDeclarations: string[]
 }
@@ -29,15 +34,9 @@ export interface ComponentSignature {
 export const SIGNATURES: ComponentSignature[] = [
   {
     name: "tabs",
-    requiredExports: [
-      "Tabs",
-      "TabsList",
-      "TabsTrigger",
-      "TabsContent",
-      "tabsListVariants",
-    ],
-    primitiveModules: ["radix-ui"],
-    internalDeclarations: [],
+    requiredExports: ["Tabs", "TabsList", "TabsTrigger", "TabsContent"],
+    primitiveModules: ["radix-ui", "@radix-ui/react-tabs"],
+    internalDeclarations: ["tabsListVariants"],
   },
   {
     name: "select",
@@ -53,13 +52,13 @@ export const SIGNATURES: ComponentSignature[] = [
       "SelectTrigger",
       "SelectValue",
     ],
-    primitiveModules: ["radix-ui"],
+    primitiveModules: ["radix-ui", "@radix-ui/react-select"],
     internalDeclarations: [],
   },
   {
     name: "checkbox",
     requiredExports: ["Checkbox"],
-    primitiveModules: ["radix-ui"],
+    primitiveModules: ["radix-ui", "@radix-ui/react-checkbox"],
     internalDeclarations: [],
   },
   {
@@ -76,7 +75,7 @@ export const SIGNATURES: ComponentSignature[] = [
       "DialogTitle",
       "DialogTrigger",
     ],
-    primitiveModules: ["radix-ui"],
+    primitiveModules: ["radix-ui", "@radix-ui/react-dialog"],
     internalDeclarations: [],
   },
   {

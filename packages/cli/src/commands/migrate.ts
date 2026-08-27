@@ -48,11 +48,17 @@ interface FileResult {
  * Padded line for skipped / refused components, matching the spec layout:
  * `- card        presentation-only`
  */
-function line(name: string, description: string): string {
-  return `- ${name.padEnd(12)}${description}`
+function line(name: string, description: string, columnWidth: number): string {
+  return `- ${name.padEnd(columnWidth)}${description}`
 }
 
 function printReport(results: FileResult[], dryRun: boolean): void {
+  const longestName = results.reduce(
+    (max, r) => Math.max(max, r.outcome.component.length),
+    0,
+  )
+  const columnWidth = Math.max(12, longestName + 2)
+
   const migrated: Extract<MigrationOutcome, { status: "migrated" }>[] = []
   const alreadyMigrated: Extract<MigrationOutcome, { status: "already-migrated" }>[] = []
   const unsupported: Extract<MigrationOutcome, { status: "unsupported" }>[] = []
@@ -93,11 +99,11 @@ function printReport(results: FileResult[], dryRun: boolean): void {
     printedAny = true
   }
   for (const o of alreadyMigrated) {
-    info(line(o.component, "already agent-native"))
+    info(line(o.component, "already agent-native", columnWidth))
     printedAny = true
   }
   for (const o of unsupported) {
-    info(line(o.component, o.reason))
+    info(line(o.component, o.reason, columnWidth))
     printedAny = true
   }
 
@@ -106,13 +112,13 @@ function printReport(results: FileResult[], dryRun: boolean): void {
     if (printedAny) blank()
     info("Skipped:")
     for (const o of presentation) {
-      warn(line(o.component, "presentation-only"))
+      warn(line(o.component, "presentation-only", columnWidth))
     }
     for (const o of explicitSemantics) {
-      warn(line(o.component, "explicit business semantics required"))
+      warn(line(o.component, "explicit business semantics required", columnWidth))
     }
     for (const o of unknown) {
-      warn(line(o.component, "not supported yet"))
+      warn(line(o.component, "not supported yet", columnWidth))
     }
     printedAny = true
   }
