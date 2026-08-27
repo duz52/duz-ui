@@ -57,7 +57,7 @@ function runtimeHint(config: ProjectConfig): string {
   const where = relative(config.cwd, config.resolved.lib) || "."
   return [
     `Runtime installed in ${where}.`,
-    "Nothing to mount or wire: a component with an `agent` prop registers itself and connects the adapter on mount.",
+    "Nothing to mount or wire: an agent-operable component registers itself on mount with no prop; `agent={false}` opts a single instance out.",
     "Without a WebMCP-capable browser the components stay ordinary React.",
   ].join("\n")
 }

@@ -306,6 +306,118 @@ test("migrate reports needs-overwrite for a drifted component and --overwrite re
   }
 })
 
+test("migrate writes nothing when it migrates nothing", () => {
+  const dir = createProject(["tabs"])
+  const file = join(dir, "src/components/ui/tabs.tsx")
+  // Drift: change a Tailwind class so the source differs from known stock
+  // without altering the structure or the public exports. Without --overwrite
+  // this is needs-overwrite, so nothing migrates and nothing is written.
+  const stock = readFileSync(file, "utf8")
+  const drifted = stock.replace("flex-1 outline-none", "flex-1 outline-none bg-red-500")
+  writeFileSync(file, drifted)
+
+  const packageJsonPath = join(dir, "package.json")
+  const packageJsonBefore = readFileSync(packageJsonPath, "utf8")
+
+  try {
+    const result = run(dir, ["migrate"])
+    assert.equal(result.status, 0, result.output)
+    assert.match(result.output, /0 components upgraded/)
+    assert.equal(
+      readFileSync(file, "utf8"),
+      drifted,
+      "the component file must be byte-identical",
+    )
+    assert.equal(
+      existsSync(join(dir, "src/lib/agent-ui")),
+      false,
+      "no runtime must be installed",
+    )
+    assert.equal(
+      readFileSync(packageJsonPath, "utf8"),
+      packageJsonBefore,
+      "package.json must be byte-identical",
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("migrate accepts named components and leaves the rest alone", () => {
+  const dir = createProject(["tabs", "checkbox"])
+  const tabsFile = join(dir, "src/components/ui/tabs.tsx")
+  const tabsBefore = readFileSync(tabsFile, "utf8")
+  try {
+    const result = run(dir, ["migrate", "checkbox"])
+    assert.equal(result.status, 0, result.output)
+
+    // The named component was migrated.
+    const checkbox = readFileSync(join(dir, "src/components/ui/checkbox.tsx"), "utf8")
+    assert.match(checkbox, /useCapability/, "the named component must be migrated")
+    assert.match(checkbox, /from "@\/lib\/agent-ui\/use-capability"/)
+
+    // The un-named component is untouched, byte for byte.
+    assert.equal(
+      readFileSync(tabsFile, "utf8"),
+      tabsBefore,
+      "an un-named component must be left untouched",
+    )
+
+    // The report does not mention the un-named component at all.
+    assert.doesNotMatch(
+      result.output,
+      /tabs/,
+      "the report must not mention an un-named component",
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("migrate refuses a component the project does not have", () => {
+  const dir = createProject(["tabs", "checkbox"])
+  const tabsFile = join(dir, "src/components/ui/tabs.tsx")
+  const checkboxFile = join(dir, "src/components/ui/checkbox.tsx")
+  const tabsBefore = readFileSync(tabsFile, "utf8")
+  const checkboxBefore = readFileSync(checkboxFile, "utf8")
+  const packageJsonPath = join(dir, "package.json")
+  const packageJsonBefore = readFileSync(packageJsonPath, "utf8")
+  try {
+    const result = run(dir, ["migrate", "nosuchthing"])
+    assert.notEqual(result.status, 0, "a missing component must fail")
+    assert.match(
+      result.output,
+      /nosuchthing/,
+      "the output must name the missing component",
+    )
+
+    // Nothing in the project changed: no component file, no runtime, no
+    // package.json.
+    assert.equal(
+      readFileSync(tabsFile, "utf8"),
+      tabsBefore,
+      "no component file may change",
+    )
+    assert.equal(
+      readFileSync(checkboxFile, "utf8"),
+      checkboxBefore,
+      "no component file may change",
+    )
+    assert.equal(
+      existsSync(join(dir, "src/lib/agent-ui")),
+      false,
+      "no runtime must be installed",
+    )
+    assert.equal(
+      readFileSync(packageJsonPath, "utf8"),
+      packageJsonBefore,
+      "package.json must be byte-identical",
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test("doctor reports facts and repairs nothing", () => {
   const dir = createProject(["tabs", "button", "label"])
   try {
