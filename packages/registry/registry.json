@@ -172,9 +172,13 @@
         "ui/tabs.tsx"
       ],
       "agentUi": {
-        "kind": "tabs",
-        "actions": [
-          "select"
+        "capabilities": [
+          {
+            "kind": "tabs",
+            "actions": [
+              "select"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -196,10 +200,14 @@
         "ui/select.tsx"
       ],
       "agentUi": {
-        "kind": "select",
-        "actions": [
-          "choose",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -221,9 +229,13 @@
         "ui/checkbox.tsx"
       ],
       "agentUi": {
-        "kind": "checkbox",
-        "actions": [
-          "set"
+        "capabilities": [
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -246,10 +258,14 @@
         "ui/dialog.tsx"
       ],
       "agentUi": {
-        "kind": "dialog",
-        "actions": [
-          "open",
-          "close"
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -268,10 +284,14 @@
         "ui/input.tsx"
       ],
       "agentUi": {
-        "kind": "input",
-        "actions": [
-          "set_value",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -290,10 +310,14 @@
         "ui/textarea.tsx"
       ],
       "agentUi": {
-        "kind": "input",
-        "actions": [
-          "set_value",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -314,9 +338,13 @@
         "ui/switch.tsx"
       ],
       "agentUi": {
-        "kind": "checkbox",
-        "actions": [
-          "set"
+        "capabilities": [
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -338,10 +366,14 @@
         "ui/radio-group.tsx"
       ],
       "agentUi": {
-        "kind": "select",
-        "actions": [
-          "choose",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -366,13 +398,17 @@
         "ui/data-table.tsx"
       ],
       "agentUi": {
-        "kind": "data-table",
-        "actions": [
-          "filter",
-          "sort",
-          "select_rows",
-          "set_page",
-          "set_column_visibility"
+        "capabilities": [
+          {
+            "kind": "data-table",
+            "actions": [
+              "filter",
+              "sort",
+              "select_rows",
+              "set_page",
+              "set_column_visibility"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -394,10 +430,14 @@
         "ui/sheet.tsx"
       ],
       "agentUi": {
-        "kind": "dialog",
-        "actions": [
-          "open",
-          "close"
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -419,10 +459,14 @@
         "ui/alert-dialog.tsx"
       ],
       "agentUi": {
-        "kind": "dialog",
-        "actions": [
-          "open",
-          "close"
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -444,9 +488,13 @@
         "ui/toggle.tsx"
       ],
       "agentUi": {
-        "kind": "checkbox",
-        "actions": [
-          "set"
+        "capabilities": [
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -467,11 +515,15 @@
         "ui/collapsible.tsx"
       ],
       "agentUi": {
-        "kind": "disclosure",
-        "actions": [
-          "open",
-          "close",
-          "toggle"
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -492,11 +544,15 @@
         "ui/popover.tsx"
       ],
       "agentUi": {
-        "kind": "disclosure",
-        "actions": [
-          "open",
-          "close",
-          "toggle"
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -526,13 +582,193 @@
         "ui/sidebar.tsx"
       ],
       "agentUi": {
-        "kind": "disclosure",
-        "actions": [
-          "open",
-          "close",
-          "toggle"
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
         ],
         "status": "agent-native"
+      }
+    },
+    {
+      "name": "accordion",
+      "type": "registry:ui",
+      "title": "Accordion",
+      "description": "An accordion whose open sections are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/accordion.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "accordion",
+            "actions": [
+              "expand",
+              "collapse"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "slider",
+      "type": "registry:ui",
+      "title": "Slider",
+      "description": "A slider whose value is readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/slider.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "slider",
+            "actions": [
+              "set"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "input-otp",
+      "type": "registry:ui",
+      "title": "InputOTP",
+      "description": "A one-time code input whose value is readable and settable by an agent.",
+      "dependencies": [
+        "input-otp",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/input-otp.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "dropdown-menu",
+      "type": "registry:ui",
+      "title": "DropdownMenu",
+      "description": "A dropdown menu whose open state, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/dropdown-menu.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          },
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          },
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "hover-card",
+      "type": "registry:ui",
+      "title": "HoverCard",
+      "description": "A hover card whose open state is readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/hover-card.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "pagination",
+      "type": "registry:ui",
+      "title": "Pagination",
+      "description": "A pagination navigation bar that renders page links; the current page belongs to the application's router.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "button"
+      ],
+      "sources": [
+        "ui/pagination.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
       }
     }
   ]

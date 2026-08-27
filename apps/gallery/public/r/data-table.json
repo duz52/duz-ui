@@ -24,13 +24,17 @@
     }
   ],
   "agentUi": {
-    "kind": "data-table",
-    "actions": [
-      "filter",
-      "sort",
-      "select_rows",
-      "set_page",
-      "set_column_visibility"
+    "capabilities": [
+      {
+        "kind": "data-table",
+        "actions": [
+          "filter",
+          "sort",
+          "select_rows",
+          "set_page",
+          "set_column_visibility"
+        ]
+      }
     ],
     "status": "agent-native"
   }

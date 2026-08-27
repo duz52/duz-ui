@@ -20,9 +20,13 @@
     }
   ],
   "agentUi": {
-    "kind": "checkbox",
-    "actions": [
-      "set"
+    "capabilities": [
+      {
+        "kind": "checkbox",
+        "actions": [
+          "set"
+        ]
+      }
     ],
     "status": "agent-native"
   }

@@ -22,7 +22,10 @@ interface ManifestItem {
   dependencies: string[]
   registryDependencies: string[]
   sources: string[]
-  agentUi?: { kind?: string; actions?: string[]; status: string }
+  agentUi?:
+    | { capabilities: { kind: string; actions: string[] }[]; status: "agent-native" }
+    | { status: "presentation" }
+    | { status: "explicit-semantics" }
 }
 
 interface Manifest {

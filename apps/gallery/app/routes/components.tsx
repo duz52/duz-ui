@@ -51,21 +51,27 @@ export default function Components({
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">{item.title}</span>
-                {item.agentUi ? <KindBadge kind={item.agentUi.kind} /> : null}
+                {item.agentUi?.status === "agent-native"
+                  ? item.agentUi.capabilities.map((cap, index) => (
+                      <KindBadge key={index} kind={cap.kind} />
+                    ))
+                  : null}
               </div>
               <p className="text-sm text-muted-foreground">
                 {item.description}
               </p>
-              {item.agentUi ? (
+              {item.agentUi?.status === "agent-native" ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {item.agentUi.actions.map((action) => (
-                    <code
-                      key={action}
-                      className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
-                    >
-                      {action}
-                    </code>
-                  ))}
+                  {item.agentUi.capabilities.flatMap((cap) =>
+                    cap.actions.map((action) => (
+                      <code
+                        key={`${cap.kind}:${action}`}
+                        className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+                      >
+                        {action}
+                      </code>
+                    )),
+                  )}
                 </div>
               ) : null}
             </Link>

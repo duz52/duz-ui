@@ -23,6 +23,12 @@ export const STOCK_FINGERPRINTS: Record<string, string[]> = {
   "dialog": [
     "3715d8d640364a0a3853ed3d88a39b72f0dc3b5a4ff337c0899f436cdb99afa0"
   ],
+  "dropdown-menu": [
+    "2fe4177c4095514cc18ae4223018db857cf55b952775ac5b7cda8b62bdc61630"
+  ],
+  "hover-card": [
+    "66cad6eba90a11ea137b3dd28b33b20fedfb550f95e28e8cfec7a643096bac8f"
+  ],
   "input-otp": [
     "ae1dc0761812107f7f69197f1ffad1096221b0360f31047acd83847ab6ecd521"
   ],
@@ -31,6 +37,9 @@ export const STOCK_FINGERPRINTS: Record<string, string[]> = {
   ],
   "label": [
     "6fa2849dcebe1d76f608212f84adbd885a2bd69c0ebbe533108e7e6dbcb36f81"
+  ],
+  "pagination": [
+    "6f900f3ab9c147b043730c32a14cbb07ae7cc12104ee3c6633f1da2069d07203"
   ],
   "popover": [
     "2ebfea05946a2162c497df7651ae045d779df024b3249523e1403d9becb08568"

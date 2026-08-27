@@ -21,10 +21,14 @@
     }
   ],
   "agentUi": {
-    "kind": "select",
-    "actions": [
-      "choose",
-      "clear"
+    "capabilities": [
+      {
+        "kind": "select",
+        "actions": [
+          "choose",
+          "clear"
+        ]
+      }
     ],
     "status": "agent-native"
   }

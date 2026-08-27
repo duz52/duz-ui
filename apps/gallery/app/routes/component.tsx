@@ -111,45 +111,52 @@ function AgentCapabilities({
     )
   }
 
-  const actionTools = agentUi.actions.map((action) => ({
-    action,
-    tool: tools.find((t) => t.name.endsWith(`_${action}`)),
+  const capabilityTools = agentUi.capabilities.map((cap) => ({
+    cap,
+    tools: cap.actions.map((action) => ({
+      action,
+      tool: tools.find((t) => t.name.endsWith(`_${action}`)),
+    })),
   }))
 
   return (
-    <div className="space-y-4">
-      <KindBadge kind={agentUi.kind} />
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="p-3 text-left font-medium">Action</th>
-              <th className="p-3 text-left font-medium">Arguments</th>
-            </tr>
-          </thead>
-          <tbody>
-            {actionTools.map(({ action, tool }) => (
-              <tr
-                key={action}
-                className="border-b border-border last:border-0"
-              >
-                <td className="p-3 align-top font-mono text-[13px]">
-                  {action}
-                </td>
-                <td className="p-3">
-                  {tool ? (
-                    <ArgumentList tool={tool} />
-                  ) : (
-                    <span className="text-muted-foreground">
-                      Mount the preview to see arguments.
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-6">
+      {capabilityTools.map(({ cap, tools: capTools }, index) => (
+        <div key={index} className="space-y-3">
+          <KindBadge kind={cap.kind} />
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="p-3 text-left font-medium">Action</th>
+                  <th className="p-3 text-left font-medium">Arguments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {capTools.map(({ action, tool }) => (
+                  <tr
+                    key={action}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="p-3 align-top font-mono text-[13px]">
+                      {action}
+                    </td>
+                    <td className="p-3">
+                      {tool ? (
+                        <ArgumentList tool={tool} />
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Mount the preview to see arguments.
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

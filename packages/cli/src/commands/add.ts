@@ -25,7 +25,9 @@ function capabilitySummary(agentUi: AgentUiMeta | undefined): string {
   if (!agentUi) return "runtime"
   switch (agentUi.status) {
     case "agent-native":
-      return `kind ${agentUi.kind} · ${agentUi.actions.join(", ")}`
+      return agentUi.capabilities
+        .map((c) => `kind ${c.kind} · ${c.actions.join(", ")}`)
+        .join(" / ")
     case "presentation":
       return "presentation only, no agent capabilities"
     case "explicit-semantics":

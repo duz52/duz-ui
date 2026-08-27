@@ -226,6 +226,47 @@ const KIND_TOOLS: readonly KindToolDef[] = [
       },
     },
   },
+  {
+    kind: "accordion",
+    name: "accordion_expand",
+    action: "expand",
+    description: "Expand a section of an accordion by its value.",
+    inputSchema: {
+      value: {
+        type: "string",
+        description:
+          "The section value to expand. Call ui_read on the target to see available sections.",
+      },
+    },
+  },
+  {
+    kind: "accordion",
+    name: "accordion_collapse",
+    action: "collapse",
+    description: "Collapse a section of an accordion by its value.",
+    inputSchema: {
+      value: {
+        type: "string",
+        description:
+          "The section value to collapse. Call ui_read on the target to see available sections.",
+      },
+    },
+  },
+  {
+    kind: "slider",
+    name: "slider_set",
+    action: "set",
+    description:
+      "Set the value of a slider. There is one number per thumb; most sliders have exactly one.",
+    inputSchema: {
+      value: {
+        type: "array",
+        items: { type: "number" },
+        description:
+          "The new values for each thumb. There is one number per thumb; most sliders have exactly one. Call ui_read on the target to see the current value, min, max and step.",
+      },
+    },
+  },
 ]
 
 /**

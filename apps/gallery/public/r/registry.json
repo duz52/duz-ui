@@ -131,9 +131,13 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "tabs",
-        "actions": [
-          "select"
+        "capabilities": [
+          {
+            "kind": "tabs",
+            "actions": [
+              "select"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -152,10 +156,14 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "select",
-        "actions": [
-          "choose",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -174,9 +182,13 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "checkbox",
-        "actions": [
-          "set"
+        "capabilities": [
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -196,10 +208,14 @@
         "button"
       ],
       "agentUi": {
-        "kind": "dialog",
-        "actions": [
-          "open",
-          "close"
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -215,10 +231,14 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "input",
-        "actions": [
-          "set_value",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -234,10 +254,14 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "input",
-        "actions": [
-          "set_value",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -255,9 +279,13 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "checkbox",
-        "actions": [
-          "set"
+        "capabilities": [
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -276,10 +304,14 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "select",
-        "actions": [
-          "choose",
-          "clear"
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -301,13 +333,17 @@
         "checkbox"
       ],
       "agentUi": {
-        "kind": "data-table",
-        "actions": [
-          "filter",
-          "sort",
-          "select_rows",
-          "set_page",
-          "set_column_visibility"
+        "capabilities": [
+          {
+            "kind": "data-table",
+            "actions": [
+              "filter",
+              "sort",
+              "select_rows",
+              "set_page",
+              "set_column_visibility"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -326,10 +362,14 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "dialog",
-        "actions": [
-          "open",
-          "close"
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -348,10 +388,14 @@
         "button"
       ],
       "agentUi": {
-        "kind": "dialog",
-        "actions": [
-          "open",
-          "close"
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -370,9 +414,13 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "checkbox",
-        "actions": [
-          "set"
+        "capabilities": [
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -390,11 +438,15 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "disclosure",
-        "actions": [
-          "open",
-          "close",
-          "toggle"
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -412,11 +464,15 @@
         "agent-ui-runtime"
       ],
       "agentUi": {
-        "kind": "disclosure",
-        "actions": [
-          "open",
-          "close",
-          "toggle"
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
         ],
         "status": "agent-native"
       }
@@ -443,13 +499,175 @@
         "use-mobile"
       ],
       "agentUi": {
-        "kind": "disclosure",
-        "actions": [
-          "open",
-          "close",
-          "toggle"
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
         ],
         "status": "agent-native"
+      }
+    },
+    {
+      "name": "accordion",
+      "type": "registry:ui",
+      "title": "Accordion",
+      "description": "An accordion whose open sections are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "accordion",
+            "actions": [
+              "expand",
+              "collapse"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "slider",
+      "type": "registry:ui",
+      "title": "Slider",
+      "description": "A slider whose value is readable and settable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "slider",
+            "actions": [
+              "set"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "input-otp",
+      "type": "registry:ui",
+      "title": "InputOTP",
+      "description": "A one-time code input whose value is readable and settable by an agent.",
+      "dependencies": [
+        "input-otp",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "dropdown-menu",
+      "type": "registry:ui",
+      "title": "DropdownMenu",
+      "description": "A dropdown menu whose open state, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          },
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          },
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "hover-card",
+      "type": "registry:ui",
+      "title": "HoverCard",
+      "description": "A hover card whose open state is readable and controllable by an agent.",
+      "dependencies": [
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "pagination",
+      "type": "registry:ui",
+      "title": "Pagination",
+      "description": "A pagination navigation bar that renders page links; the current page belongs to the application's router.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "button"
+      ],
+      "agentUi": {
+        "status": "presentation"
       }
     }
   ]
