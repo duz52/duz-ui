@@ -20,8 +20,14 @@ export const STOCK_FINGERPRINTS: Record<string, string[]> = {
   "collapsible": [
     "e3fa1e37ee944c85da913968d096cae863b908838804371d6d1ee94af7dc00c2"
   ],
+  "context-menu": [
+    "01042320fc77c5310972605e69ed0348c5d7e993718c15df5ff749c3e6391c7b"
+  ],
   "dialog": [
     "3715d8d640364a0a3853ed3d88a39b72f0dc3b5a4ff337c0899f436cdb99afa0"
+  ],
+  "drawer": [
+    "7ed7b4b644c5c80bb60e2cd314a42f570018a542e7dc6af12e5c69f351579041"
   ],
   "dropdown-menu": [
     "2fe4177c4095514cc18ae4223018db857cf55b952775ac5b7cda8b62bdc61630"
@@ -37,6 +43,9 @@ export const STOCK_FINGERPRINTS: Record<string, string[]> = {
   ],
   "label": [
     "6fa2849dcebe1d76f608212f84adbd885a2bd69c0ebbe533108e7e6dbcb36f81"
+  ],
+  "menubar": [
+    "946074e77b15906d545211f2aa3214cc9c8fed939d3d2518da6a9cddf5b3417c"
   ],
   "pagination": [
     "6f900f3ab9c147b043730c32a14cbb07ae7cc12104ee3c6633f1da2069d07203"

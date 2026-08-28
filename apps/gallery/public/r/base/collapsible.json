@@ -1,0 +1,35 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "collapsible",
+  "type": "registry:ui",
+  "title": "Collapsible",
+  "description": "A collapsible container whose open state is readable and controllable by an agent.",
+  "dependencies": [
+    "@base-ui/react"
+  ],
+  "registryDependencies": [
+    "utils",
+    "agent-ui-runtime"
+  ],
+  "files": [
+    {
+      "path": "ui/collapsible.tsx",
+      "content": "\"use client\"\n\nimport { Collapsible as CollapsiblePrimitive } from \"@base-ui/react/collapsible\"\n\nimport { useCapability, type AgentProp } from \"@/lib/agent-ui/use-capability\"\nimport { useControllableState } from \"@/lib/agent-ui/use-controllable-state\"\nimport { rejectState } from \"@/lib/agent-ui/validate\"\n\ntype CollapsibleState = {\n  open: boolean\n  disabled: boolean\n}\n\ntype CollapsibleActions = {\n  open: Record<string, never>\n  close: Record<string, never>\n  toggle: Record<string, never>\n}\n\nfunction Collapsible({\n  open: openProp,\n  defaultOpen,\n  onOpenChange,\n  disabled = false,\n  agent,\n  ...props\n}: Omit<CollapsiblePrimitive.Root.Props, \"onOpenChange\"> & {\n  // Arity 1 in both bases — Base UI's eventDetails stops at the wrapper.\n  onOpenChange?: (open: boolean) => void\n  agent?: AgentProp\n}) {\n  const [open, setOpen] = useControllableState<boolean>({\n    prop: openProp,\n    defaultProp: defaultOpen ?? false,\n    onChange: onOpenChange,\n  })\n\n  useCapability<CollapsibleState, CollapsibleActions>({\n    agent,\n    kind: \"disclosure\",\n    defaultLabel: \"Collapsible\",\n    read: () => ({ open, disabled }),\n    actions: {\n      open() {\n        if (disabled) {\n          rejectState(\"Collapsible is disabled and cannot be changed.\")\n        }\n        setOpen(true)\n      },\n      close() {\n        if (disabled) {\n          rejectState(\"Collapsible is disabled and cannot be changed.\")\n        }\n        setOpen(false)\n      },\n      toggle() {\n        if (disabled) {\n          rejectState(\"Collapsible is disabled and cannot be changed.\")\n        }\n        setOpen(!open)\n      },\n    },\n  })\n\n  return (\n    <CollapsiblePrimitive.Root\n      data-slot=\"collapsible\"\n      open={open}\n      onOpenChange={(next) => setOpen(next)}\n      disabled={disabled}\n      {...props}\n    />\n  )\n}\n\nfunction CollapsibleTrigger({\n  ...props\n}: CollapsiblePrimitive.Trigger.Props) {\n  return (\n    <CollapsiblePrimitive.Trigger\n      data-slot=\"collapsible-trigger\"\n      {...props}\n    />\n  )\n}\n\nfunction CollapsibleContent({\n  ...props\n}: CollapsiblePrimitive.Panel.Props) {\n  return (\n    <CollapsiblePrimitive.Panel\n      data-slot=\"collapsible-content\"\n      {...props}\n    />\n  )\n}\n\nexport { Collapsible, CollapsibleTrigger, CollapsibleContent }\n",
+      "type": "registry:ui",
+      "target": "components/ui/collapsible.tsx"
+    }
+  ],
+  "agentUi": {
+    "capabilities": [
+      {
+        "kind": "disclosure",
+        "actions": [
+          "open",
+          "close",
+          "toggle"
+        ]
+      }
+    ],
+    "status": "agent-native"
+  }
+}

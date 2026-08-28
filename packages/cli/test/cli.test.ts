@@ -22,7 +22,10 @@ const registry = join(repoRoot, "apps/gallery/public/r")
 // against.
 const fixtures = join(repoRoot, "docs/internal/reference/shadcn")
 
-function createProject(components: string[]): string {
+// The style names the primitive base the project receives components for,
+// using shadcn's `"<base>-<style>"` encoding. The default "new-york-v4" is
+// the legacy Radix style the stock fixtures in `fixtures/` were taken from.
+function createProject(components: string[], style = "new-york-v4"): string {
   const dir = mkdtempSync(join(tmpdir(), "agent-ui-cli-"))
   writeFileSync(
     join(dir, "package.json"),
@@ -56,6 +59,7 @@ function createProject(components: string[]): string {
     JSON.stringify(
       {
         tsx: true,
+        style,
         aliases: {
           components: "@/components",
           ui: "@/components/ui",
@@ -180,6 +184,40 @@ test("add refuses to overwrite a customised component", () => {
     )
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("add installs the component for the project's base", () => {
+  // A project whose style resolves to base must receive the Base UI
+  // component; a legacy new-york project must receive the Radix one. The
+  // assertion names the primitive import, which only one base's source
+  // contains.
+  const baseDir = createProject([], "base-ui")
+  try {
+    const result = run(baseDir, ["add", "tabs"])
+    assert.equal(result.status, 0, result.output)
+    const source = readFileSync(join(baseDir, "src/components/ui/tabs.tsx"), "utf8")
+    assert.match(
+      source,
+      /from "@base-ui\/react\//,
+      "a base-configured project must receive the Base UI component",
+    )
+  } finally {
+    rmSync(baseDir, { recursive: true, force: true })
+  }
+
+  const radixDir = createProject([], "new-york-v4")
+  try {
+    const result = run(radixDir, ["add", "tabs"])
+    assert.equal(result.status, 0, result.output)
+    const source = readFileSync(join(radixDir, "src/components/ui/tabs.tsx"), "utf8")
+    assert.match(
+      source,
+      /from "radix-ui"/,
+      "a radix-configured project must receive the Radix component",
+    )
+  } finally {
+    rmSync(radixDir, { recursive: true, force: true })
   }
 })
 

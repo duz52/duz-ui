@@ -196,7 +196,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     return
   }
 
-  const client = createRegistryClient(registry ?? defaultRegistrySource())
+  const client = createRegistryClient(registry ?? defaultRegistrySource(), config.base)
 
   // List component files directly inside the ui directory.
   const uiDir = config.resolved.ui

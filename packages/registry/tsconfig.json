@@ -1,4 +1,7 @@
 {
+  // Editor default. Per-base checking is done by tsconfig.radix.json and
+  // tsconfig.base.json beside this file, which extend it and map
+  // "@/components/ui/*" to their own base tree.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": [
@@ -11,7 +14,7 @@
         "./src/lib/*"
       ],
       "@/components/ui/*": [
-        "./src/ui/*"
+        "./src/bases/radix/ui/*"
       ],
       "@/hooks/*": [
         "./src/hooks/*"

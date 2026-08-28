@@ -1,0 +1,88 @@
+"use client"
+
+import * as React from "react"
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
+
+import { cn } from "@/lib/utils"
+import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { expectBoolean, rejectState } from "@/lib/agent-ui/validate"
+import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+
+type SwitchState = {
+  checked: boolean
+  disabled: boolean
+}
+
+type SwitchActions = {
+  set: { checked: boolean }
+}
+
+function Switch({
+  className,
+  checked: checkedProp,
+  defaultChecked,
+  onCheckedChange,
+  disabled = false,
+  ref,
+  agent,
+  ...props
+}: Omit<SwitchPrimitive.Root.Props, "ref" | "onCheckedChange" | "className"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
+  // Arity 1 in both bases — Base UI's eventDetails stops at the wrapper.
+  onCheckedChange?: (checked: boolean) => void
+  className?: string
+  agent?: AgentProp
+}) {
+  const elementRef = React.useRef<HTMLElement>(null)
+  const label = useAccessibleName(elementRef, "Switch")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  const [checked, setChecked] = useControllableState<boolean>({
+    prop: checkedProp,
+    defaultProp: defaultChecked ?? false,
+    onChange: onCheckedChange,
+  })
+
+  useCapability<SwitchState, SwitchActions>({
+    agent: agentWithElementId(agent, props.id),
+    kind: "checkbox",
+    defaultLabel: label,
+    read: () => ({ checked, disabled }),
+    actions: {
+      set(input) {
+        const next = expectBoolean(input, "checked")
+        if (disabled) {
+          rejectState("Switch is disabled and cannot be changed.")
+        }
+        setChecked(next)
+      },
+    },
+  })
+
+  return (
+    <SwitchPrimitive.Root
+      data-slot="switch"
+      className={cn(
+        "peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-checked:bg-primary data-unchecked:bg-input dark:data-unchecked:bg-input/30",
+        className
+      )}
+      checked={checked}
+      onCheckedChange={(next) => setChecked(next)}
+      disabled={disabled}
+      ref={mergedRef}
+      {...props}
+    >
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className={cn(
+          "pointer-events-none block size-4 rounded-full bg-foreground shadow-lg ring-0 transition-transform data-checked:translate-x-4 data-unchecked:translate-x-0 dark:bg-foreground"
+        )}
+      />
+    </SwitchPrimitive.Root>
+  )
+}
+
+export { Switch }

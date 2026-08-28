@@ -61,6 +61,7 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
   blank()
 
   info("Runtime")
+  step(`primitive base: ${config.base}`)
   for (const part of RUNTIME_PARTS) {
     const file = runtimePath(config, part.file)
     const shown = relative(config.cwd, file)
@@ -73,7 +74,7 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
 
   let index: RegistryIndexItem[]
   try {
-    index = (await createRegistryClient(registry ?? defaultRegistrySource()).index()).items
+    index = (await createRegistryClient(registry ?? defaultRegistrySource(), config.base).index()).items
   } catch {
     blank()
     info("Components")

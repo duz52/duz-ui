@@ -58,13 +58,13 @@ let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
 let registry: import("../src/lib/agent-ui/registry").CapabilityRegistry
 let createAgentTools: typeof import("../src/lib/agent-ui/tools").createAgentTools
-let Tabs: typeof import("../src/ui/tabs")
-let Checkbox: typeof import("../src/ui/checkbox")
-let Input: typeof import("../src/ui/input")
-let DataTable: typeof import("../src/ui/data-table")
-let Collapsible: typeof import("../src/ui/collapsible")
-let Switch: typeof import("../src/ui/switch")
-let Textarea: typeof import("../src/ui/textarea")
+let Tabs: typeof import("../src/bases/radix/ui/tabs")
+let Checkbox: typeof import("../src/bases/radix/ui/checkbox")
+let Input: typeof import("../src/bases/radix/ui/input")
+let DataTable: typeof import("../src/bases/radix/ui/data-table")
+let Collapsible: typeof import("../src/bases/radix/ui/collapsible")
+let Switch: typeof import("../src/bases/radix/ui/switch")
+let Textarea: typeof import("../src/bases/radix/ui/textarea")
 
 before(async () => {
   React = await import("react")
@@ -72,13 +72,13 @@ before(async () => {
   const registryModule = await import("../src/lib/agent-ui/registry")
   registry = registryModule.getCapabilityRegistry()
   ;({ createAgentTools } = await import("../src/lib/agent-ui/tools"))
-  Tabs = await import("../src/ui/tabs")
-  Checkbox = await import("../src/ui/checkbox")
-  Input = await import("../src/ui/input")
-  DataTable = await import("../src/ui/data-table")
-  Collapsible = await import("../src/ui/collapsible")
-  Switch = await import("../src/ui/switch")
-  Textarea = await import("../src/ui/textarea")
+  Tabs = await import("../src/bases/radix/ui/tabs")
+  Checkbox = await import("../src/bases/radix/ui/checkbox")
+  Input = await import("../src/bases/radix/ui/input")
+  DataTable = await import("../src/bases/radix/ui/data-table")
+  Collapsible = await import("../src/bases/radix/ui/collapsible")
+  Switch = await import("../src/bases/radix/ui/switch")
+  Textarea = await import("../src/bases/radix/ui/textarea")
 })
 
 async function withAct<T>(fn: () => Promise<T>): Promise<T> {
@@ -235,7 +235,7 @@ const ROWS: Row[] = [
 ]
 
 test("the data table exposes only its agent-readable surface", async () => {
-  const columns: import("../src/ui/data-table").DataTableColumn<Row>[] = [
+  const columns: import("../src/bases/radix/ui/data-table").DataTableColumn<Row>[] = [
     { id: "id", header: "ID", accessor: (row) => row.id },
     { id: "customer", header: "Customer", accessor: (row) => row.customer },
     { id: "status", header: "Status", accessor: (row) => row.status },
@@ -276,7 +276,7 @@ test("the data table exposes only its agent-readable surface", async () => {
 })
 
 test("table_filter, table_sort and table_select_rows report canonical state", async () => {
-  const columns: import("../src/ui/data-table").DataTableColumn<Row>[] = [
+  const columns: import("../src/bases/radix/ui/data-table").DataTableColumn<Row>[] = [
     { id: "customer", header: "Customer", accessor: (row) => row.customer },
     { id: "status", header: "Status", accessor: (row) => row.status },
     { id: "total", header: "Total", accessor: (row) => row.total },

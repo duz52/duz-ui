@@ -1,0 +1,52 @@
+diff --git a/menu/popup/MenuPopup.js b/menu/popup/MenuPopup.js
+index 72cf276d265432ef2eebf40a74a6e1abf0766b95..ecba1ad0d3203d4093f80f42d5ef8ddfcad9aeb0 100644
+--- a/menu/popup/MenuPopup.js
++++ b/menu/popup/MenuPopup.js
+@@ -111,10 +111,17 @@ const MenuPopup = exports.MenuPopup = /*#__PURE__*/React.forwardRef(function Men
+       'data-rootownerid': rootId
+     }]
+   });
+-  let returnFocus = parent.type === undefined || isContextMenu;
+-  if (triggerElement || parent.type === 'menubar' && lastOpenChangeReason !== _reasons.REASONS.outsidePress) {
+-    returnFocus = true;
+-  }
++  // Upstream fix, mui/base-ui#5590: a menubar child that closes while a
++  // sibling menu is open must not pull focus back to its own trigger. The
++  // sibling owns focus, and the trigger's useFocus would reopen the menu
++  // that just closed, so a controlled handoff bounces back.
++  const siblingMenuOpen = parent.type === 'menubar' && parent.context.hasSubmenuOpen;
++  const returnFocus =
++    !siblingMenuOpen &&
++    (parent.type === undefined ||
++      isContextMenu ||
++      Boolean(triggerElement) ||
++      (parent.type === 'menubar' && lastOpenChangeReason !== _reasons.REASONS.outsidePress));
+   return /*#__PURE__*/(0, _jsxRuntime.jsx)(_floatingUiReact.FloatingFocusManager, {
+     context: floatingContext,
+     openInteractionType: openMethod,
+diff --git a/menu/popup/MenuPopup.mjs b/menu/popup/MenuPopup.mjs
+index e2ee93d4ba8b6a8eea1b87f18c0dfe59ece9fd2f..c45dd5ef31d4b6ec3bbde8b226281c5b77df655a 100644
+--- a/menu/popup/MenuPopup.mjs
++++ b/menu/popup/MenuPopup.mjs
+@@ -105,10 +105,17 @@ export const MenuPopup = /*#__PURE__*/React.forwardRef(function MenuPopup(compon
+       'data-rootownerid': rootId
+     }]
+   });
+-  let returnFocus = parent.type === undefined || isContextMenu;
+-  if (triggerElement || parent.type === 'menubar' && lastOpenChangeReason !== REASONS.outsidePress) {
+-    returnFocus = true;
+-  }
++  // Upstream fix, mui/base-ui#5590: a menubar child that closes while a
++  // sibling menu is open must not pull focus back to its own trigger. The
++  // sibling owns focus, and the trigger's useFocus would reopen the menu
++  // that just closed, so a controlled handoff bounces back.
++  const siblingMenuOpen = parent.type === 'menubar' && parent.context.hasSubmenuOpen;
++  const returnFocus =
++    !siblingMenuOpen &&
++    (parent.type === undefined ||
++      isContextMenu ||
++      Boolean(triggerElement) ||
++      (parent.type === 'menubar' && lastOpenChangeReason !== REASONS.outsidePress));
+   return /*#__PURE__*/_jsx(FloatingFocusManager, {
+     context: floatingContext,
+     openInteractionType: openMethod,

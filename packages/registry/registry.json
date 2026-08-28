@@ -53,10 +53,10 @@
     {
       "name": "button",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Button",
       "description": "A polymorphic button with variant and size presets, styled for agent-driven interfaces.",
       "dependencies": [
-        "radix-ui",
         "class-variance-authority"
       ],
       "registryDependencies": [
@@ -72,11 +72,10 @@
     {
       "name": "label",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Label",
       "description": "An accessible form label built on Radix Label.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -90,11 +89,10 @@
     {
       "name": "separator",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Separator",
       "description": "A horizontal or vertical divider that visually separates content sections.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -108,6 +106,7 @@
     {
       "name": "skeleton",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Skeleton",
       "description": "A pulsing placeholder element that indicates content is loading.",
       "dependencies": [],
@@ -124,11 +123,10 @@
     {
       "name": "tooltip",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Tooltip",
       "description": "A hover-triggered popover that displays contextual information near an anchor element.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -142,6 +140,7 @@
     {
       "name": "table",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Table",
       "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable.",
       "dependencies": [],
@@ -158,10 +157,10 @@
     {
       "name": "tabs",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Tabs",
       "description": "A tabbed container whose active tab is readable and selectable by an agent.",
       "dependencies": [
-        "radix-ui",
         "class-variance-authority"
       ],
       "registryDependencies": [
@@ -186,10 +185,10 @@
     {
       "name": "select",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Select",
       "description": "A dropdown select whose chosen value and options are readable and settable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -215,10 +214,10 @@
     {
       "name": "checkbox",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Checkbox",
       "description": "A checkbox whose checked state is readable and settable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -243,10 +242,10 @@
     {
       "name": "dialog",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Dialog",
       "description": "A modal dialog whose open state and title are readable and controllable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -273,6 +272,7 @@
     {
       "name": "input",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Input",
       "description": "A text input whose value is readable and settable by an agent through the native value channel.",
       "dependencies": [],
@@ -299,6 +299,7 @@
     {
       "name": "textarea",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Textarea",
       "description": "A multiline text input whose value is readable and settable by an agent through the native value channel.",
       "dependencies": [],
@@ -325,11 +326,10 @@
     {
       "name": "switch",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Switch",
       "description": "A toggle switch whose checked state is readable and settable by an agent.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -352,10 +352,10 @@
     {
       "name": "radio-group",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "RadioGroup",
       "description": "A radio group whose chosen value and available options are readable and settable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -381,6 +381,7 @@
     {
       "name": "data-table",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "DataTable",
       "description": "A TanStack-powered data table exposing filter, sort, row selection, pagination and column visibility to an agent.",
       "dependencies": [
@@ -416,10 +417,10 @@
     {
       "name": "sheet",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Sheet",
       "description": "A side panel whose open state and title are readable and controllable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -445,11 +446,10 @@
     {
       "name": "alert-dialog",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "AlertDialog",
       "description": "A modal alert dialog whose open state and title are readable and controllable by an agent.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -474,10 +474,10 @@
     {
       "name": "toggle",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Toggle",
       "description": "A toggle button whose pressed state is readable and settable by an agent.",
       "dependencies": [
-        "radix-ui",
         "class-variance-authority"
       ],
       "registryDependencies": [
@@ -502,11 +502,10 @@
     {
       "name": "collapsible",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Collapsible",
       "description": "A collapsible container whose open state is readable and controllable by an agent.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -531,11 +530,10 @@
     {
       "name": "popover",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Popover",
       "description": "A popover whose open state is readable and controllable by an agent.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -560,10 +558,10 @@
     {
       "name": "sidebar",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Sidebar",
       "description": "A composable sidebar whose open state is readable and controllable by an agent.",
       "dependencies": [
-        "radix-ui",
         "class-variance-authority",
         "lucide-react"
       ],
@@ -598,10 +596,10 @@
     {
       "name": "accordion",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Accordion",
       "description": "An accordion whose open sections are readable and controllable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -627,11 +625,10 @@
     {
       "name": "slider",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Slider",
       "description": "A slider whose value is readable and settable by an agent.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -654,10 +651,10 @@
     {
       "name": "input-otp",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "InputOTP",
       "description": "A one-time code input whose value is readable and settable by an agent.",
       "dependencies": [
-        "input-otp",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -683,10 +680,10 @@
     {
       "name": "dropdown-menu",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "DropdownMenu",
       "description": "A dropdown menu whose open state, checkbox items and radio group are readable and controllable by an agent.",
       "dependencies": [
-        "radix-ui",
         "lucide-react"
       ],
       "registryDependencies": [
@@ -726,11 +723,10 @@
     {
       "name": "hover-card",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "HoverCard",
       "description": "A hover card whose open state is readable and controllable by an agent.",
-      "dependencies": [
-        "radix-ui"
-      ],
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -755,6 +751,7 @@
     {
       "name": "pagination",
       "type": "registry:ui",
+      "baseSpecific": true,
       "title": "Pagination",
       "description": "A pagination navigation bar that renders page links; the current page belongs to the application's router.",
       "dependencies": [
@@ -769,6 +766,118 @@
       ],
       "agentUi": {
         "status": "presentation"
+      }
+    },
+    {
+      "name": "context-menu",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "ContextMenu",
+      "description": "A right-click context menu whose open state, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/context-menu.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          },
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "menubar",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Menubar",
+      "description": "A horizontal menu bar whose open menu, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/menubar.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "checkbox",
+            "actions": [
+              "set"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "drawer",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Drawer",
+      "description": "A slide-in drawer whose open state and title are readable and controllable by an agent.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/drawer.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "dialog",
+            "actions": [
+              "open",
+              "close"
+            ]
+          }
+        ],
+        "status": "agent-native"
       }
     }
   ]

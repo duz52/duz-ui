@@ -27,7 +27,24 @@ export function defaultRegistrySource(): string {
   return process.env.AGENT_UI_REGISTRY ?? "https://agent-ui.dev/r"
 }
 
-export function createRegistryClient(source: string): RegistryClient {
+/**
+ * The primitive bases the registry emits items for, alphabetical. A
+ * base-specific item is served at `<source>/<base>/<name>.json`; a
+ * base-independent item is served at `<source>/<name>.json` for every base.
+ */
+export const REGISTRY_BASES = ["base", "radix"] as const
+
+export type RegistryBase = (typeof REGISTRY_BASES)[number]
+
+/**
+ * Create a client for the registry at `source`, fetching items for the
+ * primitive base `base`. An item is looked up at `<source>/<base>/<name>.json`
+ * first — the base-specific component — and at `<source>/<name>.json` second —
+ * the base-independent runtime. The base is the caller's decision, resolved
+ * from the project's `components.json`; the client only fetches. The default
+ * is `radix`, the base legacy unprefixed styles resolve to.
+ */
+export function createRegistryClient(source: string, base: RegistryBase = "radix"): RegistryClient {
   const cache = new Map<string, RegistryItem>()
 
   async function readDocument(path: string): Promise<string> {
@@ -46,13 +63,25 @@ export function createRegistryClient(source: string): RegistryClient {
     return readFileSync(filePath, "utf8")
   }
 
+  /**
+   * Fetch an item's document: base-specific first, flat (base-independent)
+   * second. A name found in neither is unknown.
+   */
+  async function fetchItemText(name: string): Promise<string> {
+    try {
+      return await readDocument(`${base}/${name}.json`)
+    } catch {
+      return readDocument(`${name}.json`)
+    }
+  }
+
   async function item(name: string): Promise<RegistryItem> {
     const cached = cache.get(name)
     if (cached) return cached
 
     let text: string
     try {
-      text = await readDocument(`${name}.json`)
+      text = await fetchItemText(name)
     } catch {
       throw new Error(`Unknown component "${name}"`)
     }
