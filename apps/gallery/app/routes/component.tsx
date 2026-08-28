@@ -3,7 +3,6 @@ import * as React from "react"
 import type { Route } from "./+types/component"
 import { getItem, type GalleryItem } from "@/registry"
 import { EXAMPLES } from "@/content/examples"
-import { PageHeader } from "@/components/site/page-header"
 import { KindBadge } from "@/components/site/kind-badge"
 import { CodeBlock } from "@/components/site/code-block"
 import { ToolRunner } from "@/components/site/tool-runner"
@@ -177,12 +176,6 @@ export default function Component({
 
   return (
     <div className="space-y-12 py-8">
-      <PageHeader
-        title={item.title}
-        description={item.description}
-        eyebrow={item.type}
-      />
-
       <section className="space-y-3">
         <h2 className={SECTION_HEADING}>Live Preview</h2>
         {Preview ? (

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "input",
+  "type": "registry:ui",
+  "title": "Input",
+  "description": "A text input whose value is readable and settable by an agent through the native value channel.",
+  "dependencies": [
+    "@base-ui/react"
+  ],
+  "registryDependencies": [
+    "utils",
+    "agent-ui-runtime"
+  ],
+  "files": [
+    {
+      "path": "ui/input.tsx",
+      "content": "\"use client\"\n\nimport * as React from \"react\"\nimport { Input as InputPrimitive } from \"@base-ui/react/input\"\n\nimport { cn } from \"@/lib/utils\"\nimport { useCapability, type AgentProp } from \"@/lib/agent-ui/use-capability\"\nimport { useMergedRef } from \"@/lib/agent-ui/use-merged-ref\"\nimport { agentWithElementId, useAccessibleName } from \"@/lib/agent-ui/agent-identity\"\nimport { expectString, rejectState } from \"@/lib/agent-ui/validate\"\n\n// A native <input> has exactly one semantic channel for changing its value:\n// setting the .value property and letting the input event propagate. React's\n// onChange is a delegated listener for that native event, so this mechanism\n// works whether the input is controlled or uncontrolled. Base UI's Input\n// renders a native <input>, so the channel is the same as the Radix twin's.\nfunction setNativeValue(node: HTMLInputElement, value: string) {\n  const descriptor = Object.getOwnPropertyDescriptor(\n    HTMLInputElement.prototype,\n    \"value\",\n  )\n  descriptor?.set?.call(node, value)\n  node.dispatchEvent(new Event(\"input\", { bubbles: true }))\n}\n\nfunction assertMutable(node: HTMLElement | null): HTMLInputElement {\n  if (!(node instanceof HTMLInputElement)) {\n    rejectState(\"Input is not mounted.\")\n  }\n  if (node.disabled) {\n    rejectState(\"Input is disabled and cannot be changed.\")\n  }\n  if (node.readOnly) {\n    rejectState(\"Input is read-only and cannot be changed.\")\n  }\n  return node\n}\n\ntype InputState = {\n  value: string\n  type: string\n  disabled: boolean\n  readOnly: boolean\n  placeholder: string | null\n}\n\ntype InputActions = {\n  set_value: { value: string }\n  clear: Record<string, never>\n}\n\nfunction Input({\n  className,\n  type,\n  ref,\n  agent,\n  ...props\n}: Omit<InputPrimitive.Props, \"ref\" | \"className\"> & {\n  /** Matches the ref type the library publishes on the component itself. */\n  ref?: React.Ref<HTMLElement>\n  className?: string\n  agent?: AgentProp\n}) {\n  const inputRef = React.useRef<HTMLElement>(null)\n  const label = useAccessibleName(inputRef, \"Input\")\n  const mergedRef = useMergedRef(ref, inputRef)\n\n  useCapability<InputState, InputActions>({\n    agent: agentWithElementId(agent, props.id),\n    kind: \"input\",\n    defaultLabel: label,\n    read: () => {\n      const node = inputRef.current\n      if (!(node instanceof HTMLInputElement)) {\n        return {\n          value: \"\",\n          type: type ?? \"text\",\n          disabled: false,\n          readOnly: false,\n          placeholder: null,\n        }\n      }\n      return {\n        value: node.value,\n        type: node.type,\n        disabled: node.disabled,\n        readOnly: node.readOnly,\n        placeholder: node.placeholder || null,\n      }\n    },\n    actions: {\n      set_value(input) {\n        const next = expectString(input, \"value\")\n        const node = assertMutable(inputRef.current)\n        setNativeValue(node, next)\n      },\n      clear() {\n        const node = assertMutable(inputRef.current)\n        setNativeValue(node, \"\")\n      },\n    },\n  })\n\n  return (\n    <InputPrimitive\n      type={type}\n      data-slot=\"input\"\n      className={cn(\n        \"h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30\",\n        \"focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50\",\n        \"data-invalid:border-destructive data-invalid:ring-destructive/20 dark:data-invalid:ring-destructive/40\",\n        className\n      )}\n      ref={mergedRef}\n      {...props}\n    />\n  )\n}\n\nexport { Input }\n",
+      "type": "registry:ui",
+      "target": "components/ui/input.tsx"
+    }
+  ],
+  "agentUi": {
+    "capabilities": [
+      {
+        "kind": "input",
+        "actions": [
+          "set_value",
+          "clear"
+        ]
+      }
+    ],
+    "status": "agent-native"
+  }
+}

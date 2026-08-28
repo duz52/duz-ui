@@ -5,17 +5,19 @@
   "type": "module",
   "scripts": {
     "build": "tsx build.ts",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.radix.json && tsc -p tsconfig.base.json",
     "test": "tsx --test test/*.test.ts test/*.test.tsx"
   },
   "dependencies": {
+    "@base-ui/react": "1.6.0",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "input-otp": "1.5.0",
     "lucide-react": "^0.545.0",
     "radix-ui": "^1.6.7",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@types/jsdom": "^27.0.0",

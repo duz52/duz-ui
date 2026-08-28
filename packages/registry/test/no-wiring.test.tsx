@@ -6,7 +6,7 @@ import { JSDOM } from "jsdom"
 /**
  * Integration test B — no wiring, and real names.
  *
- * Mounts the real shipped components from packages/registry/src/ui/ in jsdom
+ * Mounts the real shipped components from packages/registry/src/bases/radix/ui/ in jsdom
  * with no provider and no `agent` prop anywhere, and proves the browser would
  * see tools — by installing a fake `document.modelContext` that stands in for
  * Chrome and checking what it holds.
@@ -134,14 +134,14 @@ Object.defineProperty(dom.window.document, "modelContext", {
 
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
-let Checkbox: typeof import("../src/ui/checkbox").Checkbox
-let Label: typeof import("../src/ui/label").Label
+let Checkbox: typeof import("../src/bases/radix/ui/checkbox").Checkbox
+let Label: typeof import("../src/bases/radix/ui/label").Label
 
 before(async () => {
   React = await import("react")
   ;({ createRoot } = await import("react-dom/client"))
-  ;({ Checkbox } = await import("../src/ui/checkbox"))
-  ;({ Label } = await import("../src/ui/label"))
+  ;({ Checkbox } = await import("../src/bases/radix/ui/checkbox"))
+  ;({ Label } = await import("../src/bases/radix/ui/label"))
 })
 
 async function withAct<T>(fn: () => Promise<T>): Promise<T> {

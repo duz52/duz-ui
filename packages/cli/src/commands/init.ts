@@ -40,7 +40,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   const { cwd = process.cwd(), dryRun = false, registry } = options
 
   const config = await loadProject(cwd)
-  const client = createRegistryClient(registry ?? defaultRegistrySource())
+  const client = createRegistryClient(registry ?? defaultRegistrySource(), config.base)
   const items = await client.resolve(["agent-ui-runtime", "utils"])
   const result = await installItems(config, items, { dryRun })
 

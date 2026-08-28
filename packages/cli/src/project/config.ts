@@ -8,14 +8,61 @@
 
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { REGISTRY_BASES, type RegistryBase } from "../registry/client.js"
 import { aliasToDir } from "./paths.js"
 
 export interface ProjectConfig {
   cwd: string
   tsx: boolean
+  /**
+   * The primitive base this project receives components for, resolved from
+   * `components.json`'s `style`.
+   */
+  base: RegistryBase
   aliases: { components: string; ui: string; lib: string; utils: string; hooks: string }
   resolved: { ui: string; lib: string; utils: string; hooks: string }
   packageJsonPath: string
+}
+
+/** The part of shadcn's `components.json` the project config reads. */
+interface ComponentsJson {
+  style?: string
+  tsx?: boolean
+  aliases?: Record<string, string>
+}
+
+/**
+ * The style prefixes shadcn's encoding defines, including `aria`, which
+ * Agent UI does not ship: a project asking for it must be told so plainly,
+ * not silently given another base.
+ */
+const KNOWN_STYLE_BASES = ["radix", "base", "aria"] as const
+
+function isRegistryBase(value: string): value is RegistryBase {
+  return REGISTRY_BASES.some((base) => base === value)
+}
+
+/**
+ * Resolve the project's primitive base from `components.json`'s `style`,
+ * using shadcn's encoding: `"<base>-<style>"` names the base. An undefined
+ * style means no config yet and defaults to `base`; a defined style with no
+ * known base prefix (`new-york`, `new-york-v4`, `default`) is a legacy Radix
+ * project.
+ */
+function resolveBase(style: string | undefined): RegistryBase {
+  if (style === undefined) {
+    return "base"
+  }
+  const requested = KNOWN_STYLE_BASES.find((prefix) => style.startsWith(`${prefix}-`))
+  if (requested === undefined) {
+    return "radix"
+  }
+  if (!isRegistryBase(requested)) {
+    throw new Error(
+      `components.json style "${style}" requests the primitive base "${requested}", which Agent UI does not provide. Available bases: ${REGISTRY_BASES.join(", ")}.`,
+    )
+  }
+  return requested
 }
 
 export async function loadProject(cwd: string): Promise<ProjectConfig> {
@@ -34,14 +81,11 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
 
   // Read shadcn components.json when present.
   const componentsJsonPath = join(cwd, "components.json")
-  const componentsJson: { tsx?: boolean; aliases?: Record<string, string> } =
-    existsSync(componentsJsonPath)
-      ? (JSON.parse(readFileSync(componentsJsonPath, "utf8")) as {
-          tsx?: boolean
-          aliases?: Record<string, string>
-        })
-      : {}
+  const componentsJson: ComponentsJson = existsSync(componentsJsonPath)
+    ? (JSON.parse(readFileSync(componentsJsonPath, "utf8")) as ComponentsJson)
+    : {}
 
+  const base = resolveBase(componentsJson.style)
   const tsx = componentsJson.tsx !== false
   const aliases = {
     components: componentsJson.aliases?.components ?? "@/components",
@@ -62,6 +106,7 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
   return {
     cwd,
     tsx,
+    base,
     aliases,
     resolved: { ui: uiDir, lib: libDir, utils: utilsFile, hooks: hooksDir },
     packageJsonPath,

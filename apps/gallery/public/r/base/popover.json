@@ -1,0 +1,35 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "popover",
+  "type": "registry:ui",
+  "title": "Popover",
+  "description": "A popover whose open state is readable and controllable by an agent.",
+  "dependencies": [
+    "@base-ui/react"
+  ],
+  "registryDependencies": [
+    "utils",
+    "agent-ui-runtime"
+  ],
+  "files": [
+    {
+      "path": "ui/popover.tsx",
+      "content": "\"use client\"\n\nimport * as React from \"react\"\nimport { Popover as PopoverPrimitive } from \"@base-ui/react/popover\"\n\nimport { cn } from \"@/lib/utils\"\nimport { useCapability, type AgentProp } from \"@/lib/agent-ui/use-capability\"\nimport { useMergedRef } from \"@/lib/agent-ui/use-merged-ref\"\nimport { useControllableState } from \"@/lib/agent-ui/use-controllable-state\"\n\n/**\n * Base UI has no Anchor part — the Positioner takes the anchor element via\n * its `anchor` prop instead. PopoverAnchor registers its element here so\n * PopoverContent can hand it to the Positioner.\n */\ninterface PopoverContextValue {\n  anchor: HTMLDivElement | null\n  setAnchor: (element: HTMLDivElement | null) => void\n}\n\nconst PopoverContext = React.createContext<PopoverContextValue | null>(null)\n\nfunction usePopoverAnchorSetter(): (element: HTMLDivElement | null) => void {\n  const ctx = React.useContext(PopoverContext)\n  if (!ctx) {\n    throw new Error(\"PopoverAnchor must be rendered inside <Popover>.\")\n  }\n  return ctx.setAnchor\n}\n\ntype PopoverState = {\n  open: boolean\n  disabled: boolean\n}\n\ntype PopoverActions = {\n  open: Record<string, never>\n  close: Record<string, never>\n  toggle: Record<string, never>\n}\n\nfunction Popover({\n  open: openProp,\n  defaultOpen,\n  onOpenChange,\n  agent,\n  ...props\n}: Omit<PopoverPrimitive.Root.Props, \"onOpenChange\"> & {\n  // Arity 1 in both bases — Base UI's eventDetails stops at the wrapper.\n  onOpenChange?: (open: boolean) => void\n  agent?: AgentProp\n}) {\n  const [anchor, setAnchor] = React.useState<HTMLDivElement | null>(null)\n\n  const [open, setOpen] = useControllableState<boolean>({\n    prop: openProp,\n    defaultProp: defaultOpen ?? false,\n    onChange: onOpenChange,\n  })\n\n  useCapability<PopoverState, PopoverActions>({\n    agent,\n    kind: \"disclosure\",\n    defaultLabel: \"Popover\",\n    read: () => ({ open, disabled: false }),\n    actions: {\n      open() {\n        setOpen(true)\n      },\n      close() {\n        setOpen(false)\n      },\n      toggle() {\n        setOpen(!open)\n      },\n    },\n  })\n\n  const contextValue = React.useMemo<PopoverContextValue>(\n    () => ({ anchor, setAnchor }),\n    [anchor, setAnchor],\n  )\n\n  return (\n    // The Base UI root renders no element, so it carries no data-slot.\n    <PopoverContext.Provider value={contextValue}>\n      <PopoverPrimitive.Root\n        open={open}\n        onOpenChange={(next) => setOpen(next)}\n        {...props}\n      />\n    </PopoverContext.Provider>\n  )\n}\n\nfunction PopoverTrigger({\n  ...props\n}: PopoverPrimitive.Trigger.Props) {\n  return <PopoverPrimitive.Trigger data-slot=\"popover-trigger\" {...props} />\n}\n\nfunction PopoverContent({\n  className,\n  side,\n  align = \"center\",\n  alignOffset,\n  sideOffset = 4,\n  collisionPadding,\n  ...props\n}: Omit<\n  PopoverPrimitive.Popup.Props &\n    Pick<\n      PopoverPrimitive.Positioner.Props,\n      \"align\" | \"alignOffset\" | \"side\" | \"sideOffset\" | \"collisionPadding\"\n    >,\n  \"className\"\n> & {\n  className?: string\n}) {\n  const ctx = React.useContext(PopoverContext)\n\n  return (\n    <PopoverPrimitive.Portal>\n      {/* A registered anchor wins over the default trigger anchoring; a null\n          anchor falls back to the trigger. */}\n      <PopoverPrimitive.Positioner\n        anchor={ctx?.anchor ?? null}\n        side={side}\n        align={align}\n        alignOffset={alignOffset}\n        sideOffset={sideOffset}\n        collisionPadding={collisionPadding}\n        className=\"isolate z-50\"\n      >\n        <PopoverPrimitive.Popup\n          data-slot=\"popover-content\"\n          className={cn(\n            \"z-50 w-72 origin-(--transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95\",\n            className\n          )}\n          {...props}\n        />\n      </PopoverPrimitive.Positioner>\n    </PopoverPrimitive.Portal>\n  )\n}\n\nfunction PopoverAnchor({\n  ref,\n  ...props\n}: React.ComponentProps<\"div\">) {\n  const setAnchor = usePopoverAnchorSetter()\n  const mergedRef = useMergedRef(ref, setAnchor)\n\n  return <div ref={mergedRef} data-slot=\"popover-anchor\" {...props} />\n}\n\nfunction PopoverHeader({ className, ...props }: React.ComponentProps<\"div\">) {\n  return (\n    <div\n      data-slot=\"popover-header\"\n      className={cn(\"flex flex-col gap-1 text-sm\", className)}\n      {...props}\n    />\n  )\n}\n\nfunction PopoverTitle({ className, ...props }: React.ComponentProps<\"h2\">) {\n  return (\n    <div\n      data-slot=\"popover-title\"\n      className={cn(\"font-medium\", className)}\n      {...props}\n    />\n  )\n}\n\nfunction PopoverDescription({\n  className,\n  ...props\n}: React.ComponentProps<\"p\">) {\n  return (\n    <p\n      data-slot=\"popover-description\"\n      className={cn(\"text-muted-foreground\", className)}\n      {...props}\n    />\n  )\n}\n\nexport {\n  Popover,\n  PopoverTrigger,\n  PopoverContent,\n  PopoverAnchor,\n  PopoverHeader,\n  PopoverTitle,\n  PopoverDescription,\n}\n",
+      "type": "registry:ui",
+      "target": "components/ui/popover.tsx"
+    }
+  ],
+  "agentUi": {
+    "capabilities": [
+      {
+        "kind": "disclosure",
+        "actions": [
+          "open",
+          "close",
+          "toggle"
+        ]
+      }
+    ],
+    "status": "agent-native"
+  }
+}

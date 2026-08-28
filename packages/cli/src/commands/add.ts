@@ -43,7 +43,7 @@ export async function addCommand(
     options
 
   const config = await loadProject(cwd)
-  const client = createRegistryClient(registry ?? defaultRegistrySource())
+  const client = createRegistryClient(registry ?? defaultRegistrySource(), config.base)
   const index = await client.index()
   const available = index.items
     .filter((item) => item.type === "registry:ui")
