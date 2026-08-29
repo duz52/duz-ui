@@ -81,7 +81,23 @@ function capLength(text: string): string {
  * falls through to the next source. The final result is capped at
  * NAME_MAX_LENGTH characters.
  */
-function resolveAccessibleName(element: HTMLElement, fallback: string): string {
+/**
+ * The surface of an element a name is read from — deliberately minimal and
+ * structural. The helper reads attributes, labels and text and nothing else,
+ * so it accepts a ref to any element. A nominal `HTMLElement` parameter
+ * would refuse some elements outright: wrangler's generated worker types
+ * merge an HTMLRewriter `Element` into the DOM lib's, which breaks
+ * `HTMLSelectElement extends HTMLElement` assignability over the `remove()`
+ * overloads — a member this helper never touches.
+ */
+interface NamedElement {
+  id: string
+  textContent: string | null
+  getAttribute(name: string): string | null
+  closest(selectors: string): { textContent: string | null } | null
+}
+
+function resolveAccessibleName(element: NamedElement, fallback: string): string {
   // 1. aria-label
   const ariaLabel = normaliseText(element.getAttribute("aria-label"))
   if (ariaLabel !== null) return capLength(ariaLabel)
@@ -146,7 +162,7 @@ function resolveAccessibleName(element: HTMLElement, fallback: string): string {
  * still goes registry → capability → component.
  */
 export function useAccessibleName(
-  ref: React.RefObject<HTMLElement | null>,
+  ref: React.RefObject<NamedElement | null>,
   fallback: string,
 ): string {
   const [name, setName] = React.useState(fallback)

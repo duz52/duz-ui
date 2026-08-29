@@ -26,7 +26,13 @@ function capabilitySummary(agentUi: AgentUiMeta | undefined): string {
   switch (agentUi.status) {
     case "agent-native":
       return agentUi.capabilities
-        .map((c) => `kind ${c.kind} · ${c.actions.join(", ")}`)
+        .map((c) =>
+          // A read-only kind has no actions, and a dangling separator would
+          // read as a truncated line rather than a deliberate absence.
+          c.actions.length > 0
+            ? `kind ${c.kind} · ${c.actions.join(", ")}`
+            : `kind ${c.kind} · read only`,
+        )
         .join(" / ")
     case "presentation":
       return "presentation only, no agent capabilities"
@@ -87,8 +93,11 @@ export async function addCommand(
   blank()
   info("Agent capabilities")
   const byName = new Map<string, RegistryItem>(items.map((item) => [item.name, item]))
+  // Derived, not a constant: a name longer than the column ran into the
+  // summary it is supposed to introduce.
+  const width = Math.max(...components.map((name) => name.length)) + 2
   for (const name of components) {
     const item = byName.get(name)
-    step(`${name.padEnd(14)}${capabilitySummary(item?.agentUi)}`)
+    step(`${name.padEnd(width)}${capabilitySummary(item?.agentUi)}`)
   }
 }

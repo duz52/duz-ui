@@ -1,0 +1,22 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "direction",
+  "type": "registry:ui",
+  "title": "Direction",
+  "description": "A provider that sets the reading direction for a component tree.",
+  "dependencies": [
+    "@base-ui/react"
+  ],
+  "registryDependencies": [],
+  "files": [
+    {
+      "path": "ui/direction.tsx",
+      "content": "export {\n  DirectionProvider,\n  useDirection,\n} from \"@base-ui/react/direction-provider\"\n",
+      "type": "registry:ui",
+      "target": "components/ui/direction.tsx"
+    }
+  ],
+  "agentUi": {
+    "status": "presentation"
+  }
+}

@@ -8,7 +8,7 @@
 
 import { Link, useLocation, useParams } from "react-router"
 
-import { BASES, listItems, type GalleryItem } from "@/registry"
+import { BASES, listItems, type GalleryIndexItem } from "@/registry"
 import {
   Sidebar,
   SidebarContent,
@@ -20,7 +20,7 @@ import {
   SidebarMenuItem,
 } from "@/components/radix/ui/sidebar"
 
-type GalleryItemStatus = NonNullable<GalleryItem["agentUi"]>["status"]
+type GalleryItemStatus = NonNullable<GalleryIndexItem["agentUi"]>["status"]
 
 const GROUPS: { status: GalleryItemStatus; label: string }[] = [
   { status: "agent-native", label: "Agent-native" },

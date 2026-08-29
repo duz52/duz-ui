@@ -1,0 +1,29 @@
+/**
+ * scroll-area example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { ScrollArea, ScrollBar } from "@/components/radix/ui/scroll-area"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <ScrollArea className="h-32 w-48 rounded-md border">
+      <div className="space-y-2 px-4 py-3">
+        {Array.from({ length: 10 }, (_, i) => (
+          <p key={i} className="text-sm text-muted-foreground">
+            Line {i + 1}
+          </p>
+        ))}
+      </div>
+      <ScrollBar />
+    </ScrollArea>
+  )
+}
+
+export const usage = `<ScrollArea className="h-32 w-48 rounded-md border">
+  <div className="px-4 py-3">…</div>
+  <ScrollBar />
+</ScrollArea>`

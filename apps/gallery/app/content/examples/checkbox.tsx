@@ -1,0 +1,30 @@
+/**
+ * checkbox example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import * as React from "react"
+
+import { Checkbox } from "@/components/radix/ui/checkbox"
+import { Label } from "@/components/radix/ui/label"
+
+export function Preview(): React.JSX.Element {
+  const [checked, setChecked] = React.useState<boolean>(false)
+  return (
+    <Label className="flex items-center gap-3">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(v) => setChecked(v === true)}
+        agent={{ id: "preview-checkbox", label: "Preview checkbox" }}
+      />
+      Enable notifications
+    </Label>
+  )
+}
+
+export const usage = `<Checkbox
+  checked={enabled}
+  onCheckedChange={setEnabled}
+  agent={{ id: "notifications", label: "Enable notifications" }}
+/>`

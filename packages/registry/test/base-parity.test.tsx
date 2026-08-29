@@ -22,6 +22,11 @@ import { JSDOM } from "jsdom"
  * state setter fails both: controlled actions become silent no-ops, and
  * uncontrolled actions update the screen without ever telling the app.
  *
+ * A kind with no actions cannot be driven, so its case shape proves the other
+ * half of the contract: the capability registers with an empty action list
+ * and `read()` reports the state the application gave it, identically on both
+ * bases — and no tool exists to operate it.
+ *
  * The jsdom host is duplicated from components.test.tsx (each test file runs
  * in its own process) and extended below with the globals the Base UI tree
  * and the select popups need. Those bindings are part of the test host, not
@@ -99,7 +104,12 @@ interface CaseDef {
   kind: string
   actions: readonly string[]
   controlledProp: string
-  defaultProp: string
+  /**
+   * The prop that seeds the uncontrolled mounting, when the primitive's
+   * grammar has one. cmdk's input has no default search, so the command
+   * case mounts uncontrolled without any seeding prop.
+   */
+  defaultProp?: string
   /**
    * The application's change-callback prop. A function when the two
    * primitives name the callback differently — binding only, the handler
@@ -113,15 +123,34 @@ interface CaseDef {
   /** Pulls the new value out of the change handler's argument list. */
   extractChange: (args: readonly unknown[]) => unknown
   /**
+   * The value the capability layer reports through `read()` and accepts from
+   * the tool, when it differs from the component-level value the primitive's
+   * props and callbacks carry — the calendar's contract speaks ISO date
+   * strings while react-day-picker works in Date objects. Absent means the
+   * two are the same.
+   */
+  contractValue?: unknown
+  /**
    * Extra props a base needs when the two primitives name the same concept
    * differently. Binding only — the capability contract stays identical.
    */
   baseProps?: (base: (typeof BASES)[number]) => AnyProps
+  /**
+   * The bases the case applies to; absent means every base. A component the
+   * trees do not both carry — combobox exists only in the Base UI tree —
+   * declares the bases it applies to, and the base stays a parameter.
+   */
+  bases?: readonly (typeof BASES)[number][]
   mount: (mod: ComponentModule, props: AnyProps) => React.ReactElement
 }
 
 function changePropName(def: CaseDef, base: (typeof BASES)[number]): string {
   return typeof def.changeProp === "function" ? def.changeProp(base) : def.changeProp
+}
+
+/** The cases a base runs: a case the base does not carry is skipped. */
+function casesFor(base: (typeof BASES)[number]): readonly CaseDef[] {
+  return CASES.filter((def) => def.bases === undefined || def.bases.includes(base))
 }
 
 const CASES: readonly CaseDef[] = [
@@ -230,6 +259,29 @@ const CASES: readonly CaseDef[] = [
       ),
   },
   {
+    component: "native-select",
+    tool: "select_choose",
+    argument: { value: "paid" },
+    kind: "select",
+    actions: ["choose", "clear"],
+    controlledProp: "value",
+    defaultProp: "defaultValue",
+    changeProp: "onValueChange",
+    initialValue: "pending",
+    newValue: "paid",
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    mount: (mod, props) =>
+      // The wrapper owns the value channel, so the select is addressable
+      // whether or not the user has ever interacted with it.
+      React.createElement(
+        mod.NativeSelect,
+        props,
+        React.createElement(mod.NativeSelectOption, { value: "pending" }, "Pending"),
+        React.createElement(mod.NativeSelectOption, { value: "paid" }, "Paid"),
+      ),
+  },
+  {
     component: "radio-group",
     tool: "select_choose",
     argument: { value: "standard" },
@@ -248,6 +300,103 @@ const CASES: readonly CaseDef[] = [
         props,
         React.createElement(mod.RadioGroupItem, { value: "express" }, "Express"),
         React.createElement(mod.RadioGroupItem, { value: "standard" }, "Standard"),
+      ),
+  },
+  {
+    component: "toggle-group",
+    tool: "multi_select_set",
+    argument: { values: ["bold", "italic"] },
+    kind: "multi-select",
+    actions: ["set"],
+    controlledProp: "value",
+    defaultProp: "defaultValue",
+    changeProp: "onValueChange",
+    initialValue: ["bold"],
+    newValue: ["bold", "italic"],
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    // The app-facing mode spelling differs by base (Radix discriminates with
+    // `type`, Base UI with a `multiple` flag); multiple mode is the binding
+    // both primitives express identically: string[] in, string[] out.
+    baseProps: (base) => (base === "radix" ? { type: "multiple" } : { multiple: true }),
+    mount: (mod, props) =>
+      React.createElement(
+        mod.ToggleGroup,
+        props,
+        React.createElement(mod.ToggleGroupItem, { value: "bold" }, "Bold"),
+        React.createElement(mod.ToggleGroupItem, { value: "italic" }, "Italic"),
+        React.createElement(mod.ToggleGroupItem, { value: "underline" }, "Underline"),
+      ),
+  },
+  {
+    component: "combobox",
+    tool: "select_choose",
+    argument: { value: "paid" },
+    kind: "select",
+    actions: ["choose", "clear"],
+    controlledProp: "value",
+    defaultProp: "defaultValue",
+    changeProp: "onValueChange",
+    initialValue: "pending",
+    newValue: "paid",
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    // Radix has no combobox primitive, so the component exists in the Base
+    // UI tree only.
+    bases: ["base"],
+    mount: (mod, props) =>
+      // Mounted closed on purpose, like select: options are read from the
+      // elements the content was given, not from items that have mounted.
+      React.createElement(
+        mod.Combobox,
+        props,
+        React.createElement(mod.ComboboxInput, { showTrigger: true }),
+        React.createElement(
+          mod.ComboboxContent,
+          null,
+          React.createElement(
+            mod.ComboboxList,
+            null,
+            React.createElement(mod.ComboboxItem, { value: "pending" }, "Pending"),
+            React.createElement(mod.ComboboxItem, { value: "paid" }, "Paid"),
+          ),
+        ),
+      ),
+  },
+  {
+    component: "combobox",
+    tool: "multi_select_set",
+    argument: { values: ["bold", "italic"] },
+    kind: "multi-select",
+    actions: ["set"],
+    controlledProp: "value",
+    defaultProp: "defaultValue",
+    changeProp: "onValueChange",
+    initialValue: ["bold"],
+    newValue: ["bold", "italic"],
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    // Radix has no combobox primitive, so the component exists in the Base
+    // UI tree only. Multiple mode is the binding the primitive expresses
+    // directly: string[] in, string[] out.
+    bases: ["base"],
+    baseProps: () => ({ multiple: true }),
+    mount: (mod, props) =>
+      React.createElement(
+        mod.Combobox,
+        props,
+        React.createElement(mod.ComboboxInput, { showTrigger: true }),
+        React.createElement(
+          mod.ComboboxContent,
+          null,
+          React.createElement(
+            mod.ComboboxList,
+            null,
+            React.createElement(mod.ComboboxItem, { value: "bold" }, "Bold"),
+            React.createElement(mod.ComboboxItem, { value: "italic" }, "Italic"),
+            React.createElement(mod.ComboboxItem, { value: "underline" }, "Underline"),
+          ),
+        ),
       ),
   },
   {
@@ -309,6 +458,34 @@ const CASES: readonly CaseDef[] = [
           React.createElement(mod.InputOTPSlot),
           React.createElement(mod.InputOTPSlot),
           React.createElement(mod.InputOTPSlot),
+        ),
+      ),
+  },
+  {
+    component: "command",
+    tool: "input_set_value",
+    argument: { value: "Northwind" },
+    kind: "input",
+    actions: ["clear", "set_value"],
+    controlledProp: "value",
+    changeProp: "onValueChange",
+    initialValue: "",
+    newValue: "Northwind",
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    mount: (mod, props) =>
+      // cmdk's input reads its search string from the root's store, so it
+      // only mounts inside a Command root; the list content is the real
+      // shape a command palette carries.
+      React.createElement(
+        mod.Command,
+        null,
+        React.createElement(mod.CommandInput, props),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(mod.CommandEmpty, null, "No results."),
+          React.createElement(mod.CommandItem, null, "Item one"),
         ),
       ),
   },
@@ -554,6 +731,40 @@ const CASES: readonly CaseDef[] = [
     mount: (mod, props) => React.createElement(mod.Slider, props),
   },
   {
+    component: "calendar",
+    tool: "date_set",
+    argument: { value: ["2026-03-14"] },
+    kind: "date",
+    actions: ["set"],
+    controlledProp: "selected",
+    changeProp: "onSelect",
+    initialValue: new Date(2026, 2, 10),
+    newValue: new Date(2026, 2, 14),
+    // The contract speaks ISO strings; the primitive works in Date objects.
+    contractValue: ["2026-03-14"],
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    baseProps: () => ({ mode: "single" }),
+    mount: (mod, props) => React.createElement(mod.Calendar, props),
+  },
+  {
+    component: "calendar",
+    tool: "date_set",
+    argument: { value: ["2026-03-01", "2026-03-05"] },
+    kind: "date",
+    actions: ["set"],
+    controlledProp: "selected",
+    changeProp: "onSelect",
+    initialValue: { from: new Date(2026, 1, 20), to: new Date(2026, 1, 25) },
+    newValue: { from: new Date(2026, 2, 1), to: new Date(2026, 2, 5) },
+    // The contract speaks ISO strings; the primitive works in { from, to }.
+    contractValue: ["2026-03-01", "2026-03-05"],
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    baseProps: () => ({ mode: "range" }),
+    mount: (mod, props) => React.createElement(mod.Calendar, props),
+  },
+  {
     component: "dropdown-menu",
     tool: "disclosure_open",
     argument: {},
@@ -724,6 +935,51 @@ const CASES: readonly CaseDef[] = [
       ),
   },
   {
+    component: "navigation-menu",
+    tool: "select_choose",
+    argument: { value: "shipping" },
+    kind: "select",
+    actions: ["choose", "clear"],
+    controlledProp: "value",
+    defaultProp: "defaultValue",
+    changeProp: "onValueChange",
+    initialValue: "account",
+    newValue: "shipping",
+    stateKey: "value",
+    extractChange: (args) => args[0],
+    mount: (mod, props) =>
+      // Items register with the root on mount, independent of open state, so
+      // both items are addressable whether or not one is open.
+      React.createElement(
+        mod.NavigationMenu,
+        props,
+        React.createElement(
+          mod.NavigationMenuList,
+          null,
+          React.createElement(
+            mod.NavigationMenuItem,
+            { value: "account" },
+            React.createElement(mod.NavigationMenuTrigger, null, "Account"),
+            React.createElement(
+              mod.NavigationMenuContent,
+              null,
+              React.createElement(mod.NavigationMenuLink, { href: "#" }, "Sign out"),
+            ),
+          ),
+          React.createElement(
+            mod.NavigationMenuItem,
+            { value: "shipping" },
+            React.createElement(mod.NavigationMenuTrigger, null, "Shipping"),
+            React.createElement(
+              mod.NavigationMenuContent,
+              null,
+              React.createElement(mod.NavigationMenuLink, { href: "#" }, "Track order"),
+            ),
+          ),
+        ),
+      ),
+  },
+  {
     component: "menubar",
     tool: "select_choose",
     argument: { value: "shipping" },
@@ -834,6 +1090,37 @@ const CASES: readonly CaseDef[] = [
   },
 ]
 
+interface ReadOnlyCaseDef {
+  component: string
+  kind: string
+  /** A read-only capability operates nothing, so its action list is empty. */
+  actions: readonly string[]
+  /** Identical props for both bases; `value: null` is valid in both. */
+  props: AnyProps
+  /** The exact state `read()` must report for `props`. */
+  state: Record<string, unknown>
+  mount: (mod: ComponentModule, props: AnyProps) => React.ReactElement
+}
+
+const READ_ONLY_CASES: readonly ReadOnlyCaseDef[] = [
+  {
+    component: "progress",
+    kind: "progress",
+    actions: [],
+    props: { value: 64 },
+    state: { value: 64, max: 100 },
+    mount: (mod, props) => React.createElement(mod.Progress, props),
+  },
+  {
+    component: "progress",
+    kind: "progress",
+    actions: [],
+    props: { value: null, max: 10 },
+    state: { value: null, max: 10 },
+    mount: (mod, props) => React.createElement(mod.Progress, props),
+  },
+]
+
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
 let registry: import("../src/lib/agent-ui/registry").CapabilityRegistry
@@ -846,7 +1133,13 @@ before(async () => {
   registry = (await import("../src/lib/agent-ui/registry")).getCapabilityRegistry()
   ;({ createAgentTools } = await import("../src/lib/agent-ui/tools"))
   for (const base of BASES) {
-    for (const def of CASES) {
+    for (const def of casesFor(base)) {
+      modules.set(
+        `${base}/${def.component}`,
+        (await import(`../src/bases/${base}/ui/${def.component}`)) as ComponentModule,
+      )
+    }
+    for (const def of READ_ONLY_CASES) {
       modules.set(
         `${base}/${def.component}`,
         (await import(`../src/bases/${base}/ui/${def.component}`)) as ComponentModule,
@@ -905,7 +1198,6 @@ function ControlledHost(props: {
     agent: { id },
     ...def.baseProps?.(base),
     [def.controlledProp]: value,
-    [def.controlledProp]: value,
     [changePropName(def, base)]: (...args: unknown[]) => {
       seen.push(def.extractChange(args))
       setValue(seen[seen.length - 1])
@@ -915,7 +1207,7 @@ function ControlledHost(props: {
 
 for (const base of BASES) {
   test(`[${base}] capability descriptors match the frozen contract`, async () => {
-    for (const def of CASES) {
+    for (const def of casesFor(base)) {
       const id = `${base}-${def.component}-descriptor`
       const mod = modules.get(`${base}/${def.component}`)
       assert.ok(mod, `the ${base} ${def.component} module must load`)
@@ -934,7 +1226,7 @@ for (const base of BASES) {
     }
   })
 
-  for (const def of CASES) {
+  for (const def of casesFor(base)) {
     test(`[${base}] ${def.component}: the agent's action reaches a controlled ${def.controlledProp} through the application`, async () => {
       const mod = modules.get(`${base}/${def.component}`)
       assert.ok(mod, `the ${base} ${def.component} module must load`)
@@ -951,12 +1243,13 @@ for (const base of BASES) {
         [def.newValue],
         `the application's ${changePropName(def, base)} must run with ${JSON.stringify(def.newValue)}`,
       )
-      // deepEqual, not equal: the accordion and slider contracts report an
-      // array value, which strict identity can never hold across JSON.parse.
-      // For every primitive-valued case it asserts exactly what equal did.
+      // deepEqual, not equal: the accordion, slider and calendar contracts
+      // report an array value, which strict identity can never hold across
+      // JSON.parse. For every primitive-valued case it asserts exactly what
+      // equal did.
       assert.deepEqual(
         output.state[def.stateKey],
-        def.newValue,
+        def.contractValue ?? def.newValue,
         `the tool must report the ${def.controlledProp} the application now holds`,
       )
 
@@ -972,7 +1265,9 @@ for (const base of BASES) {
         def.mount(mod, {
           agent: { id },
           ...def.baseProps?.(base),
-          [def.defaultProp]: def.initialValue,
+          ...(def.defaultProp === undefined
+            ? {}
+            : { [def.defaultProp]: def.initialValue }),
           [changePropName(def, base)]: (...args: unknown[]) => {
             seen.push(def.extractChange(args))
           },
@@ -985,6 +1280,33 @@ for (const base of BASES) {
         seen,
         [def.newValue],
         `the application's ${changePropName(def, base)} must run even when the component owns its state`,
+      )
+
+      await tree.unmount()
+    })
+  }
+}
+
+for (const base of BASES) {
+  for (const def of READ_ONLY_CASES) {
+    test(`[${base}] ${def.component}: a capability with no actions reports its state and offers no tool`, async () => {
+      const mod = modules.get(`${base}/${def.component}`)
+      assert.ok(mod, `the ${base} ${def.component} module must load`)
+      const id = `${base}-${def.component}-readonly-${JSON.stringify(def.props)}`
+      const tree = await mount(def.mount(mod, { agent: { id }, ...def.props }))
+
+      const capability = registry.get(id)
+      assert.ok(capability, `${def.component} must register a capability while mounted`)
+      assert.equal(capability.kind, def.kind, `${def.component}: kind`)
+      assert.deepEqual([...capability.actions], def.actions, `${def.component}: actions`)
+      assert.deepEqual(capability.read(), def.state, `${def.component}: read()`)
+
+      // Only the two discovery tools exist while a read-only capability is
+      // the sole mounted capability: no kind tool may exist for a surface
+      // nothing can operate.
+      assert.deepEqual(
+        createAgentTools(registry).map((candidate) => candidate.name),
+        ["ui_list", "ui_read"],
       )
 
       await tree.unmount()
