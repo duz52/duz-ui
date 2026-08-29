@@ -43,9 +43,9 @@ export default function App() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <Outlet />
-      </main>
+      {/* No width here: the gallery is full bleed and every other route gets
+          its column from `site-layout`. */}
+      <Outlet />
     </>
   )
 }

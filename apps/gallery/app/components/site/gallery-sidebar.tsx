@@ -6,9 +6,9 @@
  * list grows constantly.
  */
 
-import { Link, useLocation, useParams } from "react-router"
+import { Link, useLocation, useParams, useRouteLoaderData } from "react-router"
 
-import { BASES, listItems, type GalleryIndexItem } from "@/registry"
+import { basesOf, listItems, type GalleryIndexItem } from "@/registry"
 import {
   Sidebar,
   SidebarContent,
@@ -34,18 +34,36 @@ export function GallerySidebar(): React.JSX.Element {
   // Pages outside `/components/:base/:name` (the `/components` index) have no
   // base in the URL. Both trees are installed, so any base keeps the links
   // addressable; the first registry-derived one is the deterministic choice.
-  const activeBase = base ?? BASES[0] ?? ""
-  const items = listItems(activeBase)
+  const index =
+    useRouteLoaderData<{ items: GalleryIndexItem[] }>("routes/gallery-layout")
+      ?.items ?? []
+  const activeBase = base ?? basesOf(index)[0] ?? ""
+  const items = listItems(index, activeBase)
 
   return (
-    // Sticky inside the layout's grid column so the sidebar stays attached
-    // to the centered content; `top-14` clears the sticky site header.
-    // `group-data-[collapsible=offcanvas]:hidden` removes the sidebar from
-    // view when collapsed — with `position: sticky` the component's built-in
-    // `left` slide-out has no effect, so hiding is what makes the collapse
-    // real; the layout's grid template reclaims the column at the same time.
-    <Sidebar className="sticky top-14 hidden h-[calc(100svh-3.5rem)] md:flex group-data-[collapsible=offcanvas]:hidden">
-      <SidebarContent>
+    // The container positions itself: `fixed inset-y-0 left-0 h-svh`.
+    // Overriding that with `sticky` is what previously dropped the sidebar
+    // into the page flow, and overriding `inset-y-0` with `top-14` leaves two
+    // rules fighting over `top`. So the frame is left alone and the list is
+    // padded clear of the sticky header instead, which the header covers
+    // anyway (header z-50, sidebar z-10).
+    <Sidebar
+      collapsible="none"
+      // Positioning follows the variant: the `none` branch renders a plain
+      // in-flow div (only the offcanvas branch positions itself `fixed`), so
+      // the sticky column is ours to declare. `overflow-hidden` keeps the
+      // frame still and `overscroll-none` stops the list handing its scroll
+      // to the page when it reaches the end — both taken from shadcn's own
+      // docs sidebar, where they are what make it feel anchored.
+      className="sticky top-14 z-30 h-[calc(100svh-3.5rem)] overflow-hidden overscroll-none bg-transparent"
+    >
+      {/* A hairline that fades out at both ends, rather than a hard border
+          running the full height. */}
+      <div
+        aria-hidden
+        className="absolute inset-y-4 right-0 w-px bg-[linear-gradient(to_bottom,transparent_0%,var(--border)_12%,var(--border)_88%,transparent_100%)]"
+      />
+      <SidebarContent className="gap-6 overflow-x-hidden py-6 pr-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {GROUPS.map((group) => {
           const groupItems = items.filter(
             (item) => item.agentUi?.status === group.status,

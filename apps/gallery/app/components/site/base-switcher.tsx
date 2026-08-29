@@ -4,9 +4,9 @@
  * missing from a base simply has no tab here — it is never greyed out.
  */
 
-import { Link } from "react-router"
+import { Link, useRouteLoaderData } from "react-router"
 
-import { BASE_TITLES, basesFor } from "@/registry"
+import { BASE_TITLES, basesFor, type GalleryIndexItem } from "@/registry"
 
 export function BaseSwitcher({
   name,
@@ -15,7 +15,10 @@ export function BaseSwitcher({
   name: string
   base: string
 }): React.JSX.Element | null {
-  const bases = basesFor(name)
+  const index =
+    useRouteLoaderData<{ items: GalleryIndexItem[] }>("routes/gallery-layout")
+      ?.items ?? []
+  const bases = basesFor(index, name)
   // A switcher with one option is noise.
   if (bases.length < 2) {
     return null

@@ -2,7 +2,7 @@ import * as React from "react"
 import { useParams } from "react-router"
 
 import type { Route } from "./+types/component"
-import { getItem, type GalleryItem } from "@/registry"
+import { fetchIndex, fetchItem, type GalleryItem } from "@/registry"
 import type { Example } from "@/content/example"
 import { EXAMPLES as BASE_EXAMPLES } from "@/content/examples.base.generated"
 import { EXAMPLES as RADIX_EXAMPLES } from "@/content/examples.radix.generated"
@@ -21,8 +21,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export async function loader({
   params,
+  request,
 }: Route.LoaderArgs): Promise<{ item: GalleryItem }> {
-  const item = await getItem(params.base ?? "", params.name ?? "")
+  const items = await fetchIndex(request)
+  const item = await fetchItem(request, items, params.base ?? "", params.name ?? "")
   if (!item) {
     throw new Response("Not Found", { status: 404 })
   }
@@ -209,18 +211,53 @@ function AgentCapabilities({
 const SECTION_HEADING =
   "font-mono text-xs uppercase tracking-wider text-muted-foreground"
 
+/**
+ * Placeholder while the example chunk arrives. It mirrors the page's own
+ * section rhythm so the layout does not jump when the real content lands.
+ */
+function BodyFallback(): React.JSX.Element {
+  return (
+    <div className="space-y-12" aria-hidden>
+      <div className="h-4 w-28 rounded bg-muted/60" />
+      <div className="h-40 rounded-lg border border-border bg-muted/20" />
+      <div className="h-4 w-36 rounded bg-muted/60" />
+      <div className="h-24 rounded-lg border border-border bg-muted/20" />
+    </div>
+  )
+}
+
 export default function Component({
   loaderData,
 }: Route.ComponentProps): React.JSX.Element {
   const { item } = loaderData
   const { base } = useParams()
-  const example = useExample(base ?? "", item.name)
+
+  // The body reads the example with `React.use`, so it has to sit *inside*
+  // the boundary. Suspending from this component instead sent the fallback
+  // hunt past the route, which is why every navigation flashed the error
+  // page before the component appeared.
+  return (
+    <div className="space-y-12 py-8">
+      <BaseSwitcher name={item.name} base={base ?? ""} />
+      <React.Suspense fallback={<BodyFallback />}>
+        <ComponentBody item={item} base={base ?? ""} />
+      </React.Suspense>
+    </div>
+  )
+}
+
+function ComponentBody({
+  item,
+  base,
+}: {
+  item: GalleryItem
+  base: string
+}): React.JSX.Element {
+  const example = useExample(base, item.name)
   const Preview = example?.Preview
 
   return (
-    <React.Suspense>
-      <div className="space-y-12 py-8">
-        <BaseSwitcher name={item.name} base={base ?? ""} />
+    <>
 
         <section className="space-y-3">
           <h2 className={SECTION_HEADING}>Live Preview</h2>
@@ -316,7 +353,6 @@ export default function Component({
             ))}
           </div>
         </section>
-      </div>
-    </React.Suspense>
+    </>
   )
 }

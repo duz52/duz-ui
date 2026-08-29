@@ -15,6 +15,7 @@
 
 import * as React from "react"
 
+import { cn } from "@/lib/utils"
 import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
 import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
 import { executeViaWebMCP, isWebMCPSupported } from "@/lib/agent-ui/webmcp"
@@ -190,29 +191,35 @@ export function ToolRunner(): React.JSX.Element {
         </div>
       )}
 
-      {usedPath ? (
+      {/* The output area is always present and reserves its height. Growing it
+          from nothing on the first run moved everything below it down in one
+          frame, which reads as the page flashing rather than as a result
+          arriving. */}
+      <div className="space-y-1.5">
         <p className="font-mono text-[11px] text-muted-foreground">
-          Ran via {usedPath === "webmcp" ? "WebMCP" : "in-page execution"}.
+          {error !== null ? "error" : "result"}
+          {usedPath !== null ? (
+            <span className="ml-2 text-muted-foreground/70">
+              via {usedPath === "webmcp" ? "WebMCP" : "in-page execution"}
+            </span>
+          ) : null}
         </p>
-      ) : null}
-
-      {result !== null ? (
-        <div className="space-y-1.5">
-          <p className="font-mono text-[11px] text-muted-foreground">result</p>
-          <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed">
-            <code>{result}</code>
-          </pre>
-        </div>
-      ) : null}
-
-      {error !== null ? (
-        <div className="space-y-1.5">
-          <p className="font-mono text-[11px] text-muted-foreground">error</p>
-          <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed text-destructive">
-            <code>{error}</code>
-          </pre>
-        </div>
-      ) : null}
+        <pre
+          className={cn(
+            "min-h-28 overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed",
+            error !== null && "text-destructive",
+          )}
+        >
+          <code>
+            {error ??
+              result ?? (
+                <span className="text-muted-foreground">
+                  Run a tool to see its result.
+                </span>
+              )}
+          </code>
+        </pre>
+      </div>
     </div>
   )
 }

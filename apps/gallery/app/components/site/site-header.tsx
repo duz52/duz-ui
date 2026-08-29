@@ -17,7 +17,7 @@ const NAV = [
 export function SiteHeader(): React.JSX.Element {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+      <div className="flex h-14 items-center justify-between px-6">
         <Link
           to="/"
           className="font-mono text-sm font-medium tracking-tight"
