@@ -283,3 +283,40 @@ test("no tool exists for a component kind Agent UI does not support", () => {
 
   off()
 })
+
+test("every tool declares what it acts on", () => {
+  const off = registry.register(
+    stub({ id: "settings", kind: "tabs", label: "Settings", actions: ["select"] }),
+  )
+  const tools = byName(createAgentTools(registry))
+
+  assert.deepEqual(tools.get("ui_list")?.scope, { on: "page" })
+  assert.deepEqual(tools.get("ui_read")?.scope, { on: "any-capability" })
+  assert.deepEqual(tools.get("tabs_select")?.scope, {
+    on: "kind",
+    kind: "tabs",
+    action: "select",
+  })
+
+  // A tool that takes a target says so in its schema; a page tool does not.
+  assert.equal("target" in (tools.get("tabs_select")?.inputSchema.properties ?? {}), true)
+  assert.equal("target" in (tools.get("ui_list")?.inputSchema.properties ?? {}), false)
+
+  off()
+})
+
+test("a business action tool is scoped to the one capability it runs", () => {
+  const off = registry.register(
+    stub({
+      id: "refresh-orders",
+      kind: "action",
+      actions: ["run"],
+      state: { description: "Refresh the orders list.", requiresConfirmation: false },
+    }),
+  )
+
+  const tool = byName(createAgentTools(registry)).get("action_refresh-orders")
+  assert.deepEqual(tool?.scope, { on: "capability", id: "refresh-orders" })
+
+  off()
+})

@@ -14,9 +14,26 @@ import { CapabilityError, type Capability } from "./capability"
 import type { CapabilityRegistry } from "./registry"
 import { expectString } from "./validate"
 
+/**
+ * What a tool acts on. Declared rather than inferred: a host that wants to
+ * offer a tool against the live capabilities — the gallery's runner, a
+ * devtool, a test harness — otherwise has to parse the tool name, and the
+ * name is a label, not a contract.
+ */
+export type AgentToolScope =
+  /** Acts on the page as a whole; takes no target. */
+  | { on: "page" }
+  /** Reads any live capability, whatever its kind. */
+  | { on: "any-capability" }
+  /** Invokes one action of every capability of one kind. */
+  | { on: "kind"; kind: string; action: string }
+  /** Bound to exactly one capability, as a business action is. */
+  | { on: "capability"; id: string }
+
 export interface AgentTool {
   name: string
   description: string
+  scope: AgentToolScope
   inputSchema: {
     type: "object"
     properties: Record<string, unknown>
@@ -287,13 +304,13 @@ const KIND_TOOLS: readonly KindToolDef[] = [
     name: "date_set",
     action: "set",
     description:
-      "Set the selected date or dates of a calendar element, replacing the previous selection. The value is an array of YYYY-MM-DD strings whose length depends on the calendar's mode: single mode takes zero or one date (an empty array clears the selection), multiple mode takes any number of dates, and range mode takes exactly two dates, start then end. Call ui_read on the target to see the current mode, value and bounds.",
+      "Set the selected date or dates of a calendar element, replacing the previous selection. The value is an array of YYYY-MM-DD strings whose length depends on the calendar's mode: single mode takes zero or one date (an empty array clears the selection), multiple mode takes any number of dates, and range mode takes exactly two dates, start then end. A calendar that requires a selection refuses an empty array. Call ui_read on the target to see the current mode, whether it is required, its value and its bounds.",
     inputSchema: {
       value: {
         type: "array",
         items: { type: "string" },
         description:
-          "Dates as YYYY-MM-DD strings, replacing the selection. Length must match the mode: single 0-1, multiple any, range exactly 2 (start, end).",
+          "Dates as YYYY-MM-DD strings, replacing the selection. Length must match the mode: single 0-1, multiple any, range exactly 2 (start, end). A calendar whose read state has required=true refuses an empty array.",
       },
     },
   },
@@ -383,6 +400,7 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
     name: "ui_list",
     description:
       "List the agent-operable UI elements currently on the page, with their id, kind, label and available actions. Call this first to discover valid target ids.",
+    scope: { on: "page" },
     inputSchema: {
       type: "object",
       properties: {},
@@ -402,6 +420,7 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
     name: "ui_read",
     description:
       "Read the current semantic state of one UI element by id. Use ui_list first to discover valid ids.",
+    scope: { on: "any-capability" },
     inputSchema: {
       type: "object",
       properties: { target: TARGET_PROPERTY },
@@ -425,6 +444,7 @@ function createKindTool(
   return {
     name: def.name,
     description: def.description,
+    scope: { on: "kind", kind: def.kind, action: def.action },
     inputSchema: buildInputSchema(def.inputSchema),
     // Every kind tool mutates component state; reads go through ui_read.
     execute: makeExecutor(def.name, async (input) => {
@@ -492,6 +512,7 @@ function createActionTool(
   return {
     name,
     description: state.description,
+    scope: { on: "capability", id: capability.id },
     inputSchema: {
       type: "object",
       properties,

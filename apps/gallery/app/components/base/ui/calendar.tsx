@@ -39,6 +39,8 @@ type CalendarMode = "single" | "multiple" | "range"
 
 type CalendarState = {
   mode: CalendarMode
+  /** Whether the application forbids an empty selection. */
+  required: boolean
   value: string[]
   min: string | null
   max: string | null
@@ -66,29 +68,57 @@ type CalendarSelection = Date | Date[] | DateRange | undefined
  */
 type CalendarPropsBase = Omit<
   React.ComponentProps<typeof DayPicker>,
-  "mode" | "selected" | "onSelect"
+  "mode" | "required" | "selected" | "onSelect"
 > & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }
 
+/**
+ * Two variants per mode, the way react-day-picker itself splits them: under
+ * `required` the selection can never become undefined, so the application's
+ * handler is not asked to consider a case that cannot happen — and, on the
+ * other side of the same fact, the agent is not allowed to produce it.
+ */
 type CalendarProps =
   | (CalendarPropsBase & {
       mode?: undefined
+      required?: undefined
       selected?: undefined
       onSelect?: undefined
     })
   | (CalendarPropsBase & {
       mode: "single"
+      required: true
+      selected?: Date | undefined
+      onSelect?: (selected: Date) => void
+    })
+  | (CalendarPropsBase & {
+      mode: "single"
+      required?: false | undefined
       selected?: Date | undefined
       onSelect?: (selected: Date | undefined) => void
     })
   | (CalendarPropsBase & {
       mode: "multiple"
+      required: true
+      selected?: Date[] | undefined
+      onSelect?: (selected: Date[]) => void
+    })
+  | (CalendarPropsBase & {
+      mode: "multiple"
+      required?: false | undefined
       selected?: Date[] | undefined
       onSelect?: (selected: Date[] | undefined) => void
     })
   | (CalendarPropsBase & {
       mode: "range"
+      required: true
+      selected?: DateRange | undefined
+      onSelect?: (selected: DateRange) => void
+    })
+  | (CalendarPropsBase & {
+      mode: "range"
+      required?: false | undefined
       selected?: DateRange | undefined
       onSelect?: (selected: DateRange | undefined) => void
     })
@@ -140,6 +170,7 @@ function Calendar({
   formatters,
   components,
   mode,
+  required,
   selected,
   onSelect,
   startMonth,
@@ -157,13 +188,14 @@ function Calendar({
 
   // DayPicker v10 makes `onSelect` the controlled/uncontrolled switch: with a
   // handler the application owns `selected`, without one the picker owns its
-  // state and `selected` is only the seed. The binding follows the
-  // primitive's own grammar — `selected` is both the controlled prop and the
-  // seed here, so its presence cannot mean "controlled" the way it does for
-  // the other components.
+  // state and `selected` is only the seed. This primitive's empty selection
+  // is `undefined`, so `selected` cannot also carry the controlled/uncontrolled
+  // switch the way it does for primitives with a distinct empty value — the
+  // switch is passed explicitly instead.
   const [value, setValue] = useControllableState<CalendarSelection>({
-    prop: onSelect ? selected : undefined,
+    prop: selected,
     defaultProp: selected,
+    controlled: onSelect !== undefined,
     // The handler is called with the selection the component's own mode
     // produces; the per-mode handler union cannot see that, so this is the
     // second erase boundary (the render boundary below is the first).
@@ -193,6 +225,7 @@ function Calendar({
       // type cannot see: the capability opts out when no mode is set, so
       // read() never runs without one.
       mode: mode as CalendarMode,
+      required: required === true,
       value: selectionToISO(value),
       min: minDate ? toISODate(minDate) : null,
       max: maxDate ? toISODate(maxDate) : null,
@@ -200,6 +233,14 @@ function Calendar({
     actions: {
       set(input) {
         const next = expectStringArray(input, "value")
+        // Before the per-mode shape checks: whether a selection may be
+        // dropped at all is a fact about the whole request, while the length
+        // rules are facts about its shape in one mode.
+        if (required && next.length === 0) {
+          rejectState(
+            "This calendar requires a selection and cannot be cleared. Provide at least one date.",
+          )
+        }
         if (mode === "single" && next.length > 1) {
           rejectState(
             `"value" must have at most 1 entry in single mode. Received ${next.length}.`,
@@ -313,6 +354,7 @@ function Calendar({
   // DayPicker at runtime; this single cast is that boundary.
   const dayPickerProps = {
     ...props,
+    required,
     showOutsideDays,
     className: cn(
       "group/calendar bg-background p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",

@@ -48,6 +48,10 @@ globals["HTMLFormElement"] = dom.window.HTMLFormElement
 globals["Event"] = dom.window.Event
 globals["MouseEvent"] = dom.window.MouseEvent
 globals["Node"] = dom.window.Node
+// The accessible-name walk uses a TreeWalker, whose filter constants are a
+// separate global. Without it every label resolution threw and fell back,
+// logging a ReferenceError on each mount.
+globals["NodeFilter"] = dom.window.NodeFilter
 globals["DOMRect"] = dom.window.DOMRect
 globals["getComputedStyle"] = dom.window.getComputedStyle.bind(dom.window)
 globals["requestAnimationFrame"] = (callback: FrameRequestCallback) =>
@@ -1312,4 +1316,92 @@ for (const base of BASES) {
       await tree.unmount()
     })
   }
+}
+
+/**
+ * `required` is a constraint the application declares on the primitive. A
+ * contract that forwards it to the picker without reporting or enforcing it
+ * lets an agent clear a selection the application said could not be empty —
+ * so the constraint is part of the capability, in both bases alike.
+ */
+function RequiredCalendarHost(props: {
+  mod: ComponentModule
+  id: string
+  required: boolean
+}) {
+  const { mod, id, required } = props
+  const [selected, setSelected] = React.useState<Date | undefined>(
+    new Date(2026, 2, 10),
+  )
+  return props.mod.Calendar
+    ? React.createElement(mod.Calendar, {
+        agent: { id },
+        mode: "single",
+        ...(required ? { required: true } : {}),
+        selected,
+        onSelect: setSelected,
+      })
+    : React.createElement("div")
+}
+
+for (const base of BASES) {
+  test(`[${base}] calendar: a required calendar reports it in its read state`, async () => {
+    const mod = modules.get(`${base}/calendar`)
+    assert.ok(mod, `the ${base} calendar module must load`)
+    const id = `${base}-calendar-required-read`
+    const tree = await mount(
+      React.createElement(RequiredCalendarHost, { mod, id, required: true }),
+    )
+
+    assert.deepEqual(registry.read(id), {
+      mode: "single",
+      required: true,
+      value: ["2026-03-10"],
+      min: null,
+      max: null,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] calendar: a required calendar refuses an empty selection and keeps its value`, async () => {
+    const mod = modules.get(`${base}/calendar`)
+    assert.ok(mod, `the ${base} calendar module must load`)
+    const id = `${base}-calendar-required-refuse`
+    const tree = await mount(
+      React.createElement(RequiredCalendarHost, { mod, id, required: true }),
+    )
+
+    // Outside `withAct`, exactly like every other tool call in this file: an
+    // action's result is read after the application commits, and `act` defers
+    // that commit to the end of its own scope, so a call wrapped in it would
+    // be answered with pre-transition state.
+    const output = JSON.parse(
+      await tool("date_set").execute({ target: id, value: [] }),
+    )
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.match(output.error.message, /requires a selection/)
+    assert.deepEqual(registry.read(id).value, ["2026-03-10"])
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] calendar: a calendar that does not require a selection is still cleared by an empty one`, async () => {
+    const mod = modules.get(`${base}/calendar`)
+    assert.ok(mod, `the ${base} calendar module must load`)
+    const id = `${base}-calendar-optional-clear`
+    const tree = await mount(
+      React.createElement(RequiredCalendarHost, { mod, id, required: false }),
+    )
+
+    const output = JSON.parse(
+      await tool("date_set").execute({ target: id, value: [] }),
+    )
+    assert.equal(output.ok, true)
+    assert.deepEqual(output.state.value, [])
+    assert.equal(output.state.required, false)
+
+    await tree.unmount()
+  })
 }
