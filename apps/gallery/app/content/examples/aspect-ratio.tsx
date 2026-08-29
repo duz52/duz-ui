@@ -1,0 +1,24 @@
+/**
+ * aspect-ratio example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { AspectRatio } from "@/components/radix/ui/aspect-ratio"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <AspectRatio
+      ratio={16 / 9}
+      className="flex w-64 items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground"
+    >
+      16 / 9
+    </AspectRatio>
+  )
+}
+
+export const usage = `<AspectRatio ratio={16 / 9} className="rounded-lg bg-muted">
+  <img src={cover} alt="Cover" className="size-full object-cover" />
+</AspectRatio>`

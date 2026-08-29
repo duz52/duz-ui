@@ -121,6 +121,284 @@
       }
     },
     {
+      "name": "alert",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Alert",
+      "description": "A callout that highlights a message with default and destructive variants.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/alert.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "aspect-ratio",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "AspectRatio",
+      "description": "A container that keeps its content at a fixed width-to-height ratio.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/aspect-ratio.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "avatar",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Avatar",
+      "description": "A user image with size presets, a fallback, and an optional status badge.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/avatar.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "badge",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Badge",
+      "description": "A compact label for statuses and counts, with variant presets.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/badge.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "breadcrumb",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Breadcrumb",
+      "description": "A navigation trail that shows the path to the current page.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/breadcrumb.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "card",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Card",
+      "description": "A composable surface that groups related content, actions, and metadata.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/card.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "empty",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Empty",
+      "description": "A placeholder layout for states with no data, such as empty lists or searches.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/empty.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "item",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Item",
+      "description": "A composable list row that pairs media, content, and actions.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "separator"
+      ],
+      "sources": [
+        "ui/item.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "kbd",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Kbd",
+      "description": "A styled kbd element that renders keyboard shortcuts and key combinations.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/kbd.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "spinner",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Spinner",
+      "description": "An animated indicator that communicates loading or processing.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/spinner.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "scroll-area",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "ScrollArea",
+      "description": "A scrollable region with custom-styled scrollbars for overflowing content.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/scroll-area.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "button-group",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "ButtonGroup",
+      "description": "A container that joins buttons and related controls into a single segmented unit.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "separator"
+      ],
+      "sources": [
+        "ui/button-group.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "input-group",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "InputGroup",
+      "description": "A wrapper that combines an input or textarea with icons, buttons, and text addons.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "button",
+        "input",
+        "textarea"
+      ],
+      "sources": [
+        "ui/input-group.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "field",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Field",
+      "description": "A composable form field that pairs a label with descriptions, errors, and controls.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "label",
+        "separator"
+      ],
+      "sources": [
+        "ui/field.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "direction",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Direction",
+      "description": "A provider that sets the reading direction for a component tree.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "sources": [
+        "ui/direction.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
       "name": "tooltip",
       "type": "registry:ui",
       "baseSpecific": true,
@@ -205,6 +483,72 @@
             "actions": [
               "choose",
               "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "native-select",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "NativeSelect",
+      "description": "A native HTML select whose chosen value and options are readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/native-select.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "combobox",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Combobox",
+      "description": "A filterable combobox whose selected value and options are readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "button",
+        "input-group"
+      ],
+      "sources": [
+        "ui/combobox.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "multi-select",
+            "actions": [
+              "set"
             ]
           }
         ],
@@ -500,6 +844,42 @@
       }
     },
     {
+      "name": "toggle-group",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "ToggleGroup",
+      "description": "A group of toggle buttons whose pressed values and available options are readable and settable by an agent.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "toggle"
+      ],
+      "sources": [
+        "ui/toggle-group.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "multi-select",
+            "actions": [
+              "set"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
       "name": "collapsible",
       "type": "registry:ui",
       "baseSpecific": true,
@@ -643,6 +1023,30 @@
             "actions": [
               "set"
             ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "progress",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Progress",
+      "description": "A progress bar whose value and range are readable by an agent, with nothing to operate.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/progress.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "progress",
+            "actions": []
           }
         ],
         "status": "agent-native"
@@ -854,6 +1258,36 @@
       }
     },
     {
+      "name": "navigation-menu",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "NavigationMenu",
+      "description": "A navigation menu whose open item is readable and selectable by an agent.",
+      "dependencies": [
+        "class-variance-authority",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/navigation-menu.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
       "name": "drawer",
       "type": "registry:ui",
       "baseSpecific": true,
@@ -874,6 +1308,144 @@
             "actions": [
               "open",
               "close"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "command",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Command",
+      "description": "A command palette built on cmdk whose search input is readable and settable by an agent; item selection stays the application's own onSelect semantics.",
+      "dependencies": [
+        "cmdk",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "dialog",
+        "input-group"
+      ],
+      "sources": [
+        "ui/command.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "chart",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Chart",
+      "description": "A themed chart container with styled tooltip and legend built on Recharts.",
+      "dependencies": [
+        "recharts"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/chart.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "resizable",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Resizable",
+      "description": "A panel group with draggable splitters built on React Resizable Panels.",
+      "dependencies": [
+        "react-resizable-panels"
+      ],
+      "registryDependencies": [
+        "utils"
+      ],
+      "sources": [
+        "ui/resizable.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "attachment",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Attachment",
+      "description": "A display card for a file the application owns, with an upload state the application sets.",
+      "dependencies": [],
+      "registryDependencies": [
+        "utils",
+        "button"
+      ],
+      "sources": [
+        "ui/attachment.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "carousel",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Carousel",
+      "description": "A sliding region of content built on Embla Carousel, with previous and next controls.",
+      "dependencies": [
+        "embla-carousel-react",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "utils",
+        "button"
+      ],
+      "sources": [
+        "ui/carousel.tsx"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "calendar",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Calendar",
+      "description": "A day picker whose selected date or dates are readable and settable by an agent as YYYY-MM-DD strings.",
+      "dependencies": [
+        "react-day-picker"
+      ],
+      "registryDependencies": [
+        "utils",
+        "button",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/calendar.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "date",
+            "actions": [
+              "set"
             ]
           }
         ],

@@ -1,0 +1,56 @@
+/**
+ * pagination example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/radix/ui/pagination"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <Pagination>
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious href="#" />
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink href="#">1</PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink href="#" isActive>
+            2
+          </PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink href="#">3</PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationNext href="#" />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  )
+}
+
+export const usage = `// Which page is current belongs to the application's router, so the
+// component exposes nothing to an agent.
+<Pagination>
+  <PaginationContent>
+    <PaginationItem>
+      <PaginationPrevious href="/orders?page=1" />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="/orders?page=1">1</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="/orders?page=2" isActive>
+        2
+      </PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationNext href="/orders?page=3" />
+    </PaginationItem>
+  </PaginationContent>
+</Pagination>`

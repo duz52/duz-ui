@@ -1,0 +1,47 @@
+/**
+ * slider example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import * as React from "react"
+
+import { Label } from "@/components/radix/ui/label"
+import { Slider } from "@/components/radix/ui/slider"
+
+export function Preview(): React.JSX.Element {
+  const [value, setValue] = React.useState<number[]>([50])
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="preview-slider">Volume</Label>
+        <span className="text-sm text-muted-foreground">{value[0]}</span>
+      </div>
+      <Slider
+        id="preview-slider"
+        min={0}
+        max={100}
+        step={5}
+        value={value}
+        onValueChange={setValue}
+        agent={{ id: "preview-slider", label: "Preview slider" }}
+      />
+    </div>
+  )
+}
+
+export const usage = `<div className="space-y-3">
+  <div className="flex items-center justify-between">
+    <Label htmlFor="volume">Volume</Label>
+    <span className="text-sm text-muted-foreground">{value[0]}</span>
+  </div>
+  <Slider
+    id="volume"
+    min={0}
+    max={100}
+    step={5}
+    value={value}
+    onValueChange={setValue}
+    agent={{ id: "volume", label: "Volume" }}
+  />
+</div>`
