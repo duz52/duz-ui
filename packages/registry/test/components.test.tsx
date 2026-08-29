@@ -114,6 +114,20 @@ function tool(name: string) {
   return found
 }
 
+/**
+ * A tool refusal travels in the returned result, not as a thrown error:
+ * Chrome's WebMCP discards a thrown message. Returns the refusal text so the
+ * caller can assert on the wording the agent actually reads.
+ */
+async function refusalOf(
+  name: string,
+  input: Record<string, unknown>,
+): Promise<string> {
+  const output = JSON.parse(await tool(name).execute(input))
+  assert.equal(output.ok, false, `expected "${name}" to refuse`)
+  return output.error.message
+}
+
 test("a mounted Tabs registers a capability and tabs_select drives it", async () => {
   const { Tabs: Root, TabsList, TabsTrigger, TabsContent } = Tabs
   const tree = await mount(
@@ -149,8 +163,8 @@ test("a mounted Tabs registers a capability and tabs_select drives it", async ()
   assert.equal(output.state.value, "shipping")
   assert.match(tree.container.innerHTML, /shipping panel/)
 
-  await assert.rejects(
-    () => tool("tabs_select").execute({ target: "settings", value: "billing" }),
+  assert.match(
+    await refusalOf("tabs_select", { target: "settings", value: "billing" }),
     /Available tabs: account, shipping\./,
   )
 
@@ -172,8 +186,8 @@ test("a mounted Checkbox exposes checkbox_set and refuses when disabled", async 
   )
   assert.equal(output.state.checked, true)
 
-  await assert.rejects(
-    () => tool("checkbox_set").execute({ target: "expedited", checked: "yes" }),
+  assert.match(
+    await refusalOf("checkbox_set", { target: "expedited", checked: "yes" }),
     /"checked" must be true or false\./,
   )
 
@@ -182,8 +196,8 @@ test("a mounted Checkbox exposes checkbox_set and refuses when disabled", async 
   const disabled = await mount(
     React.createElement(Checkbox.Checkbox, { agent: { id: "expedited" }, disabled: true }),
   )
-  await assert.rejects(
-    () => tool("checkbox_set").execute({ target: "expedited", checked: true }),
+  assert.match(
+    await refusalOf("checkbox_set", { target: "expedited", checked: true }),
     /disabled/,
   )
   await disabled.unmount()
@@ -266,8 +280,8 @@ test("the data table exposes only its agent-readable surface", async () => {
     assert.equal("note" in row.cells, false, "an agentHidden value must never be readable")
   }
 
-  await assert.rejects(
-    () => tool("table_filter").execute({ target: "orders", column: "note", value: "risk" }),
+  assert.match(
+    await refusalOf("table_filter", { target: "orders", column: "note", value: "risk" }),
     /not filterable/,
     "an agentHidden column must not be usable as a filter oracle",
   )
@@ -309,14 +323,14 @@ test("table_filter, table_sort and table_select_rows report canonical state", as
   )
   assert.deepEqual(selected.state.selectedRowIds, ["1"])
 
-  await assert.rejects(
-    () => tool("table_select_rows").execute({ target: "orders", rowIds: ["2"] }),
+  assert.match(
+    await refusalOf("table_select_rows", { target: "orders", rowIds: ["2"] }),
     /not present in the filtered row set/,
     "a row filtered out of view cannot be selected",
   )
 
-  await assert.rejects(
-    () => tool("table_set_page").execute({ target: "orders", page: 9 }),
+  assert.match(
+    await refusalOf("table_set_page", { target: "orders", page: 9 }),
     /exceeds the page count/,
   )
 
@@ -387,16 +401,16 @@ test("a mounted Collapsible exposes the disclosure tools and refuses when disabl
   )
   assert.deepEqual(registry.read("shipping"), { open: false, disabled: true })
 
-  await assert.rejects(
-    () => tool("disclosure_open").execute({ target: "shipping" }),
+  assert.match(
+    await refusalOf("disclosure_open", { target: "shipping" }),
     /disabled/,
   )
-  await assert.rejects(
-    () => tool("disclosure_close").execute({ target: "shipping" }),
+  assert.match(
+    await refusalOf("disclosure_close", { target: "shipping" }),
     /disabled/,
   )
-  await assert.rejects(
-    () => tool("disclosure_toggle").execute({ target: "shipping" }),
+  assert.match(
+    await refusalOf("disclosure_toggle", { target: "shipping" }),
     /disabled/,
   )
   assert.deepEqual(registry.read("shipping"), { open: false, disabled: true })

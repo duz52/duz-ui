@@ -38,8 +38,8 @@ import {
   expectStringArray,
   rejectState,
 } from "@/lib/agent-ui/validate"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/radix/ui/button"
+import { Checkbox } from "@/components/radix/ui/checkbox"
 import {
   Table,
   TableBody,
@@ -47,7 +47,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/radix/ui/table"
 
 // ---------------------------------------------------------------------------
 // Public types

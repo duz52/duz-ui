@@ -17,6 +17,9 @@ importers:
 
   apps/gallery:
     dependencies:
+      '@base-ui/react':
+        specifier: 1.6.0
+        version: 1.6.0(patch_hash=da25ba5d0239d6567621b0a401d2decd94bef4129547201d4557c53df1183026)(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

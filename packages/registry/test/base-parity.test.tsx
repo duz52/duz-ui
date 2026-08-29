@@ -211,12 +211,11 @@ const CASES: readonly CaseDef[] = [
     stateKey: "value",
     extractChange: (args) => args[0],
     mount: (mod, props) =>
-      // Both primitives mount their items only while the popup is open, and
-      // select_choose refuses unregistered options, so the test mounts the
-      // select open — the same shape for both bases.
+      // Mounted closed on purpose: a select must report its options and accept
+      // a choice whether or not its popup has ever been opened.
       React.createElement(
         mod.Select,
-        { ...props, open: true },
+        props,
         React.createElement(
           mod.SelectTrigger,
           null,

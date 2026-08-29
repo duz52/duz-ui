@@ -8,7 +8,9 @@
  * (`registry.json`) is excluded from the public list, and the runtime item
  * (`agent-ui-runtime`) is exposed only through `getItem` for the docs pages.
  *
- * The gallery presents one base at a time (see `DEFAULT_BASE`).
+ * Every base is addressable in the URL (`/components/:base/:name`), the way
+ * shadcn does it: a component missing from a base simply has no page there,
+ * rather than being greyed out or redirected to a default base.
  */
 
 export interface GalleryItem {
@@ -33,12 +35,11 @@ export interface GalleryItem {
 /** Shape of a registry item JSON file, which does not know its own base. */
 type RegistryItemFile = Omit<GalleryItem, "base">
 
-/**
- * The base the gallery presents. Which base to show is a product decision
- * that has not been made; until then, default to the base every component
- * currently exists in, so pages are complete rather than empty.
- */
-export const DEFAULT_BASE = "radix"
+/** Human titles for the bases, keyed by registry directory name. */
+export const BASE_TITLES: Record<string, string> = {
+  base: "Base UI",
+  radix: "Radix UI",
+}
 
 const REGISTRY_ROOT = "../public/r/"
 const REGISTRY_INDEX = "registry.json"
@@ -61,32 +62,45 @@ function baseOf(path: string): string | null {
   return separator === -1 ? null : relative.slice(0, separator)
 }
 
-function loadItems(): GalleryItem[] {
-  return Object.entries(modules)
-    .filter(([path]) => fileName(path) !== REGISTRY_INDEX)
-    .map(([path, item]) => ({ ...item, base: baseOf(path) }))
-}
+const ITEMS: GalleryItem[] = Object.entries(modules)
+  .filter(([path]) => fileName(path) !== REGISTRY_INDEX)
+  .map(([path, item]) => ({ ...item, base: baseOf(path) }))
 
-/** Whether the item belongs to the base the gallery presents. */
-function presented(item: GalleryItem): boolean {
-  return item.base === null || item.base === DEFAULT_BASE
+/** Whether the item belongs to `base`; base-independent items belong to all. */
+function inBase(item: GalleryItem, base: string): boolean {
+  return item.base === null || item.base === base
 }
 
 /**
- * Every presented registry item except the runtime, sorted with agent-native
+ * Bases present in the registry output, discovered from the `<base>/`
+ * directory of each item file — never hardcoded.
+ */
+export const BASES: string[] = [
+  ...new Set(
+    ITEMS.flatMap((item) => (item.base === null ? [] : [item.base])),
+  ),
+].sort()
+
+/**
+ * Every registry item in `base` except the runtime, sorted with agent-native
  * components first and then alphabetically by name.
  */
-export function listItems(): GalleryItem[] {
-  return loadItems()
-    .filter((item) => item.name !== RUNTIME_ITEM && presented(item))
-    .sort((a, b) => {
+export function listItems(base: string): GalleryItem[] {
+  return ITEMS.filter((item) => item.name !== RUNTIME_ITEM && inBase(item, base)).sort(
+    (a, b) => {
       const aNative = a.agentUi?.status === "agent-native"
       const bNative = b.agentUi?.status === "agent-native"
       if (aNative !== bNative) return aNative ? -1 : 1
       return a.name.localeCompare(b.name)
-    })
+    },
+  )
 }
 
-export function getItem(name: string): GalleryItem | undefined {
-  return loadItems().find((item) => item.name === name && presented(item))
+export function getItem(base: string, name: string): GalleryItem | undefined {
+  return ITEMS.find((item) => item.name === name && inBase(item, base))
+}
+
+/** The bases whose registry output actually contains this item. */
+export function basesFor(name: string): string[] {
+  return BASES.filter((base) => ITEMS.some((item) => inBase(item, base) && item.name === name))
 }

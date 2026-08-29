@@ -1,7 +1,7 @@
 import { Outlet } from "react-router"
 
 import { GallerySidebar } from "@/components/site/gallery-sidebar"
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarTrigger } from "@/components/radix/ui/sidebar"
 
 // Unlike shadcn's docs sidebar, this sidebar is deliberately collapsible —
 // do NOT pass `collapsible="none"`. SidebarProvider registers a `disclosure`

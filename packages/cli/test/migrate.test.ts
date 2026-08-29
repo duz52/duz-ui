@@ -19,11 +19,33 @@ import { withTempProject } from "./helpers.js"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // The fingerprints in stock-fingerprints.ts are generated from these bytes,
 // so a test that reads anything else is testing a copy that can silently
-// drift from the source the fingerprints were computed against.
+// drift from the source the fingerprints were computed against. The stock
+// sources are vendored per primitive base.
 const fixturesDir = join(__dirname, "../../../docs/internal/reference/shadcn")
 
-function readFixture(name: string): string {
-  return readFileSync(join(fixturesDir, `${name}.tsx`), "utf8")
+/**
+ * The primitive bases the stock fixtures are vendored for, and the
+ * `components.json` style that resolves to each. Every temp project must
+ * carry a components.json naming its base: an absent style resolves to the
+ * Base UI base, which would match the wrong signature and fingerprint set.
+ */
+const BASES = {
+  radix: { style: "new-york", fixtures: join(fixturesDir, "radix") },
+  base: { style: "base-nova", fixtures: join(fixturesDir, "base") },
+} as const
+
+type StockBase = keyof typeof BASES
+
+function readFixture(base: StockBase, name: string): string {
+  return readFileSync(join(BASES[base].fixtures, `${name}.tsx`), "utf8")
+}
+
+/**
+ * A components.json for `base`, merged into the temp project's files so
+ * `loadProject` resolves the project to that base.
+ */
+function baseConfig(base: StockBase): string {
+  return JSON.stringify({ tsx: true, style: BASES[base].style })
 }
 
 /**
@@ -104,36 +126,48 @@ async function plan(
 }
 
 describe("planMigration — recognition", () => {
-  it("recognises stock tabs as migratable", async () => {
-    await withTempProject(
-      { "components/ui/tabs.tsx": readFixture("tabs") },
-      async (dir) => {
-        const outcome = await plan(dir, join(dir, "components/ui/tabs.tsx"), "tabs")
-        assert.equal(outcome.status, "migrated")
-      },
-    )
-  })
-
-  it("recognises every migratable stock component", async () => {
-    // Derived from SIGNATURES so a signature added tomorrow is covered
-    // without anyone remembering to extend a hardcoded list.
-    const names = SIGNATURES.map((s) => s.name)
-    for (const name of names) {
+  for (const base of Object.keys(BASES) as StockBase[]) {
+    it(`recognises stock tabs as migratable (${base})`, async () => {
       await withTempProject(
-        { [`components/ui/${name}.tsx`]: readFixture(name) },
+        {
+          "components.json": baseConfig(base),
+          "components/ui/tabs.tsx": readFixture(base, "tabs"),
+        },
         async (dir) => {
-          const outcome = await plan(dir, join(dir, `components/ui/${name}.tsx`), name)
-          assert.equal(outcome.status, "migrated", `${name} should be migratable`)
+          const outcome = await plan(dir, join(dir, "components/ui/tabs.tsx"), "tabs")
+          assert.equal(outcome.status, "migrated")
         },
       )
-    }
-  })
+    })
+
+    it(`recognises every migratable stock component (${base})`, async () => {
+      // Derived from SIGNATURES so a signature added tomorrow is covered
+      // without anyone remembering to extend a hardcoded list.
+      const names = SIGNATURES.map((s) => s.name)
+      for (const name of names) {
+        await withTempProject(
+          {
+            "components.json": baseConfig(base),
+            [`components/ui/${name}.tsx`]: readFixture(base, name),
+          },
+          async (dir) => {
+            const outcome = await plan(dir, join(dir, `components/ui/${name}.tsx`), name)
+            assert.equal(outcome.status, "migrated", `${name} should be migratable on ${base}`)
+          },
+        )
+      }
+    })
+  }
+
 })
 
 describe("planMigration — idempotence (spec section 18)", () => {
   it("reports already-migrated and does not rewrite bytes", async () => {
     await withTempProject(
-      { "components/ui/tabs.tsx": AGENT_UI_REPLACEMENT },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/tabs.tsx": AGENT_UI_REPLACEMENT,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
         const before = readFileSync(file, "utf8")
@@ -153,13 +187,16 @@ describe("planMigration — idempotence (spec section 18)", () => {
 
 describe("planMigration — locally modified is refused", () => {
   it("rejects an extra exported component appended to tabs", async () => {
-    const modified = readFixture("tabs").replace(
+    const modified = readFixture("radix", "tabs").replace(
       "export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }",
       'function SelectSkeleton() { return null }\nexport { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants, SelectSkeleton }',
     )
 
     await withTempProject(
-      { "components/ui/tabs.tsx": modified },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/tabs.tsx": modified,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
         const before = readFileSync(file, "utf8")
@@ -180,10 +217,13 @@ describe("planMigration — locally modified is refused", () => {
 
 describe("planMigration — missing export is refused", () => {
   it("rejects tabs when TabsContent is removed from the export list", async () => {
-    const modified = readFixture("tabs").replace(", TabsContent", "")
+    const modified = readFixture("radix", "tabs").replace(", TabsContent", "")
 
     await withTempProject(
-      { "components/ui/tabs.tsx": modified },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/tabs.tsx": modified,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
         const outcome = await plan(dir, file, "tabs")
@@ -200,7 +240,10 @@ describe("recognition and compatibility are separate facts", () => {
   it("refuses a replacement that would drop an export", async () => {
     const replacement = stubReplacement("tabs").replace(", TabsContent", "")
     await withTempProject(
-      { "components/ui/tabs.tsx": readFixture("tabs") },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/tabs.tsx": readFixture("radix", "tabs"),
+      },
       async (dir) => {
         const outcome = await plan(
           dir,
@@ -221,9 +264,12 @@ describe("recognition and compatibility are separate facts", () => {
     // file's exports are unchanged, so the replacement still covers every one
     // (the stock file migrates with the same replacement); only recognition
     // fails, naming the added declaration.
-    const modified = readFixture("tabs") + "\nconst myHelper = 1\n"
+    const modified = readFixture("radix", "tabs") + "\nconst myHelper = 1\n"
     await withTempProject(
-      { "components/ui/tabs.tsx": modified },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/tabs.tsx": modified,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
         const outcome = await plan(dir, file, "tabs")
@@ -245,14 +291,17 @@ describe("ownership gate", () => {
   // fingerprint is sensitive to class-string changes, so this is no longer
   // known stock; the exports and top-level declarations are unchanged, so it
   // is still a recognised candidate with a preserved public contract.
-  const driftedCheckbox = readFixture("checkbox").replace(
+  const driftedCheckbox = readFixture("radix", "checkbox").replace(
     "rounded-[4px]",
     "rounded-lg",
   )
 
   it("reports needs-overwrite for a drifted stock file and leaves bytes unchanged", async () => {
     await withTempProject(
-      { "components/ui/checkbox.tsx": driftedCheckbox },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/checkbox.tsx": driftedCheckbox,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/checkbox.tsx")
         const before = readFileSync(file, "utf8")
@@ -270,7 +319,10 @@ describe("ownership gate", () => {
 
   it("migrates the same drifted file when overwrite is true", async () => {
     await withTempProject(
-      { "components/ui/checkbox.tsx": driftedCheckbox },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/checkbox.tsx": driftedCheckbox,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/checkbox.tsx")
         const outcome = await plan(dir, file, "checkbox", stubReplacement("checkbox"), true)
@@ -287,7 +339,10 @@ describe("ownership gate", () => {
       driftedCheckbox + '\nexport { Loader2 } from "lucide-react"\n'
 
     await withTempProject(
-      { "components/ui/checkbox.tsx": driftedWithExtraExport },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/checkbox.tsx": driftedWithExtraExport,
+      },
       async (dir) => {
         const file = join(dir, "components/ui/checkbox.tsx")
         const outcome = await plan(dir, file, "checkbox", stubReplacement("checkbox"), true)
@@ -301,7 +356,10 @@ describe("ownership gate", () => {
 
   it("migrates an untouched stock file without any flag", async () => {
     await withTempProject(
-      { "components/ui/checkbox.tsx": readFixture("checkbox") },
+      {
+        "components.json": baseConfig("radix"),
+        "components/ui/checkbox.tsx": readFixture("radix", "checkbox"),
+      },
       async (dir) => {
         const outcome = await plan(dir, join(dir, "components/ui/checkbox.tsx"), "checkbox")
         assert.equal(outcome.status, "migrated")
@@ -313,9 +371,12 @@ describe("ownership gate", () => {
 describe("aliases are configuration, not drift", () => {
   // A project whose components.json sets non-default aliases: utils → @/utils
   // and ui → @/ui. The stock fixture's import specifiers are rewritten to
-  // match, the same way install.ts would when writing the file.
+  // match, the same way install.ts would when writing the file. The style is
+  // pinned to radix so the project resolves to the radix signatures and
+  // fingerprints the fixture belongs to.
   const nonDefaultAliases = JSON.stringify({
     tsx: true,
+    style: "new-york",
     aliases: { components: "@/components", ui: "@/ui", lib: "@/lib", utils: "@/utils" },
   })
 
@@ -323,13 +384,13 @@ describe("aliases are configuration, not drift", () => {
     await withTempProject(
       {
         "components.json": nonDefaultAliases,
-        "components/ui/checkbox.tsx": readFixture("checkbox"),
+        "components/ui/checkbox.tsx": readFixture("radix", "checkbox"),
       },
       async (dir) => {
         const config = await loadProject(dir)
         // Build the source by rewriting the fixture's specifiers, not by
         // hand-writing a second copy.
-        const source = rewriteAliases(readFixture("checkbox"), config)
+        const source = rewriteAliases(readFixture("radix", "checkbox"), config)
         const file = join(dir, "components/ui/checkbox.tsx")
         writeFileSync(file, source)
 
@@ -343,7 +404,7 @@ describe("aliases are configuration, not drift", () => {
     await withTempProject(
       {
         "components.json": nonDefaultAliases,
-        "components/ui/checkbox.tsx": readFixture("checkbox"),
+        "components/ui/checkbox.tsx": readFixture("radix", "checkbox"),
       },
       async (dir) => {
         const config = await loadProject(dir)
@@ -351,7 +412,7 @@ describe("aliases are configuration, not drift", () => {
         // by changing a class string. Canonicalising imports must not hide
         // this real modification.
         const source = rewriteAliases(
-          readFixture("checkbox").replace("rounded-[4px]", "rounded-lg"),
+          readFixture("radix", "checkbox").replace("rounded-[4px]", "rounded-lg"),
           config,
         )
         const file = join(dir, "components/ui/checkbox.tsx")

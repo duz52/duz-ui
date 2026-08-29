@@ -10,23 +10,23 @@ import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/radix/ui/button"
+import { Input } from "@/components/radix/ui/input"
+import { Separator } from "@/components/radix/ui/separator"
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/radix/ui/sheet"
+import { Skeleton } from "@/components/radix/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/radix/ui/tooltip"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7

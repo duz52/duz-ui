@@ -17,6 +17,7 @@ import { SIGNATURES, type ComponentSignature } from "./signatures.js"
 import { fingerprintSource } from "./fingerprint.js"
 import { STOCK_FINGERPRINTS } from "./stock-fingerprints.js"
 import type { ProjectConfig } from "../project/config.js"
+import type { RegistryBase } from "../registry/client.js"
 import { canonicaliseAliases } from "../registry/install.js"
 
 export type MigrationOutcome =
@@ -58,14 +59,15 @@ function findSignature(name: string): ComponentSignature | undefined {
 
 /**
  * Is this a shadcn component family we support? Returns `undefined` when the
- * file has every required export, exactly one primitive import (when the
- * signature declares one) and only stock top-level declarations, or the
- * reason string when it does not. A fact about the file alone, with no
- * reference to the replacement.
+ * file has every required export, at least one import of a primitive module
+ * (when the signature declares any for the project's base) and only stock
+ * top-level declarations, or the reason string when it does not. A fact about
+ * the file alone, with no reference to the replacement.
  */
 function recognizeCandidate(
   sourceFile: SourceFile,
   signature: ComponentSignature,
+  base: RegistryBase,
 ): string | undefined {
   // Required exports must all be present.
   const exportedNames = new Set(sourceFile.getExportedDeclarations().keys())
@@ -75,15 +77,17 @@ function recognizeCandidate(
     }
   }
 
-  // Exactly one primitive import when the signature declares one.
-  if (signature.primitiveModules.length > 0) {
+  // At least one primitive import when the base declares specifiers. A Base
+  // UI stock file may import several of the listed subpaths (radio-group
+  // imports both `radio-group` and `radio`), so the count is not pinned to
+  // exactly one; zero is still a failure.
+  const primitiveModules = signature.primitiveModules[base]
+  if (primitiveModules.length > 0) {
     const matching = sourceFile
       .getImportDeclarations()
-      .filter((imp) =>
-        signature.primitiveModules.includes(imp.getModuleSpecifierValue()),
-      )
-    if (matching.length !== 1) {
-      return `expected exactly one import from ${signature.primitiveModules.join(" or ")}, found ${matching.length}`
+      .filter((imp) => primitiveModules.includes(imp.getModuleSpecifierValue()))
+    if (matching.length === 0) {
+      return `expected an import from ${primitiveModules.join(" or ")}, found 0`
     }
   }
 
@@ -184,7 +188,9 @@ function matchesKnownStock(
   component: string,
   config: ProjectConfig,
 ): boolean {
-  const known = STOCK_FINGERPRINTS[component]
+  // Fingerprints are per base: no entry for this component on this base means
+  // we do not know this exact source, which is the needs-overwrite path.
+  const known = STOCK_FINGERPRINTS[config.base]?.[component]
   if (!known) return false
   // An alias is project configuration, not evidence that a file was modified.
   // Canonicalise the project's aliases back to the registry's before
@@ -251,7 +257,7 @@ export function planMigration(input: MigrateFileInput): MigrationOutcome {
 
   // 3. Candidate recognition — a reason means the file is not a supported
   //    shadcn component family.
-  const candidateReason = recognizeCandidate(sourceFile, signature)
+  const candidateReason = recognizeCandidate(sourceFile, signature, input.config.base)
   if (candidateReason) {
     return { status: "unsupported", component, file, reason: candidateReason }
   }

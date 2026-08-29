@@ -4,9 +4,11 @@
  * Each signature describes a stock shadcn/ui implementation that
  * `agent-ui migrate` can safely replace with the Agent UI version from the
  * registry. Lists are derived from the vendored stock sources in
- * `docs/internal/reference/shadcn/*.tsx`. Do not edit them by hand unless the
- * stock source changes.
+ * `docs/internal/reference/shadcn/<base>/*.tsx`. Do not edit them by hand
+ * unless the stock source changes.
  */
+
+import type { RegistryBase } from "../registry/client.js"
 
 export interface ComponentSignature {
   /** Registry item name, and the expected file base name. */
@@ -20,11 +22,15 @@ export interface ComponentSignature {
    */
   requiredExports: string[]
   /**
-   * Module specifiers the stock implementation may import its primitive from.
-   * Current shadcn uses the unified "radix-ui" package; older generations used
-   * the scoped per-primitive packages.
+   * Module specifiers the stock implementation may import its primitive from,
+   * per primitive base. Radix's unified `radix-ui` package and the older
+   * scoped packages; Base UI's per-component subpath. Some Base UI stock files
+   * import more than one subpath (radio-group needs `radio-group` and `radio`;
+   * menubar needs `menubar` and `menu`), and a component may have no primitive
+   * on a base at all (radix `input` is a plain element; Base UI's is a
+   * primitive) — that base lists an empty array.
    */
-  primitiveModules: string[]
+  primitiveModules: Record<RegistryBase, string[]>
   /**
    * Every other top-level name a stock generation may define (variants objects,
    * internal helpers). A stock file may define any subset of these; the
@@ -37,7 +43,10 @@ export const SIGNATURES: ComponentSignature[] = [
   {
     name: "tabs",
     requiredExports: ["Tabs", "TabsList", "TabsTrigger", "TabsContent"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-tabs"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-tabs"],
+      base: ["@base-ui/react/tabs"],
+    },
     internalDeclarations: ["tabsListVariants"],
   },
   {
@@ -49,7 +58,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "SelectTrigger",
       "SelectValue",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-select"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-select"],
+      base: ["@base-ui/react/select"],
+    },
     internalDeclarations: [
       "SelectGroup",
       "SelectLabel",
@@ -61,7 +73,10 @@ export const SIGNATURES: ComponentSignature[] = [
   {
     name: "checkbox",
     requiredExports: ["Checkbox"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-checkbox"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-checkbox"],
+      base: ["@base-ui/react/checkbox"],
+    },
     internalDeclarations: [],
   },
   {
@@ -72,7 +87,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "DialogTitle",
       "DialogTrigger",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-dialog"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-dialog"],
+      base: ["@base-ui/react/dialog"],
+    },
     internalDeclarations: [
       "DialogClose",
       "DialogDescription",
@@ -85,25 +103,37 @@ export const SIGNATURES: ComponentSignature[] = [
   {
     name: "input",
     requiredExports: ["Input"],
-    primitiveModules: [],
+    primitiveModules: {
+      radix: [],
+      base: ["@base-ui/react/input"],
+    },
     internalDeclarations: [],
   },
   {
     name: "textarea",
     requiredExports: ["Textarea"],
-    primitiveModules: [],
+    primitiveModules: {
+      radix: [],
+      base: [],
+    },
     internalDeclarations: [],
   },
   {
     name: "switch",
     requiredExports: ["Switch"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-switch"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-switch"],
+      base: ["@base-ui/react/switch"],
+    },
     internalDeclarations: [],
   },
   {
     name: "radio-group",
     requiredExports: ["RadioGroup", "RadioGroupItem"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-radio-group"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-radio-group"],
+      base: ["@base-ui/react/radio-group", "@base-ui/react/radio"],
+    },
     internalDeclarations: [],
   },
   {
@@ -114,7 +144,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "SheetTitle",
       "SheetTrigger",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-dialog"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-dialog"],
+      base: ["@base-ui/react/dialog"],
+    },
     internalDeclarations: [
       "SheetPortal",
       "SheetOverlay",
@@ -134,7 +167,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "AlertDialogTitle",
       "AlertDialogTrigger",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-alert-dialog"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-alert-dialog"],
+      base: ["@base-ui/react/alert-dialog"],
+    },
     internalDeclarations: [
       "AlertDialogMedia",
       "AlertDialogDescription",
@@ -147,13 +183,19 @@ export const SIGNATURES: ComponentSignature[] = [
   {
     name: "toggle",
     requiredExports: ["Toggle"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-toggle"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-toggle"],
+      base: ["@base-ui/react/toggle"],
+    },
     internalDeclarations: ["toggleVariants"],
   },
   {
     name: "collapsible",
     requiredExports: ["Collapsible", "CollapsibleTrigger", "CollapsibleContent"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-collapsible"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-collapsible"],
+      base: ["@base-ui/react/collapsible"],
+    },
     internalDeclarations: [],
   },
   {
@@ -163,7 +205,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "PopoverTrigger",
       "PopoverContent",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-popover"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-popover"],
+      base: ["@base-ui/react/popover"],
+    },
     internalDeclarations: [
       "PopoverHeader",
       "PopoverAnchor",
@@ -188,7 +233,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "SidebarTrigger",
       "useSidebar",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-slot"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-slot"],
+      base: ["@base-ui/react/use-render", "@base-ui/react/merge-props"],
+    },
     internalDeclarations: [
       "SIDEBAR_COOKIE_NAME",
       "SIDEBAR_COOKIE_MAX_AGE",
@@ -220,19 +268,28 @@ export const SIGNATURES: ComponentSignature[] = [
       "AccordionTrigger",
       "AccordionContent",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-accordion"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-accordion"],
+      base: ["@base-ui/react/accordion"],
+    },
     internalDeclarations: [],
   },
   {
     name: "slider",
     requiredExports: ["Slider"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-slider"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-slider"],
+      base: ["@base-ui/react/slider"],
+    },
     internalDeclarations: [],
   },
   {
     name: "input-otp",
     requiredExports: ["InputOTP"],
-    primitiveModules: ["input-otp"],
+    primitiveModules: {
+      radix: ["input-otp"],
+      base: ["input-otp"],
+    },
     internalDeclarations: [
       "InputOTPGroup",
       "InputOTPSlot",
@@ -246,7 +303,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "DropdownMenuTrigger",
       "DropdownMenuContent",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-dropdown-menu"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-dropdown-menu"],
+      base: ["@base-ui/react/menu"],
+    },
     internalDeclarations: [
       "DropdownMenuPortal",
       "DropdownMenuGroup",
@@ -269,7 +329,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "HoverCardTrigger",
       "HoverCardContent",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-hover-card"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-hover-card"],
+      base: ["@base-ui/react/preview-card"],
+    },
     internalDeclarations: [],
   },
   {
@@ -279,7 +342,10 @@ export const SIGNATURES: ComponentSignature[] = [
       "ContextMenuTrigger",
       "ContextMenuContent",
     ],
-    primitiveModules: ["radix-ui", "@radix-ui/react-context-menu"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-context-menu"],
+      base: ["@base-ui/react/context-menu"],
+    },
     internalDeclarations: [
       "ContextMenuPortal",
       "ContextMenuGroup",
@@ -298,7 +364,10 @@ export const SIGNATURES: ComponentSignature[] = [
   {
     name: "menubar",
     requiredExports: ["Menubar", "MenubarTrigger", "MenubarContent"],
-    primitiveModules: ["radix-ui", "@radix-ui/react-menubar"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-menubar"],
+      base: ["@base-ui/react/menubar", "@base-ui/react/menu"],
+    },
     internalDeclarations: [
       "MenubarPortal",
       "MenubarMenu",
@@ -318,7 +387,10 @@ export const SIGNATURES: ComponentSignature[] = [
   {
     name: "drawer",
     requiredExports: ["Drawer", "DrawerTrigger", "DrawerContent"],
-    primitiveModules: ["vaul"],
+    primitiveModules: {
+      radix: ["vaul"],
+      base: ["@base-ui/react/drawer"],
+    },
     internalDeclarations: [
       "DrawerPortal",
       "DrawerOverlay",
@@ -327,6 +399,13 @@ export const SIGNATURES: ComponentSignature[] = [
       "DrawerFooter",
       "DrawerTitle",
       "DrawerDescription",
+      // The current Base UI generation implements Drawer on a React context
+      // and exports a swipe handle; the Radix (vaul) generation has none of
+      // these. A stock file may define any subset.
+      "DrawerContextProps",
+      "DrawerContext",
+      "useDrawer",
+      "DrawerSwipeHandle",
     ],
   },
 ]

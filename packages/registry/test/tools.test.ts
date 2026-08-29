@@ -126,14 +126,16 @@ test("an unknown target is rejected with a message an agent can correct from", a
   const off = registry.register(stub({ id: "settings", kind: "tabs", actions: ["select"] }))
   const tools = byName(createAgentTools(registry))
 
-  await assert.rejects(
-    () => tools.get("tabs_select")!.execute({ target: "nope", value: "x" }),
-    /Available ids: settings\./,
-  )
-  await assert.rejects(
-    () => tools.get("ui_read")!.execute({ target: "nope" }),
-    /Available ids: settings\./,
-  )
+  // A refusal is returned, never thrown: Chrome's WebMCP discards a thrown
+  // message, and these are written for the agent to read.
+  for (const [name, input] of [
+    ["tabs_select", { target: "nope", value: "x" }],
+    ["ui_read", { target: "nope" }],
+  ] as const) {
+    const output = JSON.parse(await tools.get(name)!.execute(input))
+    assert.equal(output.ok, false)
+    assert.match(output.error.message, /Available ids: settings\./)
+  }
 
   off()
 })
@@ -154,15 +156,13 @@ test("a page bug surfaces as a neutral message, never as internals", async () =>
   const errors = console.error
   console.error = () => {}
   try {
-    await assert.rejects(
-      () => tools.get("tabs_select")!.execute({ target: "settings", value: "x" }),
-      (error: unknown) => {
-        assert.ok(error instanceof Error)
-        assert.equal(error.message, 'The "tabs_select" tool could not complete.')
-        assert.doesNotMatch(error.message, /setValue|TypeError|undefined/)
-        return true
-      },
+    const output = JSON.parse(
+      await tools.get("tabs_select")!.execute({ target: "settings", value: "x" }),
     )
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "internal")
+    assert.equal(output.error.message, 'The "tabs_select" tool could not complete.')
+    assert.doesNotMatch(output.error.message, /setValue|TypeError|undefined/)
   } finally {
     console.error = errors
   }
