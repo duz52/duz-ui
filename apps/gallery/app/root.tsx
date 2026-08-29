@@ -21,12 +21,38 @@ export const links: Route.LinksFunction = () => [
   },
 ]
 
+const THEME_BOOTSTRAP = `(() => {
+  const root = document.documentElement
+  const media = matchMedia("(prefers-color-scheme: dark)")
+  // Reading storage throws outright when a browser is set to block site data.
+  // This runs before first paint, so an uncaught throw here is a blank page.
+  const read = () => { try { return localStorage.getItem("agent-ui-theme") } catch { return null } }
+  const stored = read()
+  root.classList.toggle("dark", stored ? stored === "dark" : media.matches)
+  // With no stored choice the page keeps following the system while open.
+  // The storage re-check keeps a choice made after load winning.
+  if (!stored) {
+    media.addEventListener("change", (e) => {
+      if (!read()) {
+        root.classList.toggle("dark", e.matches)
+      }
+    })
+  }
+})()`
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    // suppressHydrationWarning: the inline script below may put "dark" on
+    // <html> before hydration, so server and client legitimately differ on
+    // this one attribute.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Inline, not a module: the theme class must be on <html> before
+            the first paint, and a bundled module always executes after it.
+            Keep the resolution identical to theme-toggle.tsx. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
         <Meta />
         <Links />
       </head>

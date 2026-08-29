@@ -7,6 +7,8 @@
 
 import { Link, NavLink } from "react-router"
 
+import { ThemeToggle } from "./theme-toggle"
+
 const NAV = [
   { to: "/components", label: "Components" },
   { to: "/docs", label: "Docs" },
@@ -24,21 +26,24 @@ export function SiteHeader(): React.JSX.Element {
         >
           agent-ui
         </Link>
-        <nav className="flex items-center gap-6">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive
-                  ? "text-sm text-foreground"
-                  : "text-sm text-muted-foreground transition-colors hover:text-foreground"
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="flex items-center gap-6">
+          <nav className="flex items-center gap-6">
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  isActive
+                    ? "text-sm text-foreground"
+                    : "text-sm text-muted-foreground transition-colors hover:text-foreground"
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   )

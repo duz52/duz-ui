@@ -65,7 +65,6 @@ export const BASE_TITLES: Record<string, string> = {
 }
 
 const REGISTRY_ROOT = "/r/"
-const RUNTIME_ITEM = "agent-ui-runtime"
 
 /** Read a registry document relative to the request's own origin. */
 async function readDocument<T>(request: Request, path: string): Promise<T | undefined> {
@@ -97,8 +96,15 @@ function carriedBy(item: GalleryIndexItem, items: GalleryIndexItem[]): string[] 
 }
 
 /**
- * Every registry item in `base` except the runtime, sorted with agent-native
- * components first and then alphabetically by name.
+ * The installable components in `base`, sorted with agent-native ones first
+ * and then alphabetically by name.
+ *
+ * Filtered by type, not by name: the registry also carries the runtime, the
+ * `utils` lib and the `use-mobile` hook, which arrive as dependencies rather
+ * than as things a reader installs or a page documents. Excluding only the
+ * runtime by name left those two in the list, where every consumer then
+ * dropped them silently because they have no `agentUi` status. `agent-ui add`
+ * draws the same line at `registry:ui`.
  */
 export function listItems(
   items: GalleryIndexItem[],
@@ -106,8 +112,7 @@ export function listItems(
 ): GalleryIndexItem[] {
   return items
     .filter(
-      (item) =>
-        item.name !== RUNTIME_ITEM && carriedBy(item, items).includes(base),
+      (item) => item.type === "registry:ui" && carriedBy(item, items).includes(base),
     )
     .sort((a, b) => {
       const aNative = a.agentUi?.status === "agent-native"

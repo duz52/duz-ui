@@ -199,7 +199,10 @@ export function ToolRunner(): React.JSX.Element {
         <p className="font-mono text-[11px] text-muted-foreground">
           {error !== null ? "error" : "result"}
           {usedPath !== null ? (
-            <span className="ml-2 text-muted-foreground/70">
+            // Full muted-foreground, not an opacity variant: at /70 this
+            // 11px hint measured 2.71:1 in light and 4.20:1 in dark, below
+            // the WCAG AA 4.5:1 required at this size.
+            <span className="ml-2 text-muted-foreground">
               via {usedPath === "webmcp" ? "WebMCP" : "in-page execution"}
             </span>
           ) : null}

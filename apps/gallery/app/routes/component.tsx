@@ -10,6 +10,7 @@ import { KindBadge } from "@/components/site/kind-badge"
 import { CodeBlock } from "@/components/site/code-block"
 import { ToolRunner } from "@/components/site/tool-runner"
 import { BaseSwitcher } from "@/components/site/base-switcher"
+import { PageHeader } from "@/components/site/page-header"
 import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
 import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
 
@@ -236,9 +237,14 @@ export default function Component({
   // the boundary. Suspending from this component instead sent the fallback
   // hunt past the route, which is why every navigation flashed the error
   // page before the component appeared.
+  // The page opens the way shadcn's docs pages do: title, description, then
+  // the base switcher, before any content section.
   return (
     <div className="space-y-12 py-8">
-      <BaseSwitcher name={item.name} base={base ?? ""} />
+      <div className="space-y-6">
+        <PageHeader title={item.title} description={item.description} />
+        <BaseSwitcher name={item.name} base={base ?? ""} />
+      </div>
       <React.Suspense fallback={<BodyFallback />}>
         <ComponentBody item={item} base={base ?? ""} />
       </React.Suspense>
