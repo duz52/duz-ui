@@ -95,6 +95,251 @@
       }
     },
     {
+      "name": "alert",
+      "type": "registry:ui",
+      "title": "Alert",
+      "description": "A callout that highlights a message with default and destructive variants.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "aspect-ratio",
+      "type": "registry:ui",
+      "title": "AspectRatio",
+      "description": "A container that keeps its content at a fixed width-to-height ratio.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "avatar",
+      "type": "registry:ui",
+      "title": "Avatar",
+      "description": "A user image with size presets, a fallback, and an optional status badge.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "badge",
+      "type": "registry:ui",
+      "title": "Badge",
+      "description": "A compact label for statuses and counts, with variant presets.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "breadcrumb",
+      "type": "registry:ui",
+      "title": "Breadcrumb",
+      "description": "A navigation trail that shows the path to the current page.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "card",
+      "type": "registry:ui",
+      "title": "Card",
+      "description": "A composable surface that groups related content, actions, and metadata.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "empty",
+      "type": "registry:ui",
+      "title": "Empty",
+      "description": "A placeholder layout for states with no data, such as empty lists or searches.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "item",
+      "type": "registry:ui",
+      "title": "Item",
+      "description": "A composable list row that pairs media, content, and actions.",
+      "registryDependencies": [
+        "utils",
+        "separator"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "kbd",
+      "type": "registry:ui",
+      "title": "Kbd",
+      "description": "A styled kbd element that renders keyboard shortcuts and key combinations.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "spinner",
+      "type": "registry:ui",
+      "title": "Spinner",
+      "description": "An animated indicator that communicates loading or processing.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "scroll-area",
+      "type": "registry:ui",
+      "title": "ScrollArea",
+      "description": "A scrollable region with custom-styled scrollbars for overflowing content.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "button-group",
+      "type": "registry:ui",
+      "title": "ButtonGroup",
+      "description": "A container that joins buttons and related controls into a single segmented unit.",
+      "registryDependencies": [
+        "utils",
+        "separator"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "input-group",
+      "type": "registry:ui",
+      "title": "InputGroup",
+      "description": "A wrapper that combines an input or textarea with icons, buttons, and text addons.",
+      "registryDependencies": [
+        "utils",
+        "button",
+        "input",
+        "textarea"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "field",
+      "type": "registry:ui",
+      "title": "Field",
+      "description": "A composable form field that pairs a label with descriptions, errors, and controls.",
+      "registryDependencies": [
+        "utils",
+        "label",
+        "separator"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "direction",
+      "type": "registry:ui",
+      "title": "Direction",
+      "description": "A provider that sets the reading direction for a component tree.",
+      "registryDependencies": [],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
       "name": "tooltip",
       "type": "registry:ui",
       "title": "Tooltip",
@@ -171,6 +416,65 @@
             "actions": [
               "choose",
               "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "native-select",
+      "type": "registry:ui",
+      "title": "NativeSelect",
+      "description": "A native HTML select whose chosen value and options are readable and settable by an agent.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "combobox",
+      "type": "registry:ui",
+      "title": "Combobox",
+      "description": "A filterable combobox whose selected value and options are readable and settable by an agent.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "button",
+        "input-group"
+      ],
+      "bases": [
+        "base"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "multi-select",
+            "actions": [
+              "set"
             ]
           }
         ],
@@ -443,6 +747,39 @@
       }
     },
     {
+      "name": "toggle-group",
+      "type": "registry:ui",
+      "title": "ToggleGroup",
+      "description": "A group of toggle buttons whose pressed values and available options are readable and settable by an agent.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "toggle"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          },
+          {
+            "kind": "multi-select",
+            "actions": [
+              "set"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
       "name": "collapsible",
       "type": "registry:ui",
       "title": "Collapsible",
@@ -576,6 +913,29 @@
             "actions": [
               "set"
             ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "progress",
+      "type": "registry:ui",
+      "title": "Progress",
+      "description": "A progress bar whose value and range are readable by an agent, with nothing to operate.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "progress",
+            "actions": []
           }
         ],
         "status": "agent-native"
@@ -771,6 +1131,32 @@
       }
     },
     {
+      "name": "navigation-menu",
+      "type": "registry:ui",
+      "title": "NavigationMenu",
+      "description": "A navigation menu whose open item is readable and selectable by an agent.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "select",
+            "actions": [
+              "choose",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
       "name": "drawer",
       "type": "registry:ui",
       "title": "Drawer",
@@ -790,6 +1176,126 @@
             "actions": [
               "open",
               "close"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "command",
+      "type": "registry:ui",
+      "title": "Command",
+      "description": "A command palette built on cmdk whose search input is readable and settable by an agent; item selection stays the application's own onSelect semantics.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime",
+        "dialog",
+        "input-group"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "input",
+            "actions": [
+              "set_value",
+              "clear"
+            ]
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
+      "name": "chart",
+      "type": "registry:ui",
+      "title": "Chart",
+      "description": "A themed chart container with styled tooltip and legend built on Recharts.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "resizable",
+      "type": "registry:ui",
+      "title": "Resizable",
+      "description": "A panel group with draggable splitters built on React Resizable Panels.",
+      "registryDependencies": [
+        "utils"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "attachment",
+      "type": "registry:ui",
+      "title": "Attachment",
+      "description": "A display card for a file the application owns, with an upload state the application sets.",
+      "registryDependencies": [
+        "utils",
+        "button"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "carousel",
+      "type": "registry:ui",
+      "title": "Carousel",
+      "description": "A sliding region of content built on Embla Carousel, with previous and next controls.",
+      "registryDependencies": [
+        "utils",
+        "button"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "status": "presentation"
+      }
+    },
+    {
+      "name": "calendar",
+      "type": "registry:ui",
+      "title": "Calendar",
+      "description": "A day picker whose selected date or dates are readable and settable by an agent as YYYY-MM-DD strings.",
+      "registryDependencies": [
+        "utils",
+        "button",
+        "agent-ui-runtime"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "date",
+            "actions": [
+              "set"
             ]
           }
         ],

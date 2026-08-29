@@ -1,0 +1,31 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "progress",
+  "type": "registry:ui",
+  "title": "Progress",
+  "description": "A progress bar whose value and range are readable by an agent, with nothing to operate.",
+  "dependencies": [
+    "radix-ui"
+  ],
+  "registryDependencies": [
+    "utils",
+    "agent-ui-runtime"
+  ],
+  "files": [
+    {
+      "path": "ui/progress.tsx",
+      "content": "\"use client\"\n\nimport * as React from \"react\"\nimport { Progress as ProgressPrimitive } from \"radix-ui\"\n\nimport { cn } from \"@/lib/utils\"\nimport { useCapability, type AgentProp } from \"@/lib/agent-ui/use-capability\"\nimport { useMergedRef } from \"@/lib/agent-ui/use-merged-ref\"\nimport { agentWithElementId, useAccessibleName } from \"@/lib/agent-ui/agent-identity\"\n\ntype ProgressState = {\n  value: number | null\n  max: number\n}\n\n// Progress is pure output: there is nothing on it a person can operate, so\n// there is nothing for an agent to invoke. The empty action map states that,\n// it does not omit it — the capability stays discoverable through ui_list and\n// ui_read, and a kind with no actions adds no tool.\ntype ProgressActions = Record<never, never>\n\nfunction Progress({\n  className,\n  value,\n  // The primitive's own default, resolved here so read() reports the\n  // effective max the indicator is measured against.\n  max = 100,\n  ref,\n  agent,\n  ...props\n}: React.ComponentProps<typeof ProgressPrimitive.Root> & {\n  agent?: AgentProp\n}) {\n  const elementRef = React.useRef<HTMLDivElement>(null)\n  const label = useAccessibleName(elementRef, \"Progress\")\n  const mergedRef = useMergedRef(ref, elementRef)\n\n  useCapability<ProgressState, ProgressActions>({\n    agent: agentWithElementId(agent, props.id),\n    kind: \"progress\",\n    defaultLabel: label,\n    // An absent value and an explicit null are the same indeterminate state:\n    // one representation, not two.\n    read: () => ({ value: value ?? null, max }),\n    actions: {},\n  })\n\n  return (\n    <ProgressPrimitive.Root\n      data-slot=\"progress\"\n      value={value}\n      max={max}\n      className={cn(\n        \"relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted\",\n        className\n      )}\n      ref={mergedRef}\n      {...props}\n    >\n      <ProgressPrimitive.Indicator\n        data-slot=\"progress-indicator\"\n        className=\"size-full flex-1 bg-primary transition-all\"\n        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}\n      />\n    </ProgressPrimitive.Root>\n  )\n}\n\nexport { Progress }\n",
+      "type": "registry:ui",
+      "target": "components/ui/progress.tsx"
+    }
+  ],
+  "agentUi": {
+    "capabilities": [
+      {
+        "kind": "progress",
+        "actions": []
+      }
+    ],
+    "status": "agent-native"
+  }
+}

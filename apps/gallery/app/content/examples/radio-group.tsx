@@ -1,0 +1,50 @@
+/**
+ * radio-group example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { Label } from "@/components/radix/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/radix/ui/radio-group"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <RadioGroup
+      id="preview-radio-group"
+      aria-label="Shipping method"
+      defaultValue="standard"
+      agent={{ id: "preview-radio-group", label: "Preview radio group" }}
+    >
+      <div className="flex items-center gap-3">
+        <RadioGroupItem value="standard" id="preview-radio-standard" />
+        <Label htmlFor="preview-radio-standard">Standard</Label>
+      </div>
+      <div className="flex items-center gap-3">
+        <RadioGroupItem value="express" id="preview-radio-express" />
+        <Label htmlFor="preview-radio-express">Express</Label>
+      </div>
+      <div className="flex items-center gap-3">
+        <RadioGroupItem value="overnight" id="preview-radio-overnight" />
+        <Label htmlFor="preview-radio-overnight">Overnight</Label>
+      </div>
+    </RadioGroup>
+  )
+}
+
+export const usage = `<RadioGroup
+  id="plan"
+  aria-label="Plan"
+  defaultValue="free"
+  agent={{ id: "plan", label: "Plan" }}
+>
+  <div className="flex items-center gap-3">
+    <RadioGroupItem value="free" id="plan-free" />
+    <Label htmlFor="plan-free">Free</Label>
+  </div>
+  <div className="flex items-center gap-3">
+    <RadioGroupItem value="pro" id="plan-pro" />
+    <Label htmlFor="plan-pro">Pro</Label>
+  </div>
+</RadioGroup>`

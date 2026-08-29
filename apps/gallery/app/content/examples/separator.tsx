@@ -1,0 +1,25 @@
+/**
+ * separator example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { Separator } from "@/components/radix/ui/separator"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <div className="max-w-xs space-y-3">
+      <p className="text-sm">Workspace settings</p>
+      <Separator />
+      <p className="text-sm text-muted-foreground">
+        Changes apply to every member of the workspace.
+      </p>
+    </div>
+  )
+}
+
+export const usage = `<p>Workspace settings</p>
+<Separator />
+<p className="text-sm text-muted-foreground">…</p>`

@@ -81,6 +81,21 @@ const KIND_TOOLS: readonly KindToolDef[] = [
     inputSchema: {},
   },
   {
+    kind: "multi-select",
+    name: "multi_select_set",
+    action: "set",
+    description:
+      "Set the selected values of a multi-select element, replacing the previous selection.",
+    inputSchema: {
+      values: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "The values to select, replacing any previous selection. Pass an empty array to clear the selection. Call ui_read on the target to see available options.",
+      },
+    },
+  },
+  {
     kind: "checkbox",
     name: "checkbox_set",
     action: "set",
@@ -264,6 +279,21 @@ const KIND_TOOLS: readonly KindToolDef[] = [
         items: { type: "number" },
         description:
           "The new values for each thumb. There is one number per thumb; most sliders have exactly one. Call ui_read on the target to see the current value, min, max and step.",
+      },
+    },
+  },
+  {
+    kind: "date",
+    name: "date_set",
+    action: "set",
+    description:
+      "Set the selected date or dates of a calendar element, replacing the previous selection. The value is an array of YYYY-MM-DD strings whose length depends on the calendar's mode: single mode takes zero or one date (an empty array clears the selection), multiple mode takes any number of dates, and range mode takes exactly two dates, start then end. Call ui_read on the target to see the current mode, value and bounds.",
+    inputSchema: {
+      value: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Dates as YYYY-MM-DD strings, replacing the selection. Length must match the mode: single 0-1, multiple any, range exactly 2 (start, end).",
       },
     },
   },

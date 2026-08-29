@@ -156,7 +156,7 @@ test("add installs a component with its runtime and rewrites aliases", () => {
 test("add refuses an unknown component and names the real ones", () => {
   const dir = createProject([])
   try {
-    const result = run(dir, ["add", "carousel"])
+    const result = run(dir, ["add", "not-a-component"])
     assert.notEqual(result.status, 0)
     assert.match(result.output, /data-table/)
   } finally {

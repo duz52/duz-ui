@@ -1,0 +1,65 @@
+/**
+ * attachment example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { FileTextIcon, LoaderCircleIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+
+import { Attachment, AttachmentAction, AttachmentActions, AttachmentContent, AttachmentDescription, AttachmentGroup, AttachmentMedia, AttachmentTitle } from "@/components/radix/ui/attachment"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <AttachmentGroup className="max-w-md">
+      <Attachment state="done">
+        <AttachmentMedia>
+          <FileTextIcon />
+        </AttachmentMedia>
+        <AttachmentContent>
+          <AttachmentTitle>quarterly-report.pdf</AttachmentTitle>
+          <AttachmentDescription>2.4 MB</AttachmentDescription>
+        </AttachmentContent>
+        <AttachmentActions>
+          <AttachmentAction aria-label="Remove quarterly-report.pdf">
+            <XIcon />
+          </AttachmentAction>
+        </AttachmentActions>
+      </Attachment>
+      <Attachment state="uploading">
+        <AttachmentMedia>
+          <LoaderCircleIcon className="animate-spin" />
+        </AttachmentMedia>
+        <AttachmentContent>
+          <AttachmentTitle>site-photos.zip</AttachmentTitle>
+          <AttachmentDescription>Uploading… 64%</AttachmentDescription>
+        </AttachmentContent>
+      </Attachment>
+      <Attachment state="error">
+        <AttachmentMedia>
+          <TriangleAlertIcon />
+        </AttachmentMedia>
+        <AttachmentContent>
+          <AttachmentTitle>contract.docx</AttachmentTitle>
+          <AttachmentDescription>Upload failed</AttachmentDescription>
+        </AttachmentContent>
+      </Attachment>
+    </AttachmentGroup>
+  )
+}
+
+export const usage = `// The state is set by the application; the trigger's meaning is the
+// application's too, so the component exposes nothing to an agent.
+<Attachment state="done">
+  <AttachmentMedia>
+    <FileTextIcon />
+  </AttachmentMedia>
+  <AttachmentContent>
+    <AttachmentTitle>quarterly-report.pdf</AttachmentTitle>
+    <AttachmentDescription>2.4 MB</AttachmentDescription>
+  </AttachmentContent>
+  <AttachmentActions>
+    <AttachmentAction aria-label="Remove"><XIcon /></AttachmentAction>
+  </AttachmentActions>
+</Attachment>`

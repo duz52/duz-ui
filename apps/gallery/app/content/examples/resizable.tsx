@@ -1,0 +1,34 @@
+/**
+ * resizable example — one shared source for both bases. Its imports point at
+ * the radix tree, which scripts/sync-gallery.mjs rewrites per base, so
+ * every base renders the same source a user gets after `npx agent-ui add`.
+ */
+
+import type * as React from "react"
+
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/radix/ui/resizable"
+
+export function Preview(): React.JSX.Element {
+  return (
+    <ResizablePanelGroup
+      orientation="horizontal"
+      className="h-40 max-w-md rounded-lg border"
+    >
+      <ResizablePanel className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+        Navigation
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+        Content
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  )
+}
+
+export const usage = `// A panel's size is a viewport preference, so the component exposes
+// nothing to an agent.
+<ResizablePanelGroup orientation="horizontal">
+  <ResizablePanel defaultSize="50">Navigation</ResizablePanel>
+  <ResizableHandle withHandle />
+  <ResizablePanel defaultSize="50">Content</ResizablePanel>
+</ResizablePanelGroup>`
