@@ -36,9 +36,7 @@ export default function GalleryLayout(): React.JSX.Element {
     >
       <GallerySidebar />
       <div className="min-w-0 flex-1">
-        <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
-          <Outlet />
-        </div>
+        <Outlet />
       </div>
     </SidebarProvider>
   )

@@ -2,8 +2,13 @@ import * as React from "react"
 
 import type { Route } from "./+types/demo"
 import { PageHeader } from "@/components/site/page-header"
+import {
+  ScenarioRunner,
+  type Scenario,
+} from "@/components/site/scenario-runner"
 import { ToolRunner } from "@/components/site/tool-runner"
 import { AgentAction } from "@/lib/agent-ui/agent-action"
+import type { CapabilityState } from "@/lib/agent-ui/capability"
 import { Button } from "@/components/radix/ui/button"
 import { Checkbox } from "@/components/radix/ui/checkbox"
 import { DataTable, type DataTableColumn } from "@/components/radix/ui/data-table"
@@ -32,17 +37,108 @@ export function meta({}: Route.MetaArgs) {
 
 type StatusFilter = "all" | OrderStatus
 
-const CHALLENGE_PROMPT =
-  "Show pending orders over $500, newest first. Open the first order, switch to Shipping, and enable expedited delivery."
+/**
+ * First visible row id of a data table, read from live capability state — the
+ * same read an agent performs with ui_read before selecting a row.
+ */
+function firstRowId(state: CapabilityState): string {
+  // `read()` is typed as an open record, so the shape is narrowed rather than
+  // asserted: a cast here would turn a contract change into a TypeError deep
+  // in the scenario instead of the step failure it actually is.
+  const rows = state.rows
+  const first = Array.isArray(rows) ? rows[0] : undefined
+  if (
+    typeof first !== "object" ||
+    first === null ||
+    !("id" in first) ||
+    typeof first.id !== "string"
+  ) {
+    throw new Error("The table has no visible rows to select.")
+  }
+  return first.id
+}
 
-const CHALLENGE_ACTIONS = [
-  "table_filter",
-  "table_sort",
-  "table_select_rows",
-  "dialog_open",
-  "tabs_select",
-  "checkbox_set",
-] as const
+const SCENARIOS: Scenario[] = [
+  {
+    id: "triage-pending",
+    title: "Triage pending orders",
+    prompt:
+      "Show me pending orders, highest value first, and open the biggest one.",
+    steps: [
+      {
+        tool: "select_choose",
+        args: { target: "status-filter", value: "pending" },
+        note: "Filter the table down to pending orders.",
+      },
+      {
+        tool: "table_sort",
+        args: { target: "orders", column: "total", direction: "desc" },
+        note: "Put the highest-value orders first.",
+      },
+      {
+        tool: "table_select_rows",
+        args: (read) => ({
+          target: "orders",
+          rowIds: [firstRowId(read("orders"))],
+        }),
+        note: "Select the top row, read from live table state.",
+      },
+      {
+        tool: "dialog_open",
+        args: { target: "order-dialog" },
+        note: "Open the selected order in the detail dialog.",
+      },
+    ],
+  },
+  {
+    id: "expedite-shipment",
+    title: "Expedite a shipment",
+    prompt:
+      "Open the first order, switch to Shipping, and turn on expedited delivery.",
+    steps: [
+      {
+        tool: "table_select_rows",
+        args: (read) => ({
+          target: "orders",
+          rowIds: [firstRowId(read("orders"))],
+        }),
+        note: "Select the first order, read from live table state.",
+      },
+      {
+        tool: "dialog_open",
+        args: { target: "order-dialog" },
+        note: "Open its detail dialog.",
+      },
+      {
+        tool: "tabs_select",
+        args: { target: "order-tabs", value: "shipping" },
+        note: "Switch to Shipping — the tabs exist only while the dialog is open.",
+      },
+      {
+        tool: "checkbox_set",
+        args: { target: "expedited", checked: true },
+        note: "Turn on expedited delivery.",
+      },
+    ],
+  },
+  {
+    id: "reset-workspace",
+    title: "Reset the workspace",
+    prompt: "Clear the filters and close everything.",
+    steps: [
+      {
+        tool: "action_refresh-orders",
+        args: {},
+        note: "Clear the search and status filters.",
+      },
+      {
+        tool: "dialog_close",
+        args: { target: "order-dialog" },
+        note: "Close the order dialog.",
+      },
+    ],
+  },
+]
 
 const COLUMNS: DataTableColumn<Order>[] = [
   { id: "id", header: "ID", accessor: (o) => o.id },
@@ -97,36 +193,14 @@ export default function Demo(): React.JSX.Element {
     <div className="space-y-8 py-8">
       <PageHeader
         title="Demo"
-        description="An ordinary shadcn admin screen made agent-operable. Drive it by hand or with the tool runner."
-        eyebrow="Challenge"
+        description="An ordinary shadcn admin screen made agent-operable. Watch recorded scenarios drive it, or explore it by hand with the tool runner."
+        eyebrow="Scenarios"
       />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          {/* Challenge prompt */}
-          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-            <p className="font-mono text-[11px] text-muted-foreground">
-              Challenge prompt
-            </p>
-            <blockquote className="text-sm leading-relaxed">
-              {CHALLENGE_PROMPT}
-            </blockquote>
-            <div className="space-y-1.5">
-              <p className="font-mono text-[11px] text-muted-foreground">
-                Structured actions
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {CHALLENGE_ACTIONS.map((action) => (
-                  <code
-                    key={action}
-                    className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
-                  >
-                    {action}
-                  </code>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Scenario runner: recorded tool calls against the live registry */}
+          <ScenarioRunner scenarios={SCENARIOS} />
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">

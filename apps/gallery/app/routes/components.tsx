@@ -42,7 +42,7 @@ export default function Components(): React.JSX.Element {
   const items = listItems(index, activeBase)
 
   return (
-    <div className="space-y-12 py-8">
+    <div className="mx-auto max-w-4xl space-y-12 px-6 py-8 lg:px-10">
       <PageHeader
         title="Components"
         description="Agent-native React components built on the shadcn registry."

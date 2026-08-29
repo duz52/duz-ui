@@ -11,6 +11,7 @@ import { CodeBlock } from "@/components/site/code-block"
 import { ToolRunner } from "@/components/site/tool-runner"
 import { BaseSwitcher } from "@/components/site/base-switcher"
 import { PageHeader } from "@/components/site/page-header"
+import { Toc } from "@/components/site/toc"
 import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
 import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
 
@@ -212,19 +213,80 @@ function AgentCapabilities({
 const SECTION_HEADING =
   "font-mono text-xs uppercase tracking-wider text-muted-foreground"
 
-/**
- * Placeholder while the example chunk arrives. It mirrors the page's own
- * section rhythm so the layout does not jump when the real content lands.
- */
-function BodyFallback(): React.JSX.Element {
+// One source of truth for the page's sections: the headings below and the
+// "On This Page" rail both render from it, so they can never drift apart.
+// All six sections always render (each states its own empty case in prose),
+// so the rail is fully static per page and correct on the server too.
+const SECTIONS = [
+  { id: "live-preview", title: "Live Preview" },
+  { id: "agent-capabilities", title: "Agent Capabilities" },
+  { id: "install", title: "Install" },
+  { id: "usage", title: "Usage" },
+  { id: "live-webmcp-test", title: "Live WebMCP Test" },
+  { id: "source", title: "Source" },
+] as const
+
+// Only the preview and the usage snippet depend on the example chunk; every
+// section heading is static, so the page and its anchors render immediately
+// and the chunk backs two narrow boundaries instead of the whole body. Those
+// boundaries must hang off static sections inside the route, not off the
+// route component itself: suspending from the route component sent the
+// fallback hunt past the route, which is why every navigation used to flash
+// the error page.
+
+// Fallbacks reserve the height their content will occupy so nothing below
+// the boundary jumps when the chunk lands.
+function PreviewFallback(): React.JSX.Element {
+  return <div className="min-h-40 rounded-lg border border-border p-6" />
+}
+
+function UsageFallback(): React.JSX.Element {
+  return <div className="min-h-40 rounded-lg border border-border bg-muted/40" />
+}
+
+function ExamplePreview({
+  base,
+  name,
+}: {
+  base: string
+  name: string
+}): React.JSX.Element {
+  const example = useExample(base, name)
+  const Preview = example?.Preview
+
+  if (!Preview) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No preview available for this item.
+      </p>
+    )
+  }
+
   return (
-    <div className="space-y-12" aria-hidden>
-      <div className="h-4 w-28 rounded bg-muted/60" />
-      <div className="h-40 rounded-lg border border-border bg-muted/20" />
-      <div className="h-4 w-36 rounded bg-muted/60" />
-      <div className="h-24 rounded-lg border border-border bg-muted/20" />
+    <div className="rounded-lg border border-border p-6">
+      <Preview />
     </div>
   )
+}
+
+function ExampleUsage({
+  base,
+  name,
+}: {
+  base: string
+  name: string
+}): React.JSX.Element {
+  const example = useExample(base, name)
+
+  if (!example) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No usage example available.
+      </p>
+    )
+  }
+
+  return <CodeBlock code={example.usage} lang="tsx" />
 }
 
 export default function Component({
@@ -233,57 +295,29 @@ export default function Component({
   const { item } = loaderData
   const { base } = useParams()
 
-  // The body reads the example with `React.use`, so it has to sit *inside*
-  // the boundary. Suspending from this component instead sent the fallback
-  // hunt past the route, which is why every navigation flashed the error
-  // page before the component appeared.
   // The page opens the way shadcn's docs pages do: title, description, then
   // the base switcher, before any content section.
   return (
-    <div className="space-y-12 py-8">
-      <div className="space-y-6">
-        <PageHeader title={item.title} description={item.description} />
-        <BaseSwitcher name={item.name} base={base ?? ""} />
-      </div>
-      <React.Suspense fallback={<BodyFallback />}>
-        <ComponentBody item={item} base={base ?? ""} />
-      </React.Suspense>
-    </div>
-  )
-}
+    <div className="flex items-start gap-8">
+      <div className="mx-auto min-w-0 max-w-3xl flex-1 space-y-12 px-6 py-8 lg:px-10">
+        <div className="space-y-6">
+          <PageHeader title={item.title} description={item.description} />
+          <BaseSwitcher name={item.name} base={base ?? ""} />
+        </div>
 
-function ComponentBody({
-  item,
-  base,
-}: {
-  item: GalleryItem
-  base: string
-}): React.JSX.Element {
-  const example = useExample(base, item.name)
-  const Preview = example?.Preview
-
-  return (
-    <>
-
-        <section className="space-y-3">
+        <section id="live-preview" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Live Preview</h2>
-          {Preview ? (
-            <div className="rounded-lg border border-border p-6">
-              <Preview />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No preview available for this item.
-            </p>
-          )}
+          <React.Suspense fallback={<PreviewFallback />}>
+            <ExamplePreview base={base ?? ""} name={item.name} />
+          </React.Suspense>
         </section>
 
-        <section className="space-y-3">
+        <section id="agent-capabilities" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Agent Capabilities</h2>
           <AgentCapabilities agentUi={item.agentUi} />
         </section>
 
-        <section className="space-y-3">
+        <section id="install" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Install</h2>
           <CodeBlock code={`npx agent-ui add ${item.name}`} lang="bash" />
           {item.dependencies.length > 0 ? (
@@ -322,26 +356,25 @@ function ComponentBody({
           ) : null}
         </section>
 
-        <section className="space-y-3">
+        <section id="usage" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Usage</h2>
-          {example ? (
-            <CodeBlock code={example.usage} lang="tsx" />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No usage example available.
-            </p>
-          )}
+          <React.Suspense fallback={<UsageFallback />}>
+            <ExampleUsage base={base ?? ""} name={item.name} />
+          </React.Suspense>
         </section>
 
-        <section className="space-y-3">
+        <section id="live-webmcp-test" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Live WebMCP Test</h2>
           <p className="text-sm text-muted-foreground">
             Tools are scoped to the preview mounted above.
           </p>
-          <ToolRunner />
+          {/* The examples name their main capability after the component, so
+              the runner opens on the one this page is about rather than on
+              whichever capability the preview happened to mount first. */}
+          <ToolRunner preferredTarget={`preview-${item.name}`} />
         </section>
 
-        <section className="space-y-3">
+        <section id="source" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Source</h2>
           <div className="space-y-2">
             {item.files.map((file) => (
@@ -359,6 +392,10 @@ function ComponentBody({
             ))}
           </div>
         </section>
-    </>
+      </div>
+      <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-56 shrink-0 overflow-y-auto py-8 pr-6 xl:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Toc sections={SECTIONS} />
+      </aside>
+    </div>
   )
 }
