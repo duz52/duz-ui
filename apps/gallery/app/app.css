@@ -37,6 +37,18 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Syntax colours, by role. The editor names these rather than literals so
+     the block below is the only place a theme's palette lives. Chosen against
+     the muted surface a code block sits on, at WCAG AA or better. */
+  --code-keyword: oklch(0.48 0.17 292);
+  --code-string: oklch(0.47 0.13 155);
+  --code-comment: oklch(0.58 0.01 260);
+  --code-number: oklch(0.52 0.14 55);
+  --code-function: oklch(0.5 0.15 255);
+  --code-type: oklch(0.5 0.12 200);
+  --code-property: oklch(0.46 0.12 330);
+  --code-punctuation: oklch(0.55 0.01 260);
 }
 
 .dark {
@@ -72,6 +84,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Same roles, lifted for a dark surface. */
+  --code-keyword: oklch(0.78 0.13 300);
+  --code-string: oklch(0.8 0.13 150);
+  --code-comment: oklch(0.62 0.01 260);
+  --code-number: oklch(0.82 0.12 65);
+  --code-function: oklch(0.8 0.12 250);
+  --code-type: oklch(0.82 0.1 195);
+  --code-property: oklch(0.82 0.1 330);
+  --code-punctuation: oklch(0.65 0.01 260);
 }
 
 @theme inline {
@@ -124,3 +146,32 @@
     font-variation-settings: "opsz" 32;
   }
 }
+
+/* Lezer's `classHighlighter` emits these; the colours are the per-theme
+   variables above, so the theme toggle recolours code with no extra work. */
+.tok-keyword,
+.tok-modifier,
+.tok-controlKeyword,
+.tok-operatorKeyword { color: var(--code-keyword); }
+.tok-string,
+.tok-string2,
+.tok-regexp { color: var(--code-string); }
+.tok-comment { color: var(--code-comment); font-style: italic; }
+.tok-number,
+.tok-bool,
+.tok-null,
+.tok-atom { color: var(--code-number); }
+.tok-function,
+.tok-macroName { color: var(--code-function); }
+.tok-typeName,
+.tok-className,
+.tok-tagName,
+.tok-namespace { color: var(--code-type); }
+.tok-propertyName,
+.tok-attributeName,
+.tok-labelName { color: var(--code-property); }
+.tok-operator,
+.tok-punctuation,
+.tok-bracket,
+.tok-separator,
+.tok-derefOperator { color: var(--code-punctuation); }
