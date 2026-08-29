@@ -1,14 +1,14 @@
 /**
  * Persistent navigation for the component gallery.
  *
- * Groups mirror the registry's own `agentUi.status` partition and are derived
- * from the registry at render time — never hardcode component names here;
- * the list grows constantly.
+ * Scoped to the base in the URL (`/components/:base/:name`) and derived from
+ * the registry at render time — never hardcode component names here; the
+ * list grows constantly.
  */
 
-import { Link, useLocation } from "react-router"
+import { Link, useLocation, useParams } from "react-router"
 
-import { listItems, type GalleryItem } from "@/registry"
+import { BASES, listItems, type GalleryItem } from "@/registry"
 import {
   Sidebar,
   SidebarContent,
@@ -18,13 +18,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/radix/ui/sidebar"
 
 type GalleryItemStatus = NonNullable<GalleryItem["agentUi"]>["status"]
-
-// The registry is a static build-time glob, so derive the navigation once at
-// module scope instead of on every route transition.
-const ITEMS = listItems()
 
 const GROUPS: { status: GalleryItemStatus; label: string }[] = [
   { status: "agent-native", label: "Agent-native" },
@@ -33,7 +29,13 @@ const GROUPS: { status: GalleryItemStatus; label: string }[] = [
 ]
 
 export function GallerySidebar(): React.JSX.Element {
+  const { base } = useParams()
   const { pathname } = useLocation()
+  // Pages outside `/components/:base/:name` (the `/components` index) have no
+  // base in the URL. Both trees are installed, so any base keeps the links
+  // addressable; the first registry-derived one is the deterministic choice.
+  const activeBase = base ?? BASES[0] ?? ""
+  const items = listItems(activeBase)
 
   return (
     // Sticky inside the layout's grid column so the sidebar stays attached
@@ -45,10 +47,10 @@ export function GallerySidebar(): React.JSX.Element {
     <Sidebar className="sticky top-14 hidden h-[calc(100svh-3.5rem)] md:flex group-data-[collapsible=offcanvas]:hidden">
       <SidebarContent>
         {GROUPS.map((group) => {
-          const items = ITEMS.filter(
+          const groupItems = items.filter(
             (item) => item.agentUi?.status === group.status,
           )
-          if (items.length === 0) {
+          if (groupItems.length === 0) {
             return null
           }
           return (
@@ -56,13 +58,16 @@ export function GallerySidebar(): React.JSX.Element {
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {items.map((item) => (
+                  {groupItems.map((item) => (
                     <SidebarMenuItem key={item.name}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === `/components/${item.name}`}
+                        isActive={
+                          pathname ===
+                          `/components/${activeBase}/${item.name}`
+                        }
                       >
-                        <Link to={`/components/${item.name}`}>
+                        <Link to={`/components/${activeBase}/${item.name}`}>
                           {item.title}
                         </Link>
                       </SidebarMenuButton>

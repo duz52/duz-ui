@@ -46,6 +46,8 @@ export type RegistryBase = (typeof REGISTRY_BASES)[number]
  */
 export function createRegistryClient(source: string, base: RegistryBase = "radix"): RegistryClient {
   const cache = new Map<string, RegistryItem>()
+  // Every item lookup consults the index; it cannot change within a run.
+  let indexCache: RegistryIndex | undefined
 
   async function readDocument(path: string): Promise<string> {
     if (isHttpSource(source)) {
@@ -64,27 +66,32 @@ export function createRegistryClient(source: string, base: RegistryBase = "radix
   }
 
   /**
-   * Fetch an item's document: base-specific first, flat (base-independent)
-   * second. A name found in neither is unknown.
+   * Read an item's document from where the index says it lives: a
+   * base-specific item at `<base>/<name>.json`, a base-independent one at the
+   * root. Probing both paths would turn a registry that is unreachable into
+   * the message for a component that does not exist.
    */
   async function fetchItemText(name: string): Promise<string> {
-    try {
-      return await readDocument(`${base}/${name}.json`)
-    } catch {
+    const entry = (await index()).items.find((item) => item.name === name)
+    if (!entry) {
+      throw new Error(`Unknown component "${name}"`)
+    }
+    if (!entry.bases) {
       return readDocument(`${name}.json`)
     }
+    if (!entry.bases.includes(base)) {
+      throw new Error(
+        `"${name}" is not available for the "${base}" base. It is provided by: ${entry.bases.join(", ")}.`,
+      )
+    }
+    return readDocument(`${base}/${name}.json`)
   }
 
   async function item(name: string): Promise<RegistryItem> {
     const cached = cache.get(name)
     if (cached) return cached
 
-    let text: string
-    try {
-      text = await fetchItemText(name)
-    } catch {
-      throw new Error(`Unknown component "${name}"`)
-    }
+    const text = await fetchItemText(name)
 
     let parsed: unknown
     try {
@@ -106,6 +113,8 @@ export function createRegistryClient(source: string, base: RegistryBase = "radix
   }
 
   async function index(): Promise<RegistryIndex> {
+    if (indexCache) return indexCache
+
     let text: string
     try {
       text = await readDocument("registry.json")
@@ -128,7 +137,8 @@ export function createRegistryClient(source: string, base: RegistryBase = "radix
       throw new Error(`Registry index is invalid at "${location}"`)
     }
 
-    return result.data
+    indexCache = result.data
+    return indexCache
   }
 
   async function resolve(names: string[]): Promise<RegistryItem[]> {

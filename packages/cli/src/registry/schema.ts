@@ -71,6 +71,11 @@ const registryIndexItemSchema = z.object({
   description: z.string().optional(),
   dependencies: z.array(z.string()).default([]),
   registryDependencies: z.array(z.string()).default([]),
+  /**
+   * The primitive bases this item is emitted for. Absent means the item is
+   * base-independent and served once, at the registry root.
+   */
+  bases: z.array(z.string()).optional(),
   agentUi: agentUiMetaSchema.optional(),
 })
 

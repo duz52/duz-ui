@@ -16,13 +16,11 @@ interface OptionEntry {
 }
 
 /**
- * Items only need to announce themselves. The chosen value stays with Radix,
- * so nothing is duplicated into this context.
+ * The content declares the options; the chosen value stays with Radix, so
+ * nothing is duplicated into this context.
  */
 interface SelectContextValue {
-  /** Mount and unmount only. Presentation never affects registration order. */
-  registerOption: (value: string) => () => void
-  describeOption: (value: string, label: string | undefined, disabled: boolean) => void
+  setOptions: (options: OptionEntry[]) => void
 }
 
 const SelectContext = React.createContext<SelectContextValue | null>(null)
@@ -30,7 +28,7 @@ const SelectContext = React.createContext<SelectContextValue | null>(null)
 function useSelectContext(): SelectContextValue {
   const ctx = React.useContext(SelectContext)
   if (!ctx) {
-    throw new Error("SelectItem must be rendered inside <Select>.")
+    throw new Error("SelectContent must be rendered inside <Select>.")
   }
   return ctx
 }
@@ -61,35 +59,6 @@ function Select({
   })
 
   const [options, setOptions] = React.useState<OptionEntry[]>([])
-
-  // Registration owns order, so it depends on the option's value alone. Label
-  // and disabled state are updated in place; removing and re-appending on a
-  // `disabled` toggle would reorder what the agent reads.
-  const registerOption = React.useCallback((value: string): (() => void) => {
-    setOptions((prev) =>
-      prev.some((option) => option.value === value)
-        ? prev
-        : [...prev, { value, disabled: false }],
-    )
-    return () => {
-      setOptions((prev) => prev.filter((option) => option.value !== value))
-    }
-  }, [])
-
-  const describeOption = React.useCallback(
-    (value: string, label: string | undefined, disabled: boolean) => {
-      setOptions((prev) => {
-        const index = prev.findIndex((option) => option.value === value)
-        const current = prev[index]
-        if (!current) return prev
-        if (current.label === label && current.disabled === disabled) return prev
-        const next = [...prev]
-        next[index] = { value, label, disabled }
-        return next
-      })
-    },
-    [],
-  )
 
   useCapability<SelectState, SelectActions>({
     agent,
@@ -125,8 +94,8 @@ function Select({
   })
 
   const contextValue = React.useMemo<SelectContextValue>(
-    () => ({ registerOption, describeOption }),
-    [registerOption, describeOption],
+    () => ({ setOptions }),
+    [setOptions],
   )
 
   return (
@@ -179,6 +148,55 @@ function SelectTrigger({
   )
 }
 
+/**
+ * The options a select offers, read from the elements its content was given
+ * rather than from items that have mounted.
+ *
+ * Popup items are only rendered while the select is open, and whether that is
+ * so is the primitive's business — it differs between bases and between
+ * versions. Registering on mount therefore made `read().options` depend on the
+ * select being open, and a closed select reported no options at all, so an
+ * agent could neither discover an option nor choose one.
+ *
+ * An application that supplies items through a component which renders
+ * `SelectItem` internally is invisible to this walk, and that select reports
+ * no options.
+ */
+function readOptions(children: React.ReactNode): OptionEntry[] {
+  const options: OptionEntry[] = []
+
+  const visit = (node: React.ReactNode): void => {
+    for (const child of React.Children.toArray(node)) {
+      if (!React.isValidElement(child)) continue
+      const props = child.props as {
+        value?: unknown
+        disabled?: boolean
+        children?: React.ReactNode
+      }
+      if (child.type === SelectItem) {
+        options.push({
+          value: String(props.value),
+          label: typeof props.children === "string" ? props.children : undefined,
+          disabled: props.disabled ?? false,
+        })
+        continue
+      }
+      // Groups and fragments nest the items one level deeper.
+      visit(props.children)
+    }
+  }
+
+  visit(children)
+  return options
+}
+
+/** Identity of an option list, so the content reports only real changes. */
+function optionsKey(options: OptionEntry[]): string {
+  return options
+    .map((option) => [option.value, option.label ?? "", option.disabled].join("\u0000"))
+    .join("\u0001")
+}
+
 function SelectContent({
   className,
   children,
@@ -186,6 +204,15 @@ function SelectContent({
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const { setOptions } = useSelectContext()
+  const options = readOptions(children)
+  const latest = React.useRef(options)
+  latest.current = options
+  const key = optionsKey(options)
+  React.useEffect(() => {
+    setOptions(latest.current)
+  }, [setOptions, key])
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -236,15 +263,6 @@ function SelectItem({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
-  const { registerOption, describeOption } = useSelectContext()
-  const label = typeof children === "string" ? children : undefined
-
-  React.useEffect(() => registerOption(value), [registerOption, value])
-  React.useEffect(
-    () => describeOption(value, label, disabled ?? false),
-    [describeOption, value, label, disabled],
-  )
-
   return (
     <SelectPrimitive.Item
       data-slot="select-item"

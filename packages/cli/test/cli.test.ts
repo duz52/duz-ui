@@ -17,15 +17,35 @@ const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, "../../..")
 const cli = join(repoRoot, "packages/cli/dist/index.js")
 const registry = join(repoRoot, "apps/gallery/public/r")
-// The fingerprints are generated from these bytes; reading a copy would test a
-// copy that can silently drift from the source the fingerprints were computed
-// against.
-const fixtures = join(repoRoot, "docs/internal/reference/shadcn")
 
-// The style names the primitive base the project receives components for,
-// using shadcn's `"<base>-<style>"` encoding. The default "new-york-v4" is
-// the legacy Radix style the stock fixtures in `fixtures/` were taken from.
-function createProject(components: string[], style = "new-york-v4"): string {
+/**
+ * The vendored stock sources and the `components.json` style are per primitive
+ * base: shadcn's `"<base>-<style>"` encoding resolves "new-york" to the Radix
+ * base and "base-nova" to the Base UI base. The migrate tests run the same
+ * assertions against both, each seeded with that base's own vendored stock
+ * source — the bytes the per-base fingerprints were generated from.
+ */
+const BASES = {
+  radix: {
+    style: "new-york",
+    fixtures: join(repoRoot, "docs/internal/reference/shadcn/radix"),
+    // A class string in this base's stock checkbox; changing it introduces
+    // drift without altering the structure or the public exports.
+    checkboxDrift: ["transition-shadow outline-none", "transition-shadow outline-none bg-red-500"],
+    tabsDrift: ["group/tabs flex gap-2 ", "group/tabs flex gap-2 bg-red-500 "],
+  },
+  base: {
+    style: "base-nova",
+    fixtures: join(repoRoot, "docs/internal/reference/shadcn/base"),
+    checkboxDrift: ["transition-colors outline-none", "transition-colors outline-none bg-red-500"],
+    tabsDrift: ["group/tabs flex gap-2 ", "group/tabs flex gap-2 bg-red-500 "],
+  },
+} as const
+
+type BaseName = keyof typeof BASES
+
+function createProject(components: string[], base: BaseName = "radix"): string {
+  const { style, fixtures } = BASES[base]
   const dir = mkdtempSync(join(tmpdir(), "agent-ui-cli-"))
   writeFileSync(
     join(dir, "package.json"),
@@ -39,6 +59,7 @@ function createProject(components: string[], style = "new-york-v4"): string {
           react: "^19.0.0",
           "react-dom": "^19.0.0",
           "radix-ui": "^1.6.7",
+          "@base-ui/react": "^1.0.0",
           "lucide-react": "^0.545.0",
           "class-variance-authority": "^0.7.1",
           clsx: "^2.1.1",
@@ -192,7 +213,7 @@ test("add installs the component for the project's base", () => {
   // component; a legacy new-york project must receive the Radix one. The
   // assertion names the primitive import, which only one base's source
   // contains.
-  const baseDir = createProject([], "base-ui")
+  const baseDir = createProject([], "base")
   try {
     const result = run(baseDir, ["add", "tabs"])
     assert.equal(result.status, 0, result.output)
@@ -206,7 +227,7 @@ test("add installs the component for the project's base", () => {
     rmSync(baseDir, { recursive: true, force: true })
   }
 
-  const radixDir = createProject([], "new-york-v4")
+  const radixDir = createProject([], "radix")
   try {
     const result = run(radixDir, ["add", "tabs"])
     assert.equal(result.status, 0, result.output)
@@ -221,292 +242,292 @@ test("add installs the component for the project's base", () => {
   }
 })
 
-test("migrate upgrades stock shadcn components and leaves call sites alone", () => {
-  const dir = createProject(["tabs", "select", "checkbox", "dialog", "input", "button", "label"])
-  const callSite = join(dir, "src/app.tsx")
-  const callSiteSource = [
-    'import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"',
-    "",
-    "export function App() {",
-    '  return <Tabs defaultValue="account" />',
-    "}",
-    "",
-  ].join("\n")
-  writeFileSync(callSite, callSiteSource)
+for (const base of Object.keys(BASES) as BaseName[]) {
+  test(`[${base}] migrate upgrades stock shadcn components and leaves call sites alone`, () => {
+    const dir = createProject(["tabs", "select", "checkbox", "dialog", "input", "button", "label"], base)
+    const callSite = join(dir, "src/app.tsx")
+    const callSiteSource = [
+      'import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"',
+      "",
+      "export function App() {",
+      '  return <Tabs defaultValue="account" />',
+      "}",
+      "",
+    ].join("\n")
+    writeFileSync(callSite, callSiteSource)
 
-  try {
-    const result = run(dir, ["migrate"])
-    assert.equal(result.status, 0, result.output)
+    try {
+      const result = run(dir, ["migrate"])
+      assert.equal(result.status, 0, result.output)
 
-    const tabs = readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8")
-    assert.match(tabs, /useCapability/, "tabs must carry the capability binding")
-    assert.match(tabs, /from "@\/lib\/agent-ui\/use-capability"/)
-    assert.match(tabs, /export \{ Tabs, TabsList, TabsTrigger, TabsContent/, "exports must be unchanged")
+      const tabs = readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8")
+      assert.match(tabs, /useCapability/, "tabs must carry the capability binding")
+      assert.match(tabs, /from "@\/lib\/agent-ui\/use-capability"/)
+      assert.match(tabs, /export \{ Tabs, TabsList, TabsTrigger, TabsContent/, "exports must be unchanged")
 
-    assert.equal(readFileSync(callSite, "utf8"), callSiteSource, "no call site may change")
+      assert.equal(readFileSync(callSite, "utf8"), callSiteSource, "no call site may change")
 
-    // Presentation-only and business-semantics components are reported, untouched.
-    assert.match(result.output, /button/)
-    const button = readFileSync(join(dir, "src/components/ui/button.tsx"), "utf8")
-    assert.doesNotMatch(button, /agent-ui/, "button must never become an agent action")
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      // Presentation-only and business-semantics components are reported, untouched.
+      assert.match(result.output, /button/)
+      const button = readFileSync(join(dir, "src/components/ui/button.tsx"), "utf8")
+      assert.doesNotMatch(button, /agent-ui/, "button must never become an agent action")
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate is idempotent", () => {
-  const dir = createProject(["tabs", "checkbox"])
-  try {
-    assert.equal(run(dir, ["migrate"]).status, 0)
-    const after = readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8")
+  test(`[${base}] migrate is idempotent`, () => {
+    const dir = createProject(["tabs", "checkbox"], base)
+    try {
+      assert.equal(run(dir, ["migrate"]).status, 0)
+      const after = readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8")
 
-    const second = run(dir, ["migrate"])
-    assert.equal(second.status, 0, second.output)
-    assert.equal(
-      readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8"),
-      after,
-      "a second migrate must not change a single byte",
-    )
-    assert.match(second.output, /already agent-native/)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      const second = run(dir, ["migrate"])
+      assert.equal(second.status, 0, second.output)
+      assert.equal(
+        readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8"),
+        after,
+        "a second migrate must not change a single byte",
+      )
+      assert.match(second.output, /already agent-native/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate installs a registry dependency the project is missing", () => {
-  // A project that has a stock dialog.tsx but no button.tsx. The migrated
-  // dialog imports @/components/ui/button, which the registry lists as a
-  // registryDependency of dialog.
-  const dir = createProject(["dialog"])
-  try {
-    const result = run(dir, ["migrate"])
-    assert.equal(result.status, 0, result.output)
+  test(`[${base}] migrate installs a registry dependency the project is missing`, () => {
+    // A project that has a stock dialog.tsx but no button.tsx. The migrated
+    // dialog imports @/components/ui/button, which the registry lists as a
+    // registryDependency of dialog.
+    const dir = createProject(["dialog"], base)
+    try {
+      const result = run(dir, ["migrate"])
+      assert.equal(result.status, 0, result.output)
 
-    assert.ok(
-      existsSync(join(dir, "src/components/ui/button.tsx")),
-      "migrate must create a missing registry dependency",
-    )
-    assert.match(result.output, /Dependencies created:/)
-    assert.match(result.output, /components\/ui\/button\.tsx/)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      assert.ok(
+        existsSync(join(dir, "src/components/ui/button.tsx")),
+        "migrate must create a missing registry dependency",
+      )
+      assert.match(result.output, /Dependencies created:/)
+      assert.match(result.output, /components\/ui\/button\.tsx/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate refuses a locally modified component", () => {
-  const dir = createProject(["tabs"])
-  const file = join(dir, "src/components/ui/tabs.tsx")
-  const modified = `${readFileSync(file, "utf8")}\nexport function TabsSkeleton() {\n  return null\n}\n`
-  writeFileSync(file, modified)
+  test(`[${base}] migrate refuses a locally modified component`, () => {
+    const dir = createProject(["tabs"], base)
+    const file = join(dir, "src/components/ui/tabs.tsx")
+    const modified = `${readFileSync(file, "utf8")}\nexport function TabsSkeleton() {\n  return null\n}\n`
+    writeFileSync(file, modified)
 
-  try {
-    const result = run(dir, ["migrate"])
-    assert.equal(result.status, 0, result.output)
-    assert.equal(readFileSync(file, "utf8"), modified, "a modified file must be left alone")
-    assert.match(result.output, /TabsSkeleton/)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+    try {
+      const result = run(dir, ["migrate"])
+      assert.equal(result.status, 0, result.output)
+      assert.equal(readFileSync(file, "utf8"), modified, "a modified file must be left alone")
+      assert.match(result.output, /TabsSkeleton/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate reports needs-overwrite for a drifted component and --overwrite replaces it", () => {
-  const dir = createProject(["tabs"])
-  const file = join(dir, "src/components/ui/tabs.tsx")
-  // Drift: change a Tailwind class so the source differs from known stock
-  // without altering the structure or the public exports.
-  const stock = readFileSync(file, "utf8")
-  const drifted = stock.replace("flex-1 outline-none", "flex-1 outline-none bg-red-500")
-  writeFileSync(file, drifted)
+  test(`[${base}] migrate reports needs-overwrite for a drifted component and --overwrite replaces it`, () => {
+    const dir = createProject(["tabs"], base)
+    const file = join(dir, "src/components/ui/tabs.tsx")
+    // Drift: change a Tailwind class so the source differs from known stock
+    // without altering the structure or the public exports.
+    const [tabsFrom, tabsTo] = BASES[base].tabsDrift
+    const stock = readFileSync(file, "utf8")
+    const drifted = stock.replace(tabsFrom, tabsTo)
+    writeFileSync(file, drifted)
 
-  try {
-    const result = run(dir, ["migrate"])
-    assert.equal(result.status, 0, result.output)
+    try {
+      const result = run(dir, ["migrate"])
+      assert.equal(result.status, 0, result.output)
 
-    // The output names the component under the needs-overwrite section and
-    // points the developer at --overwrite.
-    assert.match(result.output, /Needs overwrite:/)
-    assert.match(result.output, /tabs/)
-    assert.match(result.output, /source differs from known stock/)
-    assert.match(result.output, /--overwrite/)
+      // The output names the component under the needs-overwrite section and
+      // points the developer at --overwrite.
+      assert.match(result.output, /Needs overwrite:/)
+      assert.match(result.output, /tabs/)
+      assert.match(result.output, /source differs from known stock/)
+      assert.match(result.output, /--overwrite/)
 
-    // The drifted file is left untouched.
-    assert.equal(
-      readFileSync(file, "utf8"),
-      drifted,
-      "a drifted file must be left untouched without --overwrite",
-    )
+      // The drifted file is left untouched.
+      assert.equal(
+        readFileSync(file, "utf8"),
+        drifted,
+        "a drifted file must be left untouched without --overwrite",
+      )
 
-    // --overwrite replaces the drifted file with the agent-native version.
-    const overwritten = run(dir, ["migrate", "--overwrite"])
-    assert.equal(overwritten.status, 0, overwritten.output)
-    const replaced = readFileSync(file, "utf8")
-    assert.notEqual(replaced, drifted, "--overwrite must replace the drifted file")
-    assert.match(replaced, /useCapability/, "the replacement must carry the capability binding")
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      // --overwrite replaces the drifted file with the agent-native version.
+      const overwritten = run(dir, ["migrate", "--overwrite"])
+      assert.equal(overwritten.status, 0, overwritten.output)
+      const replaced = readFileSync(file, "utf8")
+      assert.notEqual(replaced, drifted, "--overwrite must replace the drifted file")
+      assert.match(replaced, /useCapability/, "the replacement must carry the capability binding")
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate writes nothing when it migrates nothing", () => {
-  const dir = createProject(["tabs"])
-  const file = join(dir, "src/components/ui/tabs.tsx")
-  // Drift: change a Tailwind class so the source differs from known stock
-  // without altering the structure or the public exports. Without --overwrite
-  // this is needs-overwrite, so nothing migrates and nothing is written.
-  const stock = readFileSync(file, "utf8")
-  const drifted = stock.replace("flex-1 outline-none", "flex-1 outline-none bg-red-500")
-  writeFileSync(file, drifted)
+  test(`[${base}] migrate writes nothing when it migrates nothing`, () => {
+    const dir = createProject(["tabs"], base)
+    const file = join(dir, "src/components/ui/tabs.tsx")
+    // Drift: change a Tailwind class so the source differs from known stock
+    // without altering the structure or the public exports. Without --overwrite
+    // this is needs-overwrite, so nothing migrates and nothing is written.
+    const [tabsFrom, tabsTo] = BASES[base].tabsDrift
+    const stock = readFileSync(file, "utf8")
+    const drifted = stock.replace(tabsFrom, tabsTo)
+    writeFileSync(file, drifted)
 
-  const packageJsonPath = join(dir, "package.json")
-  const packageJsonBefore = readFileSync(packageJsonPath, "utf8")
+    const packageJsonPath = join(dir, "package.json")
+    const packageJsonBefore = readFileSync(packageJsonPath, "utf8")
 
-  try {
-    const result = run(dir, ["migrate"])
-    assert.equal(result.status, 0, result.output)
-    assert.match(result.output, /0 components upgraded/)
-    assert.equal(
-      readFileSync(file, "utf8"),
-      drifted,
-      "the component file must be byte-identical",
-    )
-    assert.equal(
-      existsSync(join(dir, "src/lib/agent-ui")),
-      false,
-      "no runtime must be installed",
-    )
-    assert.equal(
-      readFileSync(packageJsonPath, "utf8"),
-      packageJsonBefore,
-      "package.json must be byte-identical",
-    )
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+    try {
+      const result = run(dir, ["migrate"])
+      assert.equal(result.status, 0, result.output)
+      assert.match(result.output, /0 components upgraded/)
+      assert.equal(
+        readFileSync(file, "utf8"),
+        drifted,
+        "the component file must be byte-identical",
+      )
+      assert.equal(
+        existsSync(join(dir, "src/lib/agent-ui")),
+        false,
+        "no runtime must be installed",
+      )
+      assert.equal(
+        readFileSync(packageJsonPath, "utf8"),
+        packageJsonBefore,
+        "package.json must be byte-identical",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate accepts named components and leaves the rest alone", () => {
-  const dir = createProject(["tabs", "checkbox"])
-  const tabsFile = join(dir, "src/components/ui/tabs.tsx")
-  const tabsBefore = readFileSync(tabsFile, "utf8")
-  try {
-    const result = run(dir, ["migrate", "checkbox"])
-    assert.equal(result.status, 0, result.output)
+  test(`[${base}] migrate accepts named components and leaves the rest alone`, () => {
+    const dir = createProject(["tabs", "checkbox"], base)
+    const tabsFile = join(dir, "src/components/ui/tabs.tsx")
+    const tabsBefore = readFileSync(tabsFile, "utf8")
+    try {
+      const result = run(dir, ["migrate", "checkbox"])
+      assert.equal(result.status, 0, result.output)
 
-    // The named component was migrated.
-    const checkbox = readFileSync(join(dir, "src/components/ui/checkbox.tsx"), "utf8")
-    assert.match(checkbox, /useCapability/, "the named component must be migrated")
-    assert.match(checkbox, /from "@\/lib\/agent-ui\/use-capability"/)
+      // The named component was migrated.
+      const checkbox = readFileSync(join(dir, "src/components/ui/checkbox.tsx"), "utf8")
+      assert.match(checkbox, /useCapability/, "the named component must be migrated")
+      assert.match(checkbox, /from "@\/lib\/agent-ui\/use-capability"/)
 
-    // The un-named component is untouched, byte for byte.
-    assert.equal(
-      readFileSync(tabsFile, "utf8"),
-      tabsBefore,
-      "an un-named component must be left untouched",
-    )
+      // The un-named component is untouched, byte for byte.
+      assert.equal(
+        readFileSync(tabsFile, "utf8"),
+        tabsBefore,
+        "an un-named component must be left untouched",
+      )
 
-    // The report does not mention the un-named component at all.
-    assert.doesNotMatch(
-      result.output,
-      /tabs/,
-      "the report must not mention an un-named component",
-    )
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      // The report does not mention the un-named component at all.
+      assert.doesNotMatch(
+        result.output,
+        /tabs/,
+        "the report must not mention an un-named component",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate with a named component leaves other drifted components untouched", () => {
-  const dir = createProject(["checkbox", "tabs"])
-  const checkboxFile = join(dir, "src/components/ui/checkbox.tsx")
-  const tabsFile = join(dir, "src/components/ui/tabs.tsx")
+  test(`[${base}] migrate with a named component leaves other drifted components untouched`, () => {
+    const dir = createProject(["checkbox", "tabs"], base)
+    const checkboxFile = join(dir, "src/components/ui/checkbox.tsx")
+    const tabsFile = join(dir, "src/components/ui/tabs.tsx")
 
-  // Drift both: change one class string in each so neither is a known stock
-  // source. Without --overwrite each would be reported as needs-overwrite.
-  const checkboxDrifted = readFileSync(checkboxFile, "utf8").replace(
-    "transition-shadow outline-none",
-    "transition-shadow outline-none bg-red-500",
-  )
-  writeFileSync(checkboxFile, checkboxDrifted)
-  const tabsDrifted = readFileSync(tabsFile, "utf8").replace(
-    "flex-1 outline-none",
-    "flex-1 outline-none bg-red-500",
-  )
-  writeFileSync(tabsFile, tabsDrifted)
+    // Drift both: change one class string in each so neither is a known stock
+    // source. Without --overwrite each would be reported as needs-overwrite.
+    const [checkboxFrom, checkboxTo] = BASES[base].checkboxDrift
+    const checkboxDrifted = readFileSync(checkboxFile, "utf8").replace(checkboxFrom, checkboxTo)
+    writeFileSync(checkboxFile, checkboxDrifted)
+    const [tabsFrom, tabsTo] = BASES[base].tabsDrift
+    const tabsDrifted = readFileSync(tabsFile, "utf8").replace(tabsFrom, tabsTo)
+    writeFileSync(tabsFile, tabsDrifted)
 
-  try {
-    const result = run(dir, ["migrate", "checkbox", "--overwrite"])
-    assert.equal(result.status, 0, result.output)
+    try {
+      const result = run(dir, ["migrate", "checkbox", "--overwrite"])
+      assert.equal(result.status, 0, result.output)
 
-    // The named drifted component was replaced.
-    assert.match(
-      readFileSync(checkboxFile, "utf8"),
-      /useCapability/,
-      "the named drifted component must be replaced",
-    )
+      // The named drifted component was replaced.
+      assert.match(
+        readFileSync(checkboxFile, "utf8"),
+        /useCapability/,
+        "the named drifted component must be replaced",
+      )
 
-    // The un-named drifted component is byte-identical to what was written.
-    assert.equal(
-      readFileSync(tabsFile, "utf8"),
-      tabsDrifted,
-      "a drifted component that was not named must be left untouched",
-    )
+      // The un-named drifted component is byte-identical to what was written.
+      assert.equal(
+        readFileSync(tabsFile, "utf8"),
+        tabsDrifted,
+        "a drifted component that was not named must be left untouched",
+      )
 
-    // --overwrite is scoped to what the developer named; a drifted component
-    // they did not name is not swept up by it, so the report does not mention
-    // it at all.
-    assert.doesNotMatch(
-      result.output,
-      /tabs/,
-      "the report must not mention a component the developer did not name",
-    )
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      // --overwrite is scoped to what the developer named; a drifted component
+      // they did not name is not swept up by it, so the report does not mention
+      // it at all.
+      assert.doesNotMatch(
+        result.output,
+        /tabs/,
+        "the report must not mention a component the developer did not name",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 
-test("migrate refuses a component the project does not have", () => {
-  const dir = createProject(["tabs", "checkbox"])
-  const tabsFile = join(dir, "src/components/ui/tabs.tsx")
-  const checkboxFile = join(dir, "src/components/ui/checkbox.tsx")
-  const tabsBefore = readFileSync(tabsFile, "utf8")
-  const checkboxBefore = readFileSync(checkboxFile, "utf8")
-  const packageJsonPath = join(dir, "package.json")
-  const packageJsonBefore = readFileSync(packageJsonPath, "utf8")
-  try {
-    const result = run(dir, ["migrate", "nosuchthing"])
-    assert.notEqual(result.status, 0, "a missing component must fail")
-    assert.match(
-      result.output,
-      /nosuchthing/,
-      "the output must name the missing component",
-    )
+  test(`[${base}] migrate refuses a component the project does not have`, () => {
+    const dir = createProject(["tabs", "checkbox"], base)
+    const tabsFile = join(dir, "src/components/ui/tabs.tsx")
+    const checkboxFile = join(dir, "src/components/ui/checkbox.tsx")
+    const tabsBefore = readFileSync(tabsFile, "utf8")
+    const checkboxBefore = readFileSync(checkboxFile, "utf8")
+    const packageJsonPath = join(dir, "package.json")
+    const packageJsonBefore = readFileSync(packageJsonPath, "utf8")
+    try {
+      const result = run(dir, ["migrate", "nosuchthing"])
+      assert.notEqual(result.status, 0, "a missing component must fail")
+      assert.match(
+        result.output,
+        /nosuchthing/,
+        "the output must name the missing component",
+      )
 
-    // Nothing in the project changed: no component file, no runtime, no
-    // package.json.
-    assert.equal(
-      readFileSync(tabsFile, "utf8"),
-      tabsBefore,
-      "no component file may change",
-    )
-    assert.equal(
-      readFileSync(checkboxFile, "utf8"),
-      checkboxBefore,
-      "no component file may change",
-    )
-    assert.equal(
-      existsSync(join(dir, "src/lib/agent-ui")),
-      false,
-      "no runtime must be installed",
-    )
-    assert.equal(
-      readFileSync(packageJsonPath, "utf8"),
-      packageJsonBefore,
-      "package.json must be byte-identical",
-    )
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+      // Nothing in the project changed: no component file, no runtime, no
+      // package.json.
+      assert.equal(
+        readFileSync(tabsFile, "utf8"),
+        tabsBefore,
+        "no component file may change",
+      )
+      assert.equal(
+        readFileSync(checkboxFile, "utf8"),
+        checkboxBefore,
+        "no component file may change",
+      )
+      assert.equal(
+        existsSync(join(dir, "src/lib/agent-ui")),
+        false,
+        "no runtime must be installed",
+      )
+      assert.equal(
+        readFileSync(packageJsonPath, "utf8"),
+        packageJsonBefore,
+        "package.json must be byte-identical",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+}
 
 test("doctor reports facts and repairs nothing", () => {
   const dir = createProject(["tabs", "button", "label"])

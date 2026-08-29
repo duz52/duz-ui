@@ -1,43 +1,42 @@
 "use client"
 
 /**
- * Live previews and usage snippets for every gallery component.
+ * Live previews and usage snippets for every gallery component whose usage
+ * is identical across bases — the single hand-written source. Its imports
+ * point at the radix tree; `scripts/sync-gallery.mjs` emits one module per
+ * base (`examples.<base>.generated.tsx`) by rewriting only these import
+ * specifiers, so every base renders the same source a user gets after
+ * `npx agent-ui add`. Agent-native previews pass the `agent` prop;
+ * presentation components register no capability and their previews carry
+ * none. The `usage` string is the short snippet shown on the component
+ * detail page.
  *
- * Each preview mounts the real installed component (from `@/components/ui/*`),
- * so what it renders is the same thing a user gets after `npx agent-ui add`.
- * Agent-native previews pass the `agent` prop; presentation components
- * register no capability and their previews carry none. The `usage` string is
- * the short snippet shown on the component detail page.
+ * Every preview here uses only the props both bases' grammars share: the
+ * generated per-base module must compile against each base's component tree.
+ * A component whose *usage* differs between bases does not belong here — it
+ * has a hand-written example per base in `examples-overrides/<base>.tsx`,
+ * and the divergence table in docs/internal/reference/base-ui.md is the
+ * list of those.
  */
 
 import * as React from "react"
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
-import { Input } from "@/components/ui/input"
-import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/components/ui/input-otp"
-import { Label } from "@/components/ui/label"
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { Toggle } from "@/components/ui/toggle"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/radix/ui/checkbox"
+import { DataTable, type DataTableColumn } from "@/components/radix/ui/data-table"
+import { Input } from "@/components/radix/ui/input"
+import { Label } from "@/components/radix/ui/label"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/radix/ui/pagination"
+import { RadioGroup, RadioGroupItem } from "@/components/radix/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/radix/ui/select"
+import { Separator } from "@/components/radix/ui/separator"
+import { Skeleton } from "@/components/radix/ui/skeleton"
+import { Slider } from "@/components/radix/ui/slider"
+import { Switch } from "@/components/radix/ui/switch"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/radix/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/radix/ui/tabs"
+import { Textarea } from "@/components/radix/ui/textarea"
+import { Toggle } from "@/components/radix/ui/toggle"
+import { Button } from "@/components/radix/ui/button"
 
 export interface Example {
   Preview: React.ComponentType
@@ -179,39 +178,6 @@ const CHECKBOX_USAGE = `<Checkbox
   onCheckedChange={setEnabled}
   agent={{ id: "notifications", label: "Enable notifications" }}
 />`
-
-// ---------------------------------------------------------------------------
-// Dialog
-// ---------------------------------------------------------------------------
-
-function DialogExample(): React.JSX.Element {
-  return (
-    <Dialog agent={{ id: "preview-dialog", label: "Preview dialog" }}>
-      <DialogTrigger asChild>
-        <Button variant="outline">Open dialog</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirm action</DialogTitle>
-          <DialogDescription>
-            This dialog is a fully agent-operable surface.
-          </DialogDescription>
-        </DialogHeader>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-const DIALOG_USAGE = `<Dialog agent={{ id: "confirm-dialog", label: "Confirm" }}>
-  <DialogTrigger asChild>
-    <Button variant="outline">Open</Button>
-  </DialogTrigger>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Confirm action</DialogTitle>
-    </DialogHeader>
-  </DialogContent>
-</Dialog>`
 
 // ---------------------------------------------------------------------------
 // Input
@@ -413,50 +379,6 @@ const TABLE_USAGE = `<Table>
 </Table>`
 
 // ---------------------------------------------------------------------------
-// Accordion
-// ---------------------------------------------------------------------------
-
-function AccordionExample(): React.JSX.Element {
-  return (
-    <Accordion
-      type="single"
-      collapsible
-      defaultValue="account"
-      agent={{ id: "preview-accordion", label: "Preview accordion" }}
-    >
-      <AccordionItem value="account">
-        <AccordionTrigger>Account settings</AccordionTrigger>
-        <AccordionContent>Manage your account preferences.</AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="billing">
-        <AccordionTrigger>Billing details</AccordionTrigger>
-        <AccordionContent>Update your billing information.</AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="team">
-        <AccordionTrigger>Team members</AccordionTrigger>
-        <AccordionContent>Invite and manage your team.</AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  )
-}
-
-const ACCORDION_USAGE = `<Accordion
-  type="single"
-  collapsible
-  defaultValue="account"
-  agent={{ id: "settings", label: "Settings" }}
->
-  <AccordionItem value="account">
-    <AccordionTrigger>Account</AccordionTrigger>
-    <AccordionContent>…</AccordionContent>
-  </AccordionItem>
-  <AccordionItem value="billing">
-    <AccordionTrigger>Billing</AccordionTrigger>
-    <AccordionContent>…</AccordionContent>
-  </AccordionItem>
-</Accordion>`
-
-// ---------------------------------------------------------------------------
 // Slider
 // ---------------------------------------------------------------------------
 
@@ -498,52 +420,6 @@ const SLIDER_USAGE = `<div className="space-y-3">
 </div>`
 
 // ---------------------------------------------------------------------------
-// Input OTP
-// ---------------------------------------------------------------------------
-
-function InputOTPExample(): React.JSX.Element {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor="preview-input-otp">Verification code</Label>
-      <InputOTP
-        id="preview-input-otp"
-        maxLength={6}
-        agent={{ id: "preview-input-otp", label: "Preview input OTP" }}
-      >
-        <InputOTPGroup>
-          <InputOTPSlot index={0} />
-          <InputOTPSlot index={1} />
-          <InputOTPSlot index={2} />
-        </InputOTPGroup>
-        <InputOTPSeparator />
-        <InputOTPGroup>
-          <InputOTPSlot index={3} />
-          <InputOTPSlot index={4} />
-          <InputOTPSlot index={5} />
-        </InputOTPGroup>
-      </InputOTP>
-    </div>
-  )
-}
-
-const INPUT_OTP_USAGE = `<InputOTP
-  maxLength={6}
-  agent={{ id: "verification-code", label: "Verification code" }}
->
-  <InputOTPGroup>
-    <InputOTPSlot index={0} />
-    <InputOTPSlot index={1} />
-    <InputOTPSlot index={2} />
-  </InputOTPGroup>
-  <InputOTPSeparator />
-  <InputOTPGroup>
-    <InputOTPSlot index={3} />
-    <InputOTPSlot index={4} />
-    <InputOTPSlot index={5} />
-  </InputOTPGroup>
-</InputOTP>`
-
-// ---------------------------------------------------------------------------
 // Toggle
 // ---------------------------------------------------------------------------
 
@@ -567,237 +443,6 @@ const TOGGLE_USAGE = `<Toggle
 >
   Bold
 </Toggle>`
-
-// ---------------------------------------------------------------------------
-// Collapsible
-// ---------------------------------------------------------------------------
-
-function CollapsibleExample(): React.JSX.Element {
-  return (
-    <Collapsible agent={{ id: "preview-collapsible", label: "Preview collapsible" }}>
-      <CollapsibleTrigger asChild>
-        <Button variant="outline">Show details</Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <p className="text-sm text-muted-foreground">
-          These are the hidden details an agent can reveal.
-        </p>
-      </CollapsibleContent>
-    </Collapsible>
-  )
-}
-
-const COLLAPSIBLE_USAGE = `<Collapsible agent={{ id: "details", label: "Details" }}>
-  <CollapsibleTrigger asChild>
-    <Button variant="outline">Show details</Button>
-  </CollapsibleTrigger>
-  <CollapsibleContent>
-    <p>…</p>
-  </CollapsibleContent>
-</Collapsible>`
-
-// ---------------------------------------------------------------------------
-// Sheet
-// ---------------------------------------------------------------------------
-
-function SheetExample(): React.JSX.Element {
-  return (
-    <Sheet agent={{ id: "preview-sheet", label: "Preview sheet" }}>
-      <SheetTrigger asChild>
-        <Button variant="outline">Open sheet</Button>
-      </SheetTrigger>
-      <SheetContent side="right">
-        <SheetHeader>
-          <SheetTitle>Account settings</SheetTitle>
-          <SheetDescription>
-            Make changes to your account here.
-          </SheetDescription>
-        </SheetHeader>
-        <p className="px-4 pb-4 text-sm text-muted-foreground">
-          Profile, notifications and security live in this panel.
-        </p>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-const SHEET_USAGE = `<Sheet agent={{ id: "settings-sheet", label: "Settings" }}>
-  <SheetTrigger asChild>
-    <Button variant="outline">Open</Button>
-  </SheetTrigger>
-  <SheetContent side="right">
-    <SheetHeader>
-      <SheetTitle>Settings</SheetTitle>
-      <SheetDescription>…</SheetDescription>
-    </SheetHeader>
-    <p>…</p>
-  </SheetContent>
-</Sheet>`
-
-// ---------------------------------------------------------------------------
-// Alert dialog
-// ---------------------------------------------------------------------------
-
-function AlertDialogExample(): React.JSX.Element {
-  return (
-    <AlertDialog agent={{ id: "preview-alert-dialog", label: "Preview alert dialog" }}>
-      <AlertDialogTrigger asChild>
-        <Button variant="destructive">Delete project</Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete this project?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently removes the project and all of its data. This
-            action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive">Continue</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  )
-}
-
-const ALERT_DIALOG_USAGE = `<AlertDialog agent={{ id: "delete-project", label: "Delete project" }}>
-  <AlertDialogTrigger asChild>
-    <Button variant="destructive">Delete</Button>
-  </AlertDialogTrigger>
-  <AlertDialogContent>
-    <AlertDialogHeader>
-      <AlertDialogTitle>Delete this project?</AlertDialogTitle>
-      <AlertDialogDescription>…</AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel>Cancel</AlertDialogCancel>
-      <AlertDialogAction variant="destructive">Continue</AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>`
-
-// ---------------------------------------------------------------------------
-// Popover
-// ---------------------------------------------------------------------------
-
-function PopoverExample(): React.JSX.Element {
-  return (
-    <Popover agent={{ id: "preview-popover", label: "Preview popover" }}>
-      <PopoverTrigger asChild>
-        <Button variant="outline">Export options</Button>
-      </PopoverTrigger>
-      <PopoverContent>
-        <p className="text-sm text-muted-foreground">
-          The export includes comments and version history.
-        </p>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-const POPOVER_USAGE = `<Popover agent={{ id: "export-options", label: "Export options" }}>
-  <PopoverTrigger asChild>
-    <Button variant="outline">Export</Button>
-  </PopoverTrigger>
-  <PopoverContent>
-    <p>…</p>
-  </PopoverContent>
-</Popover>`
-
-// ---------------------------------------------------------------------------
-// Hover card
-// ---------------------------------------------------------------------------
-
-function HoverCardExample(): React.JSX.Element {
-  return (
-    <HoverCard agent={{ id: "preview-hover-card", label: "Preview hover card" }}>
-      <HoverCardTrigger asChild>
-        <Button variant="link">@agent-ui</Button>
-      </HoverCardTrigger>
-      <HoverCardContent className="space-y-1">
-        <p className="text-sm font-medium">Agent UI</p>
-        <p className="text-sm text-muted-foreground">
-          Agent-native React components for real applications.
-        </p>
-      </HoverCardContent>
-    </HoverCard>
-  )
-}
-
-const HOVER_CARD_USAGE = `// A person opens this by hovering the trigger; an agent opens it
-// explicitly with the "open" action.
-<HoverCard agent={{ id: "profile-card", label: "Profile" }}>
-  <HoverCardTrigger asChild>
-    <Button variant="link">@agent-ui</Button>
-  </HoverCardTrigger>
-  <HoverCardContent>
-    <p>…</p>
-  </HoverCardContent>
-</HoverCard>`
-
-// ---------------------------------------------------------------------------
-// Dropdown menu
-// ---------------------------------------------------------------------------
-
-function DropdownMenuExample(): React.JSX.Element {
-  const [showLineNumbers, setShowLineNumbers] = React.useState<boolean>(true)
-  const [theme, setTheme] = React.useState<string>("system")
-  return (
-    <DropdownMenu agent={{ id: "preview-dropdown-menu", label: "Preview dropdown menu" }}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline">Open menu</Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem>Duplicate</DropdownMenuItem>
-        <DropdownMenuItem>Rename</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem
-          id="preview-dropdown-line-numbers"
-          checked={showLineNumbers}
-          onCheckedChange={(v) => setShowLineNumbers(v === true)}
-          agent={{ id: "preview-dropdown-line-numbers", label: "Line numbers" }}
-        >
-          Line numbers
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuRadioGroup
-          id="preview-dropdown-theme"
-          value={theme}
-          onValueChange={setTheme}
-          agent={{ id: "preview-dropdown-theme", label: "Theme" }}
-        >
-          <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-const DROPDOWN_MENU_USAGE = `<DropdownMenu agent={{ id: "editor-menu", label: "Editor menu" }}>
-  <DropdownMenuTrigger asChild>
-    <Button variant="outline">Open</Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent>
-    <DropdownMenuItem>Duplicate</DropdownMenuItem>
-    <DropdownMenuCheckboxItem
-      checked={showLineNumbers}
-      onCheckedChange={setShowLineNumbers}
-      agent={{ id: "line-numbers", label: "Line numbers" }}
-    >
-      Line numbers
-    </DropdownMenuCheckboxItem>
-    <DropdownMenuRadioGroup
-      value={theme}
-      onValueChange={setTheme}
-      agent={{ id: "theme", label: "Theme" }}
-    >
-      <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-      <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-    </DropdownMenuRadioGroup>
-  </DropdownMenuContent>
-</DropdownMenu>`
 
 // ---------------------------------------------------------------------------
 // Separator — presentation only
@@ -842,32 +487,6 @@ const SKELETON_USAGE = `<div className="flex items-center gap-4">
     <Skeleton className="h-4 w-[200px]" />
   </div>
 </div>`
-
-// ---------------------------------------------------------------------------
-// Tooltip — presentation only
-// ---------------------------------------------------------------------------
-
-function TooltipExample(): React.JSX.Element {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="outline">Hover me</Button>
-        </TooltipTrigger>
-        <TooltipContent>Agent-native React components</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
-
-const TOOLTIP_USAGE = `<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button variant="outline">Hover</Button>
-    </TooltipTrigger>
-    <TooltipContent>Saved to your workspace</TooltipContent>
-  </Tooltip>
-</TooltipProvider>`
 
 // ---------------------------------------------------------------------------
 // Pagination — presentation only
@@ -924,12 +543,15 @@ const PAGINATION_USAGE = `// Which page is current belongs to the application's 
 // Registry
 // ---------------------------------------------------------------------------
 
+// Every key here compiles against both bases' trees unchanged. Components
+// whose usage differs per base — accordion, input-otp, and every trigger
+// paired with a Button (`asChild` in Radix, `render` in Base UI) — are
+// defined once per base in examples-overrides/<base>.tsx instead.
 export const EXAMPLES: Record<string, Example> = {
   "data-table": { Preview: DataTableExample, usage: DATA_TABLE_USAGE },
   tabs: { Preview: TabsExample, usage: TABS_USAGE },
   select: { Preview: SelectExample, usage: SELECT_USAGE },
   checkbox: { Preview: CheckboxExample, usage: CHECKBOX_USAGE },
-  dialog: { Preview: DialogExample, usage: DIALOG_USAGE },
   input: { Preview: InputExample, usage: INPUT_USAGE },
   textarea: { Preview: TextareaExample, usage: TEXTAREA_USAGE },
   switch: { Preview: SwitchExample, usage: SWITCH_USAGE },
@@ -937,18 +559,9 @@ export const EXAMPLES: Record<string, Example> = {
   button: { Preview: ButtonExample, usage: BUTTON_USAGE },
   label: { Preview: LabelExample, usage: LABEL_USAGE },
   table: { Preview: TableExample, usage: TABLE_USAGE },
-  accordion: { Preview: AccordionExample, usage: ACCORDION_USAGE },
   slider: { Preview: SliderExample, usage: SLIDER_USAGE },
-  "input-otp": { Preview: InputOTPExample, usage: INPUT_OTP_USAGE },
   toggle: { Preview: ToggleExample, usage: TOGGLE_USAGE },
-  collapsible: { Preview: CollapsibleExample, usage: COLLAPSIBLE_USAGE },
-  sheet: { Preview: SheetExample, usage: SHEET_USAGE },
-  "alert-dialog": { Preview: AlertDialogExample, usage: ALERT_DIALOG_USAGE },
-  popover: { Preview: PopoverExample, usage: POPOVER_USAGE },
-  "hover-card": { Preview: HoverCardExample, usage: HOVER_CARD_USAGE },
-  "dropdown-menu": { Preview: DropdownMenuExample, usage: DROPDOWN_MENU_USAGE },
   separator: { Preview: SeparatorExample, usage: SEPARATOR_USAGE },
   skeleton: { Preview: SkeletonExample, usage: SKELETON_USAGE },
-  tooltip: { Preview: TooltipExample, usage: TOOLTIP_USAGE },
   pagination: { Preview: PaginationExample, usage: PAGINATION_USAGE },
 }

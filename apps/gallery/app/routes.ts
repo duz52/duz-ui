@@ -4,7 +4,7 @@ export default [
   index("routes/home.tsx"),
   layout("routes/gallery-layout.tsx", [
     route("components", "routes/components.tsx"),
-    route("components/:name", "routes/component.tsx"),
+    route("components/:base/:name", "routes/component.tsx"),
   ]),
   route("docs", "routes/docs.tsx"),
   route("docs/:slug", "routes/doc.tsx"),

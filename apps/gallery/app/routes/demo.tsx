@@ -4,26 +4,26 @@ import type { Route } from "./+types/demo"
 import { PageHeader } from "@/components/site/page-header"
 import { ToolRunner } from "@/components/site/tool-runner"
 import { AgentAction } from "@/lib/agent-ui/agent-action"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { Button } from "@/components/radix/ui/button"
+import { Checkbox } from "@/components/radix/ui/checkbox"
+import { DataTable, type DataTableColumn } from "@/components/radix/ui/data-table"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/radix/ui/dialog"
+import { Input } from "@/components/radix/ui/input"
+import { Label } from "@/components/radix/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/radix/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/radix/ui/tabs"
 import { ORDERS, type Order, type OrderStatus } from "@/data/orders"
 
 export function meta({}: Route.MetaArgs) {

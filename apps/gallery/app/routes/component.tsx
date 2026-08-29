@@ -1,25 +1,43 @@
 import * as React from "react"
+import { useParams } from "react-router"
 
 import type { Route } from "./+types/component"
 import { getItem, type GalleryItem } from "@/registry"
-import { EXAMPLES } from "@/content/examples"
+import type { Example } from "@/content/examples"
+import { EXAMPLES as BASE_EXAMPLES } from "@/content/examples.base.generated"
+import { EXAMPLES as RADIX_EXAMPLES } from "@/content/examples.radix.generated"
+import { EXAMPLE_OVERRIDES as BASE_OVERRIDES } from "@/content/examples-overrides/base"
+import { EXAMPLE_OVERRIDES as RADIX_OVERRIDES } from "@/content/examples-overrides/radix"
 import { KindBadge } from "@/components/site/kind-badge"
 import { CodeBlock } from "@/components/site/code-block"
 import { ToolRunner } from "@/components/site/tool-runner"
+import { BaseSwitcher } from "@/components/site/base-switcher"
 import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
 import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
 
 export function meta({ params }: Route.MetaArgs) {
-  const item = getItem(params.name ?? "")
+  const item = getItem(params.base ?? "", params.name ?? "")
   return [{ title: item ? `${item.title} — Agent UI` : "Agent UI" }]
 }
 
 export function loader({ params }: Route.LoaderArgs): { item: GalleryItem } {
-  const item = getItem(params.name ?? "")
+  const item = getItem(params.base ?? "", params.name ?? "")
   if (!item) {
     throw new Response("Not Found", { status: 404 })
   }
   return { item }
+}
+
+// ---------------------------------------------------------------------------
+// Examples — the generated shared map merged with each base's hand-written
+// overrides, selected by the base in the URL. The override wins: its keys
+// are absent from the shared source precisely because the bases' grammars
+// differ there.
+// ---------------------------------------------------------------------------
+
+const EXAMPLES: Record<string, Record<string, Example>> = {
+  base: { ...BASE_EXAMPLES, ...BASE_OVERRIDES },
+  radix: { ...RADIX_EXAMPLES, ...RADIX_OVERRIDES },
 }
 
 // ---------------------------------------------------------------------------
@@ -171,11 +189,14 @@ export default function Component({
   loaderData,
 }: Route.ComponentProps): React.JSX.Element {
   const { item } = loaderData
-  const example = EXAMPLES[item.name]
+  const { base } = useParams()
+  const example = EXAMPLES[base ?? ""]?.[item.name]
   const Preview = example?.Preview
 
   return (
     <div className="space-y-12 py-8">
+      <BaseSwitcher name={item.name} base={base ?? ""} />
+
       <section className="space-y-3">
         <h2 className={SECTION_HEADING}>Live Preview</h2>
         {Preview ? (

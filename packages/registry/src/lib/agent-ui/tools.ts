@@ -324,12 +324,26 @@ function makeExecutor(
     try {
       return await run(input)
     } catch (error) {
-      // CapabilityError messages are written for agent self-correction.
-      if (error instanceof CapabilityError) throw error
+      // A refusal travels in the returned result, never as a thrown error.
+      // Chrome's WebMCP discards a thrown error's message entirely — the agent
+      // is told only "Tool was executed but the invocation failed" — and these
+      // messages exist to be read and acted on.
+      if (error instanceof CapabilityError) {
+        return serialise({
+          ok: false,
+          error: { code: error.code, message: error.message },
+        })
+      }
       // Any other thrown value is a bug in the page. Log the full error for
-      // debugging; surface only a neutral message that names the tool.
+      // debugging; return only a neutral message that names the tool.
       console.error("[agent-ui]", error)
-      throw new Error(`The "${toolName}" tool could not complete.`)
+      return serialise({
+        ok: false,
+        error: {
+          code: "internal",
+          message: `The "${toolName}" tool could not complete.`,
+        },
+      })
     }
   }
 }
