@@ -27,6 +27,28 @@ function slotText(root: HTMLElement | null, selector: string): string | null {
   return element ? readText(element, FIELD_MAX_LENGTH) : null
 }
 
+/** Cap for the title reported as the card's label, matching agent-identity's name cap. */
+const CARD_TITLE_MAX_LENGTH = 100
+
+/**
+ * The title is the part of a card a person reads first, so it is the name
+ * discovery must carry. CardTitle resolves its own text and reports it
+ * here; the root uses it as the capability's default label.
+ */
+interface CardTitleContextValue {
+  setCardTitle: (label: string | null) => void
+}
+
+const CardTitleContext = React.createContext<CardTitleContextValue | null>(null)
+
+function useCardTitleSetter(): (label: string | null) => void {
+  const ctx = React.useContext(CardTitleContext)
+  if (!ctx) {
+    throw new Error("CardTitle must be rendered inside <Card>.")
+  }
+  return ctx.setCardTitle
+}
+
 function Card({
   className,
   size = "default",
@@ -40,12 +62,22 @@ function Card({
   const rootRef = React.useRef<HTMLDivElement>(null)
   const mergedRef = useMergedRef(ref, rootRef)
 
+  // The title a person reads first is the name discovery carries; a card
+  // without one keeps the generic "Card". CardTitle reports its own text;
+  // the root holds it in state and ignores an unchanged report, so a
+  // repeated report cannot loop.
+  const [cardTitle, setCardTitle] = React.useState<string | null>(null)
+
+  const reportCardTitle = React.useCallback((label: string | null) => {
+    setCardTitle((prev) => (prev === label ? prev : label))
+  }, [])
+
   // Reads are pull-based: they run only when an agent calls ui_list or
   // ui_read, never on render and never in an effect.
   const { id } = useCapability<CardContentState, Record<string, never>>({
     agent,
     kind: "content",
-    defaultLabel: "Card",
+    defaultLabel: cardTitle ?? "Card",
     read: () => {
       const root = rootRef.current
       return {
@@ -57,21 +89,29 @@ function Card({
     },
     actions: {},
   })
+
+  const contextValue = React.useMemo<CardTitleContextValue>(
+    () => ({ setCardTitle: reportCardTitle }),
+    [reportCardTitle],
+  )
+
   return (
     // A chart or a panel rendered inside a card is part of that card. Without
     // this an agent reads the card as empty and the content beside it as
     // unrelated, and has no way to tell that one is inside the other.
     <AgentContainerProvider ownerId={id}>
-      <div
-        ref={mergedRef}
-        data-slot="card"
-        data-size={size}
-        className={cn(
-          "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
-          className
-        )}
-        {...props}
-      />
+      <CardTitleContext.Provider value={contextValue}>
+        <div
+          ref={mergedRef}
+          data-slot="card"
+          data-size={size}
+          className={cn(
+            "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+            className
+          )}
+          {...props}
+        />
+      </CardTitleContext.Provider>
     </AgentContainerProvider>
   )
 }
@@ -89,10 +129,26 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+function CardTitle({
+  className,
+  ref,
+  ...props
+}: React.ComponentProps<"div">) {
+  const setCardTitle = useCardTitleSetter()
+  const elementRef = React.useRef<HTMLDivElement>(null)
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  // The title is resolved in a layout effect on every commit, so a title
+  // whose text changes follows; the root ignores a report equal to what it
+  // already holds, so a repeated report cannot loop.
+  React.useLayoutEffect(() => {
+    setCardTitle(readText(elementRef.current, CARD_TITLE_MAX_LENGTH) || null)
+  })
+
   return (
     <div
       data-slot="card-title"
+      ref={mergedRef}
       className={cn(
         "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
         className

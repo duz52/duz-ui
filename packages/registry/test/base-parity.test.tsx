@@ -4087,3 +4087,175 @@ for (const base of BASES) {
     await tree.unmount()
   })
 }
+
+/**
+ * A card is named by its title: `content.card` told an agent nothing, so
+ * every dashboard row looked identical in discovery and an agent had to
+ * read each card to learn which was which. The title a person reads first
+ * is now the label the card registers under, and the id derives from it;
+ * the title is still state that read() reports, so one read of one card
+ * never re-derives it from the label.
+ *
+ * Reads sit outside `act`, exactly like every read in this file.
+ */
+for (const base of BASES) {
+  test(`[${base}] card: a titled card is listed under its title, not "Card"`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: {} },
+        React.createElement(mod.CardTitle, null, "Total Revenue"),
+      ),
+    )
+
+    const capability = registry
+      .describeAll()
+      .find((candidate) => candidate.kind === "content")
+    assert.ok(capability, "the card must register a capability")
+    assert.equal(capability.label, "Total Revenue")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: a titled card's id derives from the title, not from a counter`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: {} },
+        React.createElement(mod.CardTitle, null, "Total Revenue"),
+      ),
+    )
+
+    const capability = registry
+      .describeAll()
+      .find((candidate) => candidate.kind === "content")
+    assert.ok(capability, "the card must register a capability")
+    assert.match(
+      capability.id,
+      /total-revenue/,
+      "the id must come from the title an agent reads, not from a counter",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: a card without a title keeps the generic "Card"`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tree = await mount(React.createElement(mod.Card, { agent: {} }))
+
+    const capability = registry
+      .describeAll()
+      .find((candidate) => candidate.kind === "content")
+    assert.ok(capability, "the card must register a capability")
+    assert.equal(capability.label, "Card")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: an explicit agent.label beats the title`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: { label: "Explicit" } },
+        React.createElement(mod.CardTitle, null, "Total Revenue"),
+      ),
+    )
+
+    const capability = registry
+      .describeAll()
+      .find((candidate) => candidate.kind === "content")
+    assert.ok(capability, "the card must register a capability")
+    assert.equal(capability.label, "Explicit")
+    assert.match(capability.id, /explicit/)
+    assert.doesNotMatch(capability.id, /total-revenue/)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: read() still reports the title as state`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: {} },
+        React.createElement(mod.CardTitle, null, "Total Revenue"),
+      ),
+    )
+
+    const capability = registry
+      .describeAll()
+      .find((candidate) => candidate.kind === "content")
+    assert.ok(capability, "the card must register a capability")
+    const state = registry.read(capability.id) as { title: string | null }
+    assert.equal(
+      state.title,
+      "Total Revenue",
+      "the title stays state, so a single read does not re-derive it from the label",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: title-derived ids stay distinct, including for repeated titles`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tree = await mount(
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          mod.Card,
+          { agent: {} },
+          React.createElement(mod.CardTitle, null, "Total Revenue"),
+        ),
+        React.createElement(
+          mod.Card,
+          { agent: {} },
+          React.createElement(mod.CardTitle, null, "Subscriptions"),
+        ),
+        React.createElement(
+          mod.Card,
+          { agent: {} },
+          React.createElement(mod.CardTitle, null, "Total Revenue"),
+        ),
+      ),
+    )
+
+    const capabilities = registry
+      .describeAll()
+      .filter((candidate) => candidate.kind === "content")
+    assert.equal(capabilities.length, 3, "each card must register a capability")
+
+    const revenues = capabilities.filter(
+      (candidate) => candidate.label === "Total Revenue",
+    )
+    const subscriptions = capabilities.filter(
+      (candidate) => candidate.label === "Subscriptions",
+    )
+    assert.equal(revenues.length, 2)
+    assert.equal(subscriptions.length, 1)
+
+    // Cards titled differently get different ids, each from its own title.
+    assert.match(revenues[0].id, /total-revenue/)
+    assert.match(subscriptions[0].id, /subscriptions/)
+    assert.notEqual(revenues[0].id, subscriptions[0].id)
+
+    // Cards titled the same still get distinct ids, both from the shared title.
+    assert.match(revenues[1].id, /total-revenue/)
+    assert.notEqual(
+      revenues[0].id,
+      revenues[1].id,
+      "two cards titled the same must not collide on one id",
+    )
+
+    await tree.unmount()
+  })
+}
