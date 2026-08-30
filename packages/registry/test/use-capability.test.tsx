@@ -32,6 +32,7 @@ let createRoot: typeof import("react-dom/client").createRoot
 let useCapability: typeof import("../src/lib/agent-ui/use-capability").useCapability
 let getCapabilityRegistry: typeof import("../src/lib/agent-ui/registry").getCapabilityRegistry
 let rejectState: typeof import("../src/lib/agent-ui/validate").rejectState
+let AgentContent: typeof import("../src/lib/agent-ui/agent-content").AgentContent
 
 before(async () => {
   React = await import("react")
@@ -39,6 +40,7 @@ before(async () => {
   ;({ useCapability } = await import("../src/lib/agent-ui/use-capability"))
   ;({ getCapabilityRegistry } = await import("../src/lib/agent-ui/registry"))
   ;({ rejectState } = await import("../src/lib/agent-ui/validate"))
+  ;({ AgentContent } = await import("../src/lib/agent-ui/agent-content"))
 })
 
 /**
@@ -258,4 +260,63 @@ test("an omitted agent id gets a document-local identity, agent={false} gets non
   const optedOut = await mount(React.createElement(OptedOut))
   assert.deepEqual(registry.list(), [])
   await optedOut.unmount()
+})
+
+test("AgentContent reports its subtree as text, with block boundaries kept apart", async () => {
+  const registry = getCapabilityRegistry()
+  const tree = await mount(
+    React.createElement(
+      AgentContent,
+      { label: "Recent sales", description: "The five most recent orders" },
+      React.createElement("div", null, "Olivia Martin"),
+      React.createElement("div", null, "+$1,999.00"),
+    ),
+  )
+
+  const id = registry.list()[0]?.id ?? ""
+  assert.deepEqual(registry.read(id), {
+    text: "Olivia Martin +$1,999.00",
+    description: "The five most recent orders",
+    value: null,
+  })
+  assert.deepEqual(registry.list()[0]?.actions, [])
+
+  await tree.unmount()
+})
+
+test("AgentContent carries content that text cannot, as data the application states", async () => {
+  const registry = getCapabilityRegistry()
+  // The case this exists for: a chart's numbers are geometry, so its subtree
+  // has no text however carefully it is read.
+  const series = [
+    { month: "Jan", total: 4200 },
+    { month: "Feb", total: 5100 },
+  ]
+  const tree = await mount(
+    React.createElement(
+      AgentContent,
+      { label: "Overview", value: series },
+      React.createElement("svg", null),
+    ),
+  )
+
+  const id = registry.list()[0]?.id ?? ""
+  assert.deepEqual(registry.read(id), {
+    text: "",
+    description: null,
+    value: series,
+  })
+
+  await tree.unmount()
+})
+
+test("AgentContent with agent={false} registers nothing", async () => {
+  const registry = getCapabilityRegistry()
+  const tree = await mount(
+    React.createElement(AgentContent, { label: "Hidden", agent: false }, "body"),
+  )
+
+  assert.deepEqual(registry.list(), [])
+
+  await tree.unmount()
 })

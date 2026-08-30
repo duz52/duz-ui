@@ -5,6 +5,7 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 import { Menubar as MenubarPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
@@ -25,6 +26,9 @@ interface MenubarMenuContextValue {
   /** Mount and unmount only. Presentation never affects registration order. */
   registerMenu: (value: string) => () => void
   describeMenu: (value: string, label: string | undefined, disabled: boolean) => void
+  /** The value of the currently open menu, or `null` when none is open. */
+  openValue: string | null
+  changeOpen: (value: string, open: boolean) => void
 }
 
 const MenubarMenuContext = React.createContext<MenubarMenuContextValue | null>(null)
@@ -112,6 +116,18 @@ function Menubar({
     [],
   )
 
+  // Radix derives every menu's open state from this root's single value, so
+  // opening a named menu is one write into it. Closing a menu that is not the
+  // open one is a no-op, so a stray close cannot take down the menu an agent
+  // is looking at.
+  const changeOpen = React.useCallback(
+    (menuValue: string, open: boolean) => {
+      if (!open && value !== menuValue) return
+      setValue(open ? menuValue : "")
+    },
+    [setValue, value],
+  )
+
   // Bound as one `select`, not a disclosure per menu. Radix derives every
   // menu's open state from this root's single value (`open` is
   // `context.value === value`, and closing writes "" back into the root), so
@@ -153,8 +169,13 @@ function Menubar({
   })
 
   const contextValue = React.useMemo<MenubarMenuContextValue>(
-    () => ({ registerMenu, describeMenu }),
-    [registerMenu, describeMenu],
+    () => ({
+      registerMenu,
+      describeMenu,
+      openValue: value === "" ? null : value,
+      changeOpen,
+    }),
+    [registerMenu, describeMenu, value, changeOpen],
   )
 
   return (
@@ -173,11 +194,25 @@ function Menubar({
   )
 }
 
+type MenubarMenuState = {
+  open: boolean
+  disabled: boolean
+}
+
+type MenubarMenuActions = {
+  open: Record<string, never>
+  close: Record<string, never>
+  toggle: Record<string, never>
+}
+
 function MenubarMenu({
-  value,
+  value: menuValue,
+  agent,
   ...props
-}: React.ComponentProps<typeof MenubarPrimitive.Menu>) {
-  const { registerMenu, describeMenu } = useMenubarMenuRegistry()
+}: React.ComponentProps<typeof MenubarPrimitive.Menu> & {
+  agent?: AgentProp
+}) {
+  const { registerMenu, describeMenu, openValue, changeOpen } = useMenubarMenuRegistry()
   const [trigger, setTrigger] = React.useState<{
     label: string | undefined
     disabled: boolean
@@ -199,23 +234,54 @@ function MenubarMenu({
   // invented value the application never chose. (Radix generates an internal
   // id for such menus; that id is not a name.)
   React.useEffect(() => {
-    if (value === undefined) return
-    return registerMenu(value)
-  }, [registerMenu, value])
+    if (menuValue === undefined) return
+    return registerMenu(menuValue)
+  }, [registerMenu, menuValue])
 
   React.useEffect(() => {
-    if (value === undefined) return
-    describeMenu(value, trigger.label, trigger.disabled)
-  }, [describeMenu, value, trigger.label, trigger.disabled])
+    if (menuValue === undefined) return
+    describeMenu(menuValue, trigger.label, trigger.disabled)
+  }, [describeMenu, menuValue, trigger.label, trigger.disabled])
 
   const contextValue = React.useMemo<MenubarTriggerContextValue>(
     () => ({ describeTrigger }),
     [describeTrigger],
   )
 
+  // A menu is a disclosure, exactly like a standalone DropdownMenu: it opens
+  // and closes, and its items nest under it. A menu without a `value` cannot
+  // be addressed by an agent — the same rule that keeps it out of the root's
+  // options keeps it from registering: Radix derives its open state from the
+  // root's value, which no action could set for a menu the menubar cannot
+  // name.
+  const { id } = useCapability<MenubarMenuState, MenubarMenuActions>({
+    agent: menuValue === undefined ? false : agent,
+    kind: "disclosure",
+    defaultLabel: trigger.label ?? "Menu",
+    read: () => ({ open: openValue === menuValue, disabled: false }),
+    actions: {
+      // The actions only run for a menu the menubar can name; a valueless
+      // menu registers nothing (see `agent` above).
+      open() {
+        changeOpen(menuValue!, true)
+      },
+      close() {
+        changeOpen(menuValue!, false)
+      },
+      toggle() {
+        changeOpen(menuValue!, openValue !== menuValue)
+      },
+    },
+  })
+
+  // Every capability rendered inside the menu — its items — belongs to it.
+  // When the menu registered nothing, `id` is undefined and the provider
+  // passes `ownerId: undefined` through, so descendants stay roots.
   return (
     <MenubarTriggerContext.Provider value={contextValue}>
-      <MenubarPrimitive.Menu data-slot="menubar-menu" value={value} {...props} />
+      <AgentContainerProvider ownerId={id}>
+        <MenubarPrimitive.Menu data-slot="menubar-menu" value={menuValue} {...props} />
+      </AgentContainerProvider>
     </MenubarTriggerContext.Provider>
   )
 }
@@ -419,28 +485,65 @@ function MenubarContent({
   )
 }
 
-// MenubarItem has no agent capability. Its meaning is the application's
-// onSelect handler, not the component's own state — exposing it would let an
-// agent invoke arbitrary application logic the application never declared.
-// Use AgentAction to declare an explicit agent action when needed.
+// MenubarItem has no state of its own to report beyond its name and whether
+// it can be pressed at all — its meaning is the application's onSelect
+// handler. It is a thing you press, and `kind: "button"` already exists and
+// already carries a `button_press` tool, so modelling it as a new kind would
+// multiply the protocol for no gain.
+type MenubarItemState = {
+  label: string
+  disabled: boolean
+}
+
+type MenubarItemActions = {
+  press: Record<string, never>
+}
+
 function MenubarItem({
   className,
   inset,
   variant = "default",
+  ref,
+  disabled = false,
+  agent,
   ...props
 }: React.ComponentProps<typeof MenubarPrimitive.Item> & {
   inset?: boolean
   variant?: "default" | "destructive"
+  agent?: AgentProp
 }) {
+  const elementRef = React.useRef<HTMLDivElement>(null)
+  const label = useAccessibleName(elementRef, "Menu item")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  useCapability<MenubarItemState, MenubarItemActions>({
+    agent: agentWithElementId(agent, props.id),
+    kind: "button",
+    defaultLabel: label,
+    read: () => ({ label, disabled }),
+    actions: {
+      press() {
+        if (disabled) {
+          rejectState(`"${label}" is disabled and cannot be pressed right now.`)
+        }
+        // A click is what a person does: it runs the item's onSelect and
+        // whatever handlers the menu itself attaches to the element.
+        elementRef.current?.click()
+      },
+    },
+  })
+
   return (
     <MenubarPrimitive.Item
       data-slot="menubar-item"
       data-inset={inset}
       data-variant={variant}
+      disabled={disabled}
       className={cn(
         "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground data-[variant=destructive]:*:[svg]:text-destructive!",
         className
       )}
+      ref={mergedRef}
       {...props}
     />
   )
@@ -611,22 +714,60 @@ function MenubarSub({
   return <MenubarPrimitive.Sub data-slot="menubar-sub" {...props} />
 }
 
+type MenubarSubTriggerState = {
+  label: string
+  disabled: boolean
+}
+
+type MenubarSubTriggerActions = {
+  press: Record<string, never>
+}
+
 function MenubarSubTrigger({
   className,
   inset,
   children,
+  ref,
+  disabled = false,
+  agent,
   ...props
 }: React.ComponentProps<typeof MenubarPrimitive.SubTrigger> & {
   inset?: boolean
+  agent?: AgentProp
 }) {
+  const elementRef = React.useRef<HTMLDivElement>(null)
+  const label = useAccessibleName(elementRef, "Menu item")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  // A sub-trigger opens a submenu rather than performing an action, but it is
+  // still a thing you press: registering it as a button is what lets an agent
+  // reach a nested menu at all. `kind: "button"` already exists and already
+  // carries a `button_press` tool, so no new kind is needed.
+  useCapability<MenubarSubTriggerState, MenubarSubTriggerActions>({
+    agent: agentWithElementId(agent, props.id),
+    kind: "button",
+    defaultLabel: label,
+    read: () => ({ label, disabled }),
+    actions: {
+      press() {
+        if (disabled) {
+          rejectState(`"${label}" is disabled and cannot be pressed right now.`)
+        }
+        elementRef.current?.click()
+      },
+    },
+  })
+
   return (
     <MenubarPrimitive.SubTrigger
       data-slot="menubar-sub-trigger"
       data-inset={inset}
+      disabled={disabled}
       className={cn(
         "flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none focus:bg-accent focus:text-accent-foreground data-[inset]:pl-8 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
         className
       )}
+      ref={mergedRef}
       {...props}
     >
       {children}

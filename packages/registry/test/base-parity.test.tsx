@@ -1417,6 +1417,570 @@ for (const base of BASES) {
 
     await tree.unmount()
   })
+
+  /**
+   * A menu's items are the point of the menu: opening it must reveal them,
+   * each named by its own text and owned by the menu, and pressing one must
+   * reach the application's handler. The content is unmounted while closed,
+   * so a closed menu honestly lists no items — and the items appearing once
+   * it opens is what makes every per-row action reachable.
+   */
+  test(`[${base}] dropdown-menu: a closed menu registers only the menu itself`, async () => {
+    const mod = modules.get(`${base}/dropdown-menu`)
+    assert.ok(mod, `the ${base} dropdown-menu module must load`)
+    const id = `${base}-dropdown-menu-closed-items`
+    const tree = await mount(
+      React.createElement(
+        mod.DropdownMenu,
+        { agent: { id } },
+        React.createElement(mod.DropdownMenuTrigger, null, "Open"),
+        React.createElement(
+          mod.DropdownMenuContent,
+          null,
+          React.createElement(mod.DropdownMenuItem, null, "Cut"),
+          React.createElement(mod.DropdownMenuItem, null, "Copy payment ID"),
+        ),
+      ),
+    )
+
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        id: capability.id,
+        kind: capability.kind,
+        label: capability.label,
+        owner: capability.owner,
+      })),
+      [{ id, kind: "disclosure", label: "Open", owner: undefined }],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] dropdown-menu: opening the menu reveals its items, each owned by the menu`, async () => {
+    const mod = modules.get(`${base}/dropdown-menu`)
+    assert.ok(mod, `the ${base} dropdown-menu module must load`)
+    const id = `${base}-dropdown-menu-open-items`
+    const tree = await mount(
+      React.createElement(
+        mod.DropdownMenu,
+        { agent: { id } },
+        React.createElement(mod.DropdownMenuTrigger, null, "Open"),
+        React.createElement(
+          mod.DropdownMenuContent,
+          null,
+          React.createElement(mod.DropdownMenuItem, null, "Cut"),
+          React.createElement(mod.DropdownMenuItem, null, "Copy payment ID"),
+        ),
+      ),
+    )
+
+    // Outside `act`, like every tool call in this file: the open action's
+    // commit mounts the content, and the items register from that commit.
+    await tool("disclosure_open").execute({ target: id })
+
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .filter((capability) => capability.kind === "button")
+        .map((capability) => ({
+          label: capability.label,
+          owner: capability.owner,
+        })),
+      [
+        { label: "Cut", owner: id },
+        { label: "Copy payment ID", owner: id },
+      ],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] dropdown-menu: button_press on an item fires the application's handler`, async () => {
+    const mod = modules.get(`${base}/dropdown-menu`)
+    assert.ok(mod, `the ${base} dropdown-menu module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.DropdownMenu,
+        { open: true },
+        React.createElement(mod.DropdownMenuTrigger, null, "Open"),
+        React.createElement(
+          mod.DropdownMenuContent,
+          null,
+          React.createElement(
+            mod.DropdownMenuItem,
+            // Radix items activate through onSelect, Base UI items through
+            // onClick; each is the application's activation handler.
+            base === "radix"
+              ? { onSelect: () => seen.push("activate") }
+              : { onClick: () => seen.push("activate") },
+            "Delete row",
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(item, "the open menu's item must register a capability")
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(seen, ["activate"], "press must run the application's handler")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] dropdown-menu: pressing a disabled item is rejected naming the item and runs nothing`, async () => {
+    const mod = modules.get(`${base}/dropdown-menu`)
+    assert.ok(mod, `the ${base} dropdown-menu module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.DropdownMenu,
+        { open: true },
+        React.createElement(mod.DropdownMenuTrigger, null, "Open"),
+        React.createElement(
+          mod.DropdownMenuContent,
+          null,
+          React.createElement(
+            mod.DropdownMenuItem,
+            {
+              disabled: true,
+              ...(base === "radix"
+                ? { onSelect: () => seen.push("activate") }
+                : { onClick: () => seen.push("activate") }),
+            },
+            "Delete row",
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(item, "the open menu's item must register a capability")
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.equal(
+      output.error.message,
+      '"Delete row" is disabled and cannot be pressed right now.',
+    )
+    assert.deepEqual(
+      seen,
+      [],
+      "a disabled item must never run the application's handler",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] dropdown-menu: a checkbox item inside the menu is owned by the menu`, async () => {
+    const mod = modules.get(`${base}/dropdown-menu`)
+    assert.ok(mod, `the ${base} dropdown-menu module must load`)
+    const id = `${base}-dropdown-menu-checkbox-owner`
+    const tree = await mount(
+      React.createElement(
+        mod.DropdownMenu,
+        { open: true, agent: { id } },
+        React.createElement(mod.DropdownMenuTrigger, null, "Open"),
+        React.createElement(
+          mod.DropdownMenuContent,
+          null,
+          React.createElement(mod.DropdownMenuCheckboxItem, null, "Show grid"),
+        ),
+      ),
+    )
+
+    const checkbox = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(checkbox, "the menu's checkbox item must register a capability")
+    assert.equal(checkbox.owner, id, "the checkbox item must be owned by the menu")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] context-menu: a closed menu registers only the menu itself`, async () => {
+    const mod = modules.get(`${base}/context-menu`)
+    assert.ok(mod, `the ${base} context-menu module must load`)
+    const id = `${base}-context-menu-closed-items`
+    const tree = await mount(
+      React.createElement(
+        mod.ContextMenu,
+        { agent: { id } },
+        React.createElement(mod.ContextMenuTrigger, null, "Right click"),
+        React.createElement(
+          mod.ContextMenuContent,
+          null,
+          React.createElement(mod.ContextMenuItem, null, "Cut"),
+        ),
+      ),
+    )
+
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        id: capability.id,
+        kind: capability.kind,
+        label: capability.label,
+        owner: capability.owner,
+      })),
+      [{ id, kind: "disclosure", label: "Context menu", owner: undefined }],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] context-menu: opening the menu reveals its items, each owned by the menu`, async () => {
+    const mod = modules.get(`${base}/context-menu`)
+    assert.ok(mod, `the ${base} context-menu module must load`)
+    const id = `${base}-context-menu-open-items`
+    const tree = await mount(
+      React.createElement(
+        mod.ContextMenu,
+        { agent: { id } },
+        React.createElement(mod.ContextMenuTrigger, null, "Right click"),
+        React.createElement(
+          mod.ContextMenuContent,
+          null,
+          React.createElement(mod.ContextMenuItem, null, "Cut"),
+          React.createElement(mod.ContextMenuItem, null, "Duplicate"),
+        ),
+      ),
+    )
+
+    await tool("disclosure_open").execute({ target: id })
+
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .filter((capability) => capability.kind === "button")
+        .map((capability) => ({
+          label: capability.label,
+          owner: capability.owner,
+        })),
+      [
+        { label: "Cut", owner: id },
+        { label: "Duplicate", owner: id },
+      ],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] context-menu: button_press on an item fires the application's handler`, async () => {
+    const mod = modules.get(`${base}/context-menu`)
+    assert.ok(mod, `the ${base} context-menu module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.ContextMenu,
+        { open: true },
+        React.createElement(mod.ContextMenuTrigger, null, "Right click"),
+        React.createElement(
+          mod.ContextMenuContent,
+          null,
+          React.createElement(
+            mod.ContextMenuItem,
+            base === "radix"
+              ? { onSelect: () => seen.push("activate") }
+              : { onClick: () => seen.push("activate") },
+            "Delete row",
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(item, "the open menu's item must register a capability")
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(seen, ["activate"], "press must run the application's handler")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] context-menu: pressing a disabled item is rejected naming the item and runs nothing`, async () => {
+    const mod = modules.get(`${base}/context-menu`)
+    assert.ok(mod, `the ${base} context-menu module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.ContextMenu,
+        { open: true },
+        React.createElement(mod.ContextMenuTrigger, null, "Right click"),
+        React.createElement(
+          mod.ContextMenuContent,
+          null,
+          React.createElement(
+            mod.ContextMenuItem,
+            {
+              disabled: true,
+              ...(base === "radix"
+                ? { onSelect: () => seen.push("activate") }
+                : { onClick: () => seen.push("activate") }),
+            },
+            "Delete row",
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(item, "the open menu's item must register a capability")
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.equal(
+      output.error.message,
+      '"Delete row" is disabled and cannot be pressed right now.',
+    )
+    assert.deepEqual(
+      seen,
+      [],
+      "a disabled item must never run the application's handler",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] menubar: a closed menubar registers itself and its menus, but no item capabilities`, async () => {
+    const mod = modules.get(`${base}/menubar`)
+    assert.ok(mod, `the ${base} menubar module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Menubar,
+        null,
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "file" },
+          React.createElement(mod.MenubarTrigger, null, "File"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(mod.MenubarItem, null, "New file"),
+          ),
+        ),
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "edit" },
+          React.createElement(mod.MenubarTrigger, null, "Edit"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(mod.MenubarItem, null, "Undo"),
+          ),
+        ),
+      ),
+    )
+
+    // Sorted: the menus re-register when their trigger's name arrives, so
+    // registration order is not stable enough to assert directly.
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .map((capability) => `${capability.kind}:${capability.label}`)
+        .sort(),
+      ["disclosure:Edit", "disclosure:File", "select:Menubar"],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] menubar: opening a menu reveals its items, each owned by that menu`, async () => {
+    const mod = modules.get(`${base}/menubar`)
+    assert.ok(mod, `the ${base} menubar module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Menubar,
+        null,
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "file" },
+          React.createElement(mod.MenubarTrigger, null, "File"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(mod.MenubarItem, null, "New file"),
+            React.createElement(mod.MenubarItem, null, "Open recent"),
+          ),
+        ),
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "edit" },
+          React.createElement(mod.MenubarTrigger, null, "Edit"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(mod.MenubarItem, null, "Undo"),
+          ),
+        ),
+      ),
+    )
+
+    const fileMenu = registry
+      .describeAll()
+      .find(
+        (capability) =>
+          capability.kind === "disclosure" && capability.label === "File",
+      )
+    assert.ok(fileMenu, "the menubar's File menu must register a disclosure")
+
+    await tool("disclosure_open").execute({ target: fileMenu.id })
+
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .filter((capability) => capability.kind === "button")
+        .map((capability) => ({
+          label: capability.label,
+          owner: capability.owner,
+        })),
+      [
+        { label: "New file", owner: fileMenu.id },
+        { label: "Open recent", owner: fileMenu.id },
+      ],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] menubar: button_press on an item fires the application's handler`, async () => {
+    const mod = modules.get(`${base}/menubar`)
+    assert.ok(mod, `the ${base} menubar module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Menubar,
+        { defaultValue: "file" },
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "file" },
+          React.createElement(mod.MenubarTrigger, null, "File"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(
+              mod.MenubarItem,
+              base === "radix"
+                ? { onSelect: () => seen.push("activate") }
+                : { onClick: () => seen.push("activate") },
+              "New file",
+            ),
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(item, "the open menu's item must register a capability")
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(seen, ["activate"], "press must run the application's handler")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] menubar: pressing a disabled item is rejected naming the item and runs nothing`, async () => {
+    const mod = modules.get(`${base}/menubar`)
+    assert.ok(mod, `the ${base} menubar module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Menubar,
+        { defaultValue: "file" },
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "file" },
+          React.createElement(mod.MenubarTrigger, null, "File"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(
+              mod.MenubarItem,
+              {
+                disabled: true,
+                ...(base === "radix"
+                  ? { onSelect: () => seen.push("activate") }
+                  : { onClick: () => seen.push("activate") }),
+              },
+              "Delete row",
+            ),
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(item, "the open menu's item must register a capability")
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.equal(
+      output.error.message,
+      '"Delete row" is disabled and cannot be pressed right now.',
+    )
+    assert.deepEqual(
+      seen,
+      [],
+      "a disabled item must never run the application's handler",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] menubar: a checkbox item inside a menu is owned by that menu`, async () => {
+    const mod = modules.get(`${base}/menubar`)
+    assert.ok(mod, `the ${base} menubar module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Menubar,
+        { defaultValue: "view" },
+        React.createElement(
+          mod.MenubarMenu,
+          { value: "view" },
+          React.createElement(mod.MenubarTrigger, null, "View"),
+          React.createElement(
+            mod.MenubarContent,
+            null,
+            React.createElement(mod.MenubarCheckboxItem, null, "Show grid"),
+          ),
+        ),
+      ),
+    )
+
+    const viewMenu = registry
+      .describeAll()
+      .find(
+        (capability) =>
+          capability.kind === "disclosure" && capability.label === "View",
+      )
+    assert.ok(viewMenu, "the menubar's View menu must register a disclosure")
+
+    const checkbox = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(checkbox, "the menu's checkbox item must register a capability")
+    assert.equal(checkbox.owner, viewMenu.id, "the checkbox item must be owned by its menu")
+
+    await tree.unmount()
+  })
 }
 
 for (const base of BASES) {
@@ -2144,4 +2708,189 @@ for (const base of BASES) {
       await tree.unmount()
     })
   }
+}
+
+/**
+ * Chart is the page's other mass of content: its numbers are geometry in an
+ * SVG, so no text walk can ever see them. The capability reads the `data`
+ * prop off the single recharts child instead — the rows the application
+ * passed in are the same rows the bars render. The reads below sit outside
+ * `act`, exactly like every read in this file.
+ */
+for (const base of BASES) {
+  test(`[${base}] chart: registers one content capability that reads series and data`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/chart`)) as ComponentModule
+    const { BarChart } = await import("recharts")
+    const id = `${base}-chart-content`
+    const rows = [
+      { month: "January", desktop: 186, mobile: 80 },
+      { month: "February", desktop: 305, mobile: 200 },
+      { month: "March", desktop: 237, mobile: 120 },
+    ]
+    const tree = await mount(
+      React.createElement(
+        mod.ChartContainer,
+        {
+          agent: { id },
+          config: {
+            desktop: { label: "Desktop" },
+            mobile: { label: "Mobile" },
+          },
+        },
+        React.createElement(BarChart, { data: rows }),
+      ),
+    )
+
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        id: capability.id,
+        kind: capability.kind,
+        label: capability.label,
+        actions: capability.actions,
+      })),
+      [{ id, kind: "content", label: "Chart", actions: [] }],
+    )
+    assert.deepEqual(registry.read(id), {
+      series: [
+        { key: "desktop", label: "Desktop" },
+        { key: "mobile", label: "Mobile" },
+      ],
+      data: rows,
+      rowCount: 3,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] chart: a series key with no label falls back to the key`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/chart`)) as ComponentModule
+    const { BarChart } = await import("recharts")
+    const id = `${base}-chart-series-fallback`
+    const tree = await mount(
+      React.createElement(
+        mod.ChartContainer,
+        {
+          agent: { id },
+          config: {
+            desktop: {},
+            mobile: { label: "Mobile" },
+          },
+        },
+        React.createElement(BarChart, { data: [{ month: "January" }] }),
+      ),
+    )
+
+    assert.deepEqual(
+      (registry.read(id) as { series: { key: string; label: string }[] })
+        .series,
+      [
+        { key: "desktop", label: "desktop" },
+        { key: "mobile", label: "Mobile" },
+      ],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] chart: children that are not one element with a data array read as null`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/chart`)) as ComponentModule
+    const id = `${base}-chart-no-data`
+    const config = { desktop: { label: "Desktop" } }
+
+    // A child that is not an element at all.
+    const textTree = await mount(
+      React.createElement(
+        mod.ChartContainer,
+        { agent: { id }, config },
+        "not a chart",
+      ),
+    )
+    assert.deepEqual(registry.read(id), {
+      series: [{ key: "desktop", label: "Desktop" }],
+      data: null,
+      rowCount: 0,
+    })
+    await textTree.unmount()
+
+    // An element that carries no `data` array.
+    const elementTree = await mount(
+      React.createElement(
+        mod.ChartContainer,
+        { agent: { id }, config },
+        React.createElement("div"),
+      ),
+    )
+    assert.deepEqual(registry.read(id), {
+      series: [{ key: "desktop", label: "Desktop" }],
+      data: null,
+      rowCount: 0,
+    })
+    await elementTree.unmount()
+  })
+
+  test(`[${base}] chart: agent={false} registers nothing`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/chart`)) as ComponentModule
+    const { BarChart } = await import("recharts")
+    const tree = await mount(
+      React.createElement(
+        mod.ChartContainer,
+        {
+          agent: false,
+          config: { desktop: { label: "Desktop" } },
+        },
+        React.createElement(BarChart, { data: [{ month: "January" }] }),
+      ),
+    )
+
+    assert.deepEqual(registry.describeAll(), [])
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] calendar: a month of day cells adds no button capabilities`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/calendar`)) as ComponentModule
+    const id = `${base}-calendar-day-noise`
+    const tree = await mount(
+      React.createElement(mod.Calendar, {
+        agent: { id },
+        mode: "single",
+        defaultMonth: new Date(2026, 6, 1),
+      }),
+    )
+
+    // A month renders about forty day buttons. `date` addresses a day by its
+    // date; forty anonymous buttons would be a worse interface for the same
+    // act, so the calendar must stay the only capability its subtree registers.
+    assert.deepEqual(
+      registry.describeAll().map((capability) => capability.kind),
+      ["date"],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] dialog: the built-in close button is not a second way to close`, async () => {
+    const mod = modules.get(`${base}/dialog`)
+    assert.ok(mod, `the ${base} dialog module must load`)
+    const id = `${base}-dialog-close-noise`
+    const tree = await mount(
+      React.createElement(
+        mod.Dialog,
+        { agent: { id }, defaultOpen: true },
+        React.createElement(
+          mod.DialogContent,
+          null,
+          React.createElement(mod.DialogTitle, null, "Confirm"),
+        ),
+      ),
+    )
+
+    // The dialog capability already has a `close` action.
+    assert.deepEqual(
+      registry.describeAll().map((capability) => capability.kind),
+      ["dialog"],
+    )
+
+    await tree.unmount()
+  })
 }

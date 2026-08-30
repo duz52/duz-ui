@@ -18,6 +18,9 @@ export const STOCK_FINGERPRINTS: Record<string, Record<string, string[]>> = {
     "card": [
       "97f69f78bc0deea5f2747d5bcb3211a4ce53caf4a911f9f06e384cdac489c027"
     ],
+    "chart": [
+      "10268d1770d53cc0a5eae17153a11013477629134fca2ee6ba526de3ce335913"
+    ],
     "checkbox": [
       "f69ce37fceb21ef40875e7069d9f2d5c72a3038be40882d51f58881d6c06aa8b"
     ],
@@ -109,6 +112,9 @@ export const STOCK_FINGERPRINTS: Record<string, Record<string, string[]>> = {
     ],
     "card": [
       "97f69f78bc0deea5f2747d5bcb3211a4ce53caf4a911f9f06e384cdac489c027"
+    ],
+    "chart": [
+      "6fcfab3480b9f2fe55f9b2b3de0c176b8b40fb1e05fc13966566393f9cd37b56"
     ],
     "checkbox": [
       "0388888c89caea7c18f710775657531412e13d32634ca6afd79dbc143b8a2a23"

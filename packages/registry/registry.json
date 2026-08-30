@@ -1144,6 +1144,12 @@
               "choose",
               "clear"
             ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
+            ]
           }
         ],
         "status": "agent-native"
@@ -1235,6 +1241,12 @@
             "actions": [
               "set"
             ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
+            ]
           }
         ],
         "status": "agent-native"
@@ -1276,6 +1288,20 @@
             "kind": "checkbox",
             "actions": [
               "set"
+            ]
+          },
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
             ]
           }
         ],
@@ -1381,13 +1407,20 @@
         "recharts"
       ],
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "sources": [
         "ui/chart.tsx"
       ],
       "agentUi": {
-        "status": "presentation"
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {

@@ -11,6 +11,9 @@ import { createAgentTools, digest, type AgentTool } from "../src/lib/agent-ui/to
  * component instance. `ui_list` returns the page as a document — structure
  * and current state together — and degrades honestly when the document
  * exceeds the output budget: structure first, then states, then elements.
+ * An element whose children were shed reports `childrenOmitted`, which names
+ * the targeted `ui_list` call that recovers them — and the offset to continue
+ * from when that listing is itself windowed.
  */
 
 const registry = getCapabilityRegistry()
@@ -46,6 +49,11 @@ function stub(options: {
 
 function byName(tools: AgentTool[]): Map<string, AgentTool> {
   return new Map(tools.map((tool) => [tool.name, tool]))
+}
+
+/** The exact recovery text `omitChildren` produces, for exact assertions. */
+function childrenOmittedText(count: number, id: string): string {
+  return `${count} children omitted; call ui_list with target "${id}" to list them; if that listing is windowed, continue from window.offset + window.returned`
 }
 
 // — digest —
@@ -249,6 +257,278 @@ test("ui_list uses the component's own summary when it provides one", async () =
   assert.equal(output.elements[0].state, "step 2 of 4")
 
   off()
+})
+
+// — targeted listings: the recovery `childrenOmitted` names —
+
+test("an owned child is nested inside its parent's children and does not also appear as a root", async () => {
+  const dispose = [
+    registry.register(stub({ id: "panel", kind: "tabs", label: "Panel", actions: ["select"] })),
+    registry.register(
+      stub({ id: "row-1", kind: "input", label: "Row 1", actions: ["set_value"], owner: "panel" }),
+    ),
+  ]
+
+  const output = JSON.parse(await byName(createAgentTools(registry)).get("ui_list")!.execute({}))
+  assert.deepEqual(
+    output.elements.map((element: { id: string }) => element.id),
+    ["panel"],
+    "the owned child is not a second root",
+  )
+  assert.deepEqual(
+    output.elements[0].children.map((element: { id: string }) => element.id),
+    ["row-1"],
+  )
+
+  for (const off of dispose) off()
+})
+
+test("a targeted listing returns the target's children and not the target itself", async () => {
+  const dispose = [
+    registry.register(
+      stub({ id: "table", kind: "data-table", label: "Orders", actions: ["filter"] }),
+    ),
+    registry.register(
+      stub({ id: "row-1", kind: "input", label: "Row 1", actions: ["set_value"], owner: "table" }),
+    ),
+    registry.register(
+      stub({ id: "row-2", kind: "input", label: "Row 2", actions: ["set_value"], owner: "table" }),
+    ),
+  ]
+
+  const output = JSON.parse(
+    await byName(createAgentTools(registry)).get("ui_list")!.execute({ target: "table" }),
+  )
+  assert.equal(output.ok, true)
+  assert.equal(output.action, "list")
+  assert.equal(output.target, "table")
+  assert.deepEqual(output.elements, [
+    { id: "row-1", kind: "input", label: "Row 1", actions: ["set_value"], state: { value: "a" } },
+    { id: "row-2", kind: "input", label: "Row 2", actions: ["set_value"], state: { value: "a" } },
+  ])
+
+  for (const off of dispose) off()
+})
+
+test("a target with no children returns an empty elements array with ok true", async () => {
+  const off = registry.register(
+    stub({ id: "lonely", kind: "tabs", label: "Lonely", actions: ["select"] }),
+  )
+
+  const output = JSON.parse(
+    await byName(createAgentTools(registry)).get("ui_list")!.execute({ target: "lonely" }),
+  )
+  assert.deepEqual(output, { ok: true, action: "list", target: "lonely", elements: [] })
+
+  off()
+})
+
+// — walking a listing: offset and limit over the elements the call returns —
+
+test("a ui_list offset past the end returns an empty elements array and the true total", async () => {
+  const dispose = [
+    registry.register(
+      stub({ id: "table", kind: "data-table", label: "Orders", actions: ["filter"] }),
+    ),
+    registry.register(stub({ id: "row-1", kind: "input", actions: ["set_value"], owner: "table" })),
+    registry.register(stub({ id: "row-2", kind: "input", actions: ["set_value"], owner: "table" })),
+    registry.register(stub({ id: "row-3", kind: "input", actions: ["set_value"], owner: "table" })),
+  ]
+
+  const output = JSON.parse(
+    await byName(createAgentTools(registry)).get("ui_list")!.execute({ target: "table", offset: 50 }),
+  )
+
+  assert.equal(output.ok, true)
+  assert.deepEqual(output.elements, [])
+  assert.deepEqual(output.window, { offset: 3, returned: 0, total: 3 })
+
+  for (const off of dispose) off()
+})
+
+test("walking a targeted listing of 50 children by offset yields all 50 exactly once", async () => {
+  const dispose = [
+    registry.register(
+      stub({ id: "table", kind: "data-table", label: "Orders", actions: ["filter"] }),
+    ),
+  ]
+  for (let c = 0; c < 50; c++) {
+    dispose.push(
+      registry.register(
+        stub({ id: `row-${c}`, kind: "input", actions: ["set_value"], owner: "table" }),
+      ),
+    )
+  }
+  const tools = byName(createAgentTools(registry))
+
+  // The walk contract: advance offset by window.returned until the list ends.
+  const seen: string[] = []
+  let offset = 0
+  let calls = 0
+  while (seen.length < 50) {
+    assert.ok(++calls < 10, "the walk must reach exhaustion in a handful of calls")
+    const parsed = JSON.parse(
+      await tools.get("ui_list")!.execute({ target: "table", offset, limit: 20 }),
+    )
+    assert.equal(parsed.ok, true)
+    assert.deepEqual(parsed.window, {
+      offset,
+      returned: parsed.elements.length,
+      total: 50,
+    })
+    for (const element of parsed.elements) seen.push(element.id)
+    offset = parsed.window.offset + parsed.window.returned
+  }
+
+  assert.deepEqual(
+    seen,
+    Array.from({ length: 50 }, (_, c) => `row-${c}`),
+    "the walk yields all 50 children exactly once, in order, with no repeats",
+  )
+
+  for (const off of dispose) off()
+})
+
+test("a complete listing carries no window key", async () => {
+  const dispose = [
+    registry.register(
+      stub({ id: "table", kind: "data-table", label: "Orders", actions: ["filter"] }),
+    ),
+    registry.register(stub({ id: "row-1", kind: "input", actions: ["set_value"], owner: "table" })),
+  ]
+  const tools = byName(createAgentTools(registry))
+
+  const whole = JSON.parse(await tools.get("ui_list")!.execute({}))
+  assert.equal("window" in whole, false, "a complete page listing carries no window")
+
+  const targeted = JSON.parse(await tools.get("ui_list")!.execute({ target: "table" }))
+  assert.equal("window" in targeted, false, "a complete targeted listing carries no window")
+
+  // A limit beyond the list cuts nothing: the listing is still complete.
+  const over = JSON.parse(await tools.get("ui_list")!.execute({ target: "table", limit: 100 }))
+  assert.equal("window" in over, false)
+
+  for (const off of dispose) off()
+})
+
+test("an unknown ui_list target is rejected with the registry's unknown_target message", async () => {
+  const off = registry.register(stub({ id: "settings", kind: "tabs", actions: ["select"] }))
+
+  const output = JSON.parse(
+    await byName(createAgentTools(registry)).get("ui_list")!.execute({ target: "nope" }),
+  )
+  assert.equal(output.ok, false)
+  assert.equal(output.error.code, "unknown_target")
+  assert.match(output.error.message, /Available ids: settings\./)
+
+  off()
+})
+
+test("over budget, the parent carries childrenOmitted and a targeted listing returns exactly those children", async () => {
+  const dispose: (() => void)[] = []
+  try {
+    dispose.push(
+      registry.register(stub({ id: "root", kind: "tabs", label: "Root", actions: ["select"] })),
+    )
+    for (let c = 0; c < 20; c++) {
+      dispose.push(
+        registry.register(
+          stub({
+            id: `child-${c}`,
+            kind: "input",
+            label: `Child ${c}`,
+            actions: ["set_value"],
+            owner: "root",
+          }),
+        ),
+      )
+    }
+    // An element whose own state alone blows the budget: it forces the whole
+    // listing to shed while the targeted listing of "root" stays small.
+    dispose.push(
+      registry.register(
+        stub({
+          id: "noisy",
+          kind: "input",
+          label: "Noisy",
+          actions: ["set_value"],
+          summarise: () => "x".repeat(9000),
+        }),
+      ),
+    )
+
+    const tools = byName(createAgentTools(registry))
+
+    const whole = JSON.parse(await tools.get("ui_list")!.execute({}))
+    const root = whole.elements.find((element: { id: string }) => element.id === "root")
+    assert.ok(root, "the parent survives the reduction")
+    assert.equal(root.childrenOmitted, childrenOmittedText(20, "root"))
+    assert.equal("children" in root, false)
+
+    const targeted = JSON.parse(await tools.get("ui_list")!.execute({ target: "root" }))
+    assert.equal(targeted.ok, true)
+    assert.equal(targeted.target, "root")
+    assert.deepEqual(
+      targeted.elements.map((element: { id: string }) => element.id),
+      Array.from({ length: 20 }, (_, c) => `child-${c}`),
+    )
+    assert.equal("truncated" in targeted, false)
+    assert.equal("window" in targeted, false, "the targeted listing is complete")
+  } finally {
+    for (const off of dispose) off()
+  }
+})
+
+test("a targeted listing that is itself over budget reduces and reports childrenOmitted on its own elements", async () => {
+  const label = "Child section ".repeat(6)
+  const grandchildLabel = "Grandchild section ".repeat(6)
+  const dispose: (() => void)[] = []
+  try {
+    dispose.push(
+      registry.register(stub({ id: "root", kind: "tabs", label: "Root", actions: ["select"] })),
+    )
+    for (let c = 0; c < 30; c++) {
+      dispose.push(
+        registry.register(
+          stub({ id: `child-${c}`, kind: "input", label, actions: ["set_value"], owner: "root" }),
+        ),
+      )
+      for (let g = 0; g < 8; g++) {
+        dispose.push(
+          registry.register(
+            stub({
+              id: `grandchild-${c}-${g}`,
+              kind: "input",
+              label: grandchildLabel,
+              actions: ["set_value"],
+              owner: `child-${c}`,
+            }),
+          ),
+        )
+      }
+    }
+
+    const raw = await byName(createAgentTools(registry)).get("ui_list")!.execute({ target: "root" })
+    const parsed = JSON.parse(raw)
+
+    assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+    assert.equal(parsed.ok, true)
+    assert.equal(parsed.target, "root")
+    assert.ok(parsed.elements.length >= 1, "at least one element is always listed")
+    for (const element of parsed.elements) {
+      assert.match(element.id, /^child-/)
+      assert.equal(element.childrenOmitted, childrenOmittedText(8, element.id))
+      assert.equal("children" in element, false)
+    }
+    // The reduction's own cut is reported in the window, like any other.
+    assert.deepEqual(parsed.window, {
+      offset: 0,
+      returned: parsed.elements.length,
+      total: 30,
+    })
+  } finally {
+    for (const off of dispose) off()
+  }
 })
 
 test("a kind tool dispatches through the registry and returns canonical state", async () => {
@@ -504,6 +784,70 @@ test("an explicit limit is honoured exactly", async () => {
   off()
 })
 
+test("a limit larger than what fits comes back clamped, and window.returned reports what actually returned", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "orders", limit: 500 }),
+  )
+
+  assert.ok(parsed.state.rows.length < 500, "the output budget clamped the limit")
+  assert.deepEqual(parsed.window, {
+    field: "rows",
+    offset: 0,
+    returned: parsed.state.rows.length,
+    total: 500,
+  })
+
+  // The clamp must not open a gap: the next offset is window.returned, and
+  // the walk continues exactly where this response stopped.
+  const next = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "orders", offset: parsed.window.returned }),
+  )
+  assert.equal(next.state.rows[0].id, `ORD-${parsed.window.returned}`)
+
+  off()
+})
+
+test("walking a 500-entry read by window.returned yields every entry exactly once, in order", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  // The invariant that makes a windowed result walkable: advancing offset by
+  // window.returned — never by the limit that was asked for — visits every
+  // entry exactly once, in order, with no repeats and no gaps, and the union
+  // of the walk equals the true total.
+  const seen: string[] = []
+  let offset = 0
+  let calls = 0
+  for (;;) {
+    assert.ok(++calls < 20, "the walk must reach exhaustion in a handful of calls")
+    const parsed = JSON.parse(
+      await tools.get("ui_read")!.execute({ target: "orders", offset }),
+    )
+    assert.equal(parsed.ok, true)
+    assert.deepEqual(parsed.window, {
+      field: "rows",
+      offset,
+      returned: parsed.state.rows.length,
+      total: 500,
+    })
+    for (const row of parsed.state.rows) seen.push(row.id)
+    if (parsed.window.offset + parsed.window.returned >= parsed.window.total) break
+    offset = parsed.window.offset + parsed.window.returned
+  }
+
+  assert.ok(calls >= 2, "the walk crossed the output budget, clamping at least once")
+  assert.deepEqual(
+    seen,
+    Array.from({ length: 500 }, (_, index) => `ORD-${index}`),
+    "the union of the walk is exactly the 500 distinct entries, in order",
+  )
+
+  off()
+})
+
 test("a single entry that cannot fit even alone is refused, naming the field", async () => {
   const off = registry.register(
     stub({
@@ -603,9 +947,11 @@ test("every tool declares what it acts on", () => {
     action: "select",
   })
 
-  // A tool that takes a target says so in its schema; a page tool does not.
+  // A tool that takes a target says so in its schema. ui_list's target is
+  // optional: the page is listed whole when it is left out.
   assert.equal("target" in (tools.get("tabs_select")?.inputSchema.properties ?? {}), true)
-  assert.equal("target" in (tools.get("ui_list")?.inputSchema.properties ?? {}), false)
+  assert.equal("target" in (tools.get("ui_list")?.inputSchema.properties ?? {}), true)
+  assert.deepEqual(tools.get("ui_list")?.inputSchema.required, [])
 
   off()
 })
@@ -629,14 +975,16 @@ test("a business action tool is scoped to the one capability it runs", () => {
 // — honest degradation of an over-budget listing —
 
 test("an over-budget listing first drops grandchildren and marks each dropped-from parent", async () => {
-  const label = "Child section ".repeat(6)
+  // Twenty children keep the step-2 document — roots' children plus the longer
+  // childrenOmitted marker — inside the budget, so the fixture lands on step 2.
+  const label = "Child section ".repeat(4)
   const grandchildLabel = "Grandchild section ".repeat(6)
   const dispose: (() => void)[] = []
   try {
     dispose.push(
       registry.register(stub({ id: "root", kind: "tabs", label: "Root", actions: ["select"] })),
     )
-    for (let c = 0; c < 30; c++) {
+    for (let c = 0; c < 20; c++) {
       dispose.push(
         registry.register(
           stub({ id: `child-${c}`, kind: "input", label, actions: ["set_value"], owner: "root" }),
@@ -663,12 +1011,13 @@ test("an over-budget listing first drops grandchildren and marks each dropped-fr
     assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
     assert.equal(parsed.elements.length, 1)
     const root = parsed.elements[0]
-    assert.equal(root.children.length, 30, "each root keeps its own children")
+    assert.equal(root.children.length, 20, "each root keeps its own children")
     for (const child of root.children) {
-      assert.equal(child.childrenOmitted, 8)
+      assert.equal(child.childrenOmitted, childrenOmittedText(8, child.id))
       assert.equal("children" in child, false)
     }
     assert.equal("truncated" in parsed, false)
+    assert.equal("window" in parsed, false, "the roots themselves were not cut")
     assert.equal(raw.includes("grandchild-"), false, "grandchildren are gone entirely")
   } finally {
     for (const off of dispose) off()
@@ -707,7 +1056,7 @@ test("an over-budget listing then drops every remaining children array", async (
     assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
     assert.equal(parsed.elements.length, 1)
     const root = parsed.elements[0]
-    assert.equal(root.childrenOmitted, 200)
+    assert.equal(root.childrenOmitted, childrenOmittedText(200, "root"))
     assert.equal("children" in root, false)
     assert.equal("truncated" in parsed, false)
     assert.equal(raw.includes("Child section"), false)
@@ -786,7 +1135,7 @@ test("an over-budget listing then drops every description", async () => {
   }
 })
 
-test("an over-budget listing finally keeps the first roots that fit and reports the truncation", async () => {
+test("an over-budget listing finally keeps the first elements that fit and reports the cut as its window", async () => {
   const dispose: (() => void)[] = []
   try {
     for (let i = 0; i < 300; i++) {
@@ -799,10 +1148,15 @@ test("an over-budget listing finally keeps the first roots that fit and reports 
     const parsed = JSON.parse(raw)
 
     assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
-    assert.deepEqual(parsed.truncated, { shown: parsed.elements.length, total: 300 })
+    assert.deepEqual(parsed.window, {
+      offset: 0,
+      returned: parsed.elements.length,
+      total: 300,
+    })
+    assert.equal("truncated" in parsed, false)
     assert.ok(parsed.elements.length >= 1, "at least one element is always listed")
-    assert.equal(parsed.elements[0].id, "element-0", "the first roots are kept")
-    // Everything that can be shed has been shed by the time truncation happens.
+    assert.equal(parsed.elements[0].id, "element-0", "the first elements are kept")
+    // Everything that can be shed has been shed by the time the cut happens.
     for (const element of parsed.elements) {
       assert.equal("state" in element, false)
       assert.equal("description" in element, false)

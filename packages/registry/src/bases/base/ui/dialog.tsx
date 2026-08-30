@@ -189,7 +189,9 @@ function DialogFooter({
     >
       {children}
       {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>
+        // The dialog capability already has a `close` action; this button
+        // is the same act with a worse address.
+        <DialogPrimitive.Close render={<Button agent={false} variant="outline" />}>
           Close
         </DialogPrimitive.Close>
       )}

@@ -199,3 +199,37 @@ test("generated identity is document-local and tool-name safe", () => {
   assert.equal(registry.createId("tabs", "«r1»"), "tabs_r1")
   assert.match(registry.createId("data-table", ":r2:"), /^[A-Za-z0-9_.-]+$/)
 })
+
+test("require resolves without reading, and refuses an unknown id the way an agent can correct", () => {
+  const registry = freshRegistry()
+  let reads = 0
+  const capability: Capability = {
+    id: "orders",
+    kind: "data-table",
+    actions: [],
+    read: () => {
+      reads += 1
+      return { rows: [] }
+    },
+    async invoke() {
+      return { state: { rows: [] } }
+    },
+  }
+  registry.register(capability)
+
+  assert.equal(registry.require("orders"), capability)
+  // Resolving an id must not cost what reading it costs: a five-hundred-row
+  // table builds its rows in read(), and a caller that only needs the
+  // capability must not pay for them.
+  assert.equal(reads, 0)
+
+  assert.throws(
+    () => registry.require("ordrs"),
+    (error: unknown) => {
+      assert.ok(error instanceof CapabilityError)
+      assert.equal(error.code, "unknown_target")
+      assert.match(error.message, /Available ids: orders\./)
+      return true
+    },
+  )
+})

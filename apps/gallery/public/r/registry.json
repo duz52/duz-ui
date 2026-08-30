@@ -1025,6 +1025,12 @@
               "choose",
               "clear"
             ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
+            ]
           }
         ],
         "status": "agent-native"
@@ -1109,6 +1115,12 @@
             "actions": [
               "set"
             ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
+            ]
           }
         ],
         "status": "agent-native"
@@ -1147,6 +1159,20 @@
             "kind": "checkbox",
             "actions": [
               "set"
+            ]
+          },
+          {
+            "kind": "disclosure",
+            "actions": [
+              "open",
+              "close",
+              "toggle"
+            ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
             ]
           }
         ],
@@ -1239,14 +1265,21 @@
       "title": "Chart",
       "description": "A themed chart container with styled tooltip and legend built on Recharts.",
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "bases": [
         "base",
         "radix"
       ],
       "agentUi": {
-        "status": "presentation"
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {

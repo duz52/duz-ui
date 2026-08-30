@@ -16,7 +16,7 @@ import {
   type CapabilityState,
 } from "./capability"
 import type { CapabilityRegistry } from "./registry"
-import { expectString } from "./validate"
+import { expectOptionalString, expectString } from "./validate"
 
 /**
  * What a tool acts on. Declared rather than inferred: a host that wants to
@@ -417,15 +417,29 @@ interface ListElement {
   /** The component's own summary when it provides one, else the state digest. */
   state?: string | Record<string, unknown>
   children?: ListElement[]
-  childrenOmitted?: number
+  /**
+   * Set instead of `children` when the output budget dropped them: the count,
+   * the targeted `ui_list` call that recovers them, and the offset to
+   * continue from when that listing is itself windowed, so honesty always
+   * comes with a way to act on it.
+   */
+  childrenOmitted?: string
 }
 
 /** The `ui_list` response: the page header plus every live element. */
 interface ListDocument {
   ok: true
   action: "list"
+  /** Present only in a targeted listing: the element whose children are listed. */
+  target?: string
   page?: { title?: string; description?: string }
   elements: ListElement[]
+  /**
+   * Present only when the elements were cut — by the caller's offset/limit or
+   * by the reduction's final step — so a cut listing can be walked the same
+   * way a windowed `ui_read` can.
+   */
+  window?: { offset: number; returned: number; total: number }
 }
 
 function* eachElement(elements: ListElement[]): Generator<ListElement> {
@@ -440,26 +454,40 @@ function* eachElement(elements: ListElement[]): Generator<ListElement> {
  * capability, if any, and every other live capability as an element carrying
  * its current state, nested under the capability its `owner` names.
  *
+ * With `target`, the document carries that element's children instead of the
+ * whole page — the recovery an element's `childrenOmitted` marker names. The
+ * target itself is not repeated: the agent already has it from the listing
+ * that named it. A live target with no children lists as an empty document,
+ * and the caller resolves `target` through the registry, so an unknown id is
+ * rejected with the registry's own message.
+ *
  * Element states are read here, at listing time. Reading is pull-based —
  * nothing reads capability state on render or registration — so a listing
  * stays off every hot path.
  */
-function buildListDocument(registry: CapabilityRegistry): ListDocument {
+function buildListDocument(
+  registry: CapabilityRegistry,
+  target?: string,
+): ListDocument {
   const capabilities = registry.list()
   const doc: ListDocument = { ok: true, action: "list", elements: [] }
 
-  // The page is the document's header, not an element of it. Several page
-  // capabilities is a page bug: use the first and leave the rest out.
-  const pages = capabilities.filter((capability) => capability.kind === "page")
-  const page = pages[0]
-  if (page) {
-    if (pages.length > 1) {
-      console.error(
-        "[agent-ui]",
-        `Multiple capabilities of kind "page" are mounted; listing "${page.id}" as the page and leaving the rest out.`,
-      )
+  if (target !== undefined) {
+    doc.target = target
+  } else {
+    // The page is the document's header, not an element of it. Several page
+    // capabilities is a page bug: use the first and leave the rest out.
+    const pages = capabilities.filter((capability) => capability.kind === "page")
+    const page = pages[0]
+    if (page) {
+      if (pages.length > 1) {
+        console.error(
+          "[agent-ui]",
+          `Multiple capabilities of kind "page" are mounted; listing "${page.id}" as the page and leaving the rest out.`,
+        )
+      }
+      doc.page = { title: page.label, description: page.description }
     }
-    doc.page = { title: page.label, description: page.description }
   }
 
   const byId = new Map(
@@ -534,7 +562,24 @@ function buildListDocument(registry: CapabilityRegistry): ListDocument {
     if (node.children?.length === 0) delete node.children
   }
 
+  // A targeted listing is the target's own children, resolved by the same
+  // placement as the whole page's; the target's node itself is not repeated.
+  if (target !== undefined) {
+    doc.elements = nodes.get(target)?.children ?? []
+  }
+
   return doc
+}
+
+/**
+ * Replace an element's children with a marker that names the recovery: how
+ * many there are, the targeted `ui_list` call that lists them, and — when
+ * that listing is itself windowed — the offset to continue from. A bare
+ * count would tell the agent children exist and leave it no way to see them.
+ */
+function omitChildren(element: ListElement): void {
+  element.childrenOmitted = `${element.children!.length} children omitted; call ui_list with target "${element.id}" to list them; if that listing is windowed, continue from window.offset + window.returned`
+  delete element.children
 }
 
 /**
@@ -544,18 +589,36 @@ function buildListDocument(registry: CapabilityRegistry): ListDocument {
  * elements themselves. Each step re-serialises and returns as soon as the
  * result fits. The last step always fits — it can keep a single element — so
  * `ui_list` never returns an empty listing while capabilities exist.
+ *
+ * The caller's `offset` and `limit` window the elements the call returns —
+ * the roots, or a target's children — before any shedding. Whenever those
+ * elements were cut, by that window or by the final shedding step, the
+ * response reports `window` — offset, returned, total — as `ui_read` does
+ * over its list field, so one walk covers both tools; a complete listing
+ * carries no window key.
  */
-function serialiseListDocument(doc: ListDocument): string {
+function serialiseListDocument(
+  doc: ListDocument,
+  offset: number | undefined,
+  limit: number | undefined,
+): string {
+  const total = doc.elements.length
+  // An offset past the end is not an error: the empty window reports the
+  // true total, so the agent learns where the list ends.
+  const start = Math.min(offset ?? 0, total)
+  const count = limit !== undefined ? Math.min(limit, total - start) : total - start
+  doc.elements = doc.elements.slice(start, start + count)
+  if (start !== 0 || count !== total) {
+    doc.window = { offset: start, returned: count, total }
+  }
+
   let json = JSON.stringify(doc)
   if (json.length <= MAX_OUTPUT) return json
 
   // Step 2: keep each root's own children; drop everything below them.
   for (const root of doc.elements) {
     for (const child of root.children ?? []) {
-      if (child.children?.length) {
-        child.childrenOmitted = child.children.length
-        delete child.children
-      }
+      if (child.children?.length) omitChildren(child)
     }
   }
   json = JSON.stringify(doc)
@@ -565,10 +628,7 @@ function serialiseListDocument(doc: ListDocument): string {
 
   // Step 3: drop every remaining children array — after step 2, the roots' own.
   for (const element of everyElement) {
-    if (element.children?.length) {
-      element.childrenOmitted = element.children.length
-      delete element.children
-    }
+    if (element.children?.length) omitChildren(element)
   }
   json = JSON.stringify(doc)
   if (json.length <= MAX_OUTPUT) return json
@@ -584,29 +644,27 @@ function serialiseListDocument(doc: ListDocument): string {
   json = JSON.stringify(doc)
   if (json.length <= MAX_OUTPUT) return json
 
-  // Step 6: keep only the first N roots that fit. The largest N is found by
-  // bisection — a document with fewer roots is never larger. Even a single
-  // element is accepted when nothing smaller exists.
-  const total = doc.elements.length
+  // Step 6: keep only the first N elements that fit. The largest N is found by
+  // bisection — a document with fewer elements is never larger. Even a single
+  // element is accepted when nothing smaller exists. This is a cut like any
+  // other, so the window reports it.
   const fits = (shown: number): boolean =>
     JSON.stringify({
       ...doc,
       elements: doc.elements.slice(0, shown),
-      truncated: { shown, total },
+      window: { offset: start, returned: shown, total },
     }).length <= MAX_OUTPUT
 
   let low = 1
-  let high = total
+  let high = doc.elements.length
   while (high - low > 1) {
     const mid = Math.floor((low + high) / 2)
     if (fits(mid)) low = mid
     else high = mid
   }
-  return JSON.stringify({
-    ...doc,
-    elements: doc.elements.slice(0, low),
-    truncated: { shown: low, total },
-  })
+  doc.elements = doc.elements.slice(0, low)
+  doc.window = { offset: start, returned: low, total }
+  return JSON.stringify(doc)
 }
 
 function withoutTarget(input: Record<string, unknown>): Record<string, unknown> {
@@ -671,18 +729,45 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_list",
     description:
-      "List the agent-operable UI elements on the page as a document: the page title, and for each element its id, kind, label, description, available actions, current state, and nested children. Call this first to discover valid target ids. Each element's state is current, so a state listed here does not need to be read again with ui_read; use ui_read only for the full detail a listed digest leaves out.",
+      "List the agent-operable UI elements on the page: the page title, and for each element its id, kind, label, description, actions, current state, and nested children. Call this first to discover valid target ids. Pass target to list one element's children instead — the recovery when an element reports childrenOmitted. A cut listing reports window: offset, returned and total — walk by advancing offset by window.returned. A listed state is current; use ui_read for detail the digest leaves out.",
     scope: { on: "page" },
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        target: {
+          type: "string",
+          description:
+            "An element id: given, the tool lists that element's children instead of the whole page. Use it on an element that reports childrenOmitted.",
+        },
+        offset: {
+          type: "integer",
+          minimum: 0,
+          description: "Index of the first element to return. Defaults to 0.",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          description: "How many elements to return. Defaults to as many as fit.",
+        },
+      },
       required: [],
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true },
-    execute: makeExecutor("ui_list", async () =>
-      serialiseListDocument(buildListDocument(registry)),
-    ),
+    execute: makeExecutor("ui_list", async (input) => {
+      const target = expectOptionalString(input, "target")
+      const offset = expectOptionalInteger(input, "offset", 0)
+      const limit = expectOptionalInteger(input, "limit", 1)
+      if (target !== undefined) {
+        // Resolve through the registry so an unknown id is refused with the
+        // same correctable message every other tool produces. `require`
+        // rather than `read`: a targeted listing carries the children, not
+        // the target's state, and reading a five-hundred-row table to
+        // discard it would put the table's size on this call's cost.
+        registry.require(target)
+      }
+      return serialiseListDocument(buildListDocument(registry, target), offset, limit)
+    }),
   }
 }
 
@@ -803,7 +888,7 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_read",
     description:
-      "Read the current semantic state of one UI element by id. Use ui_list first to discover valid ids. When the state's largest list is long, it comes back windowed: window reports the list field, the offset, how many entries returned, and the true total. Walk a long list with offset.",
+      "Read the current semantic state of one UI element by id. Use ui_list first to discover valid ids. When the state's largest list is long, it comes back windowed: window reports the list field, the offset, how many entries returned, and the true total. window.returned is authoritative: the output budget can clamp a limit short. Walk by advancing offset by window.returned — never by the limit you asked for — until offset + returned reaches total.",
     scope: { on: "any-capability" },
     inputSchema: {
       type: "object",
@@ -819,7 +904,7 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
           type: "integer",
           minimum: 1,
           description:
-            "How many entries of that list to return. Defaults to as many as fit.",
+            "How many entries of that list to return. Defaults to as many as fit; the output budget may clamp it, and window.returned reports what actually returned.",
         },
       },
       required: ["target"],

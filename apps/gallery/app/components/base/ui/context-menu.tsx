@@ -5,6 +5,7 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
 
 import { cn } from "@/lib/utils"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
@@ -40,7 +41,7 @@ function ContextMenu({
     onChange: onOpenChange,
   })
 
-  useCapability<ContextMenuState, ContextMenuActions>({
+  const { id } = useCapability<ContextMenuState, ContextMenuActions>({
     agent,
     kind: "disclosure",
     defaultLabel: "Context menu",
@@ -67,14 +68,19 @@ function ContextMenu({
     },
   })
 
+  // The Base UI root renders no element, so it carries no data-slot. Every
+  // capability rendered inside the menu — its items — belongs to it. When the
+  // menu opted out, `id` is undefined and the provider passes
+  // `ownerId: undefined` through, so descendants stay roots.
   return (
-    // The Base UI root renders no element, so it carries no data-slot.
-    <ContextMenuPrimitive.Root
-      open={open}
-      onOpenChange={(next) => setOpen(next)}
-      disabled={disabled}
-      {...props}
-    />
+    <AgentContainerProvider ownerId={id}>
+      <ContextMenuPrimitive.Root
+        open={open}
+        onOpenChange={(next) => setOpen(next)}
+        disabled={disabled}
+        {...props}
+      />
+    </AgentContainerProvider>
   )
 }
 
@@ -255,23 +261,63 @@ function ContextMenuRadioGroup({
   )
 }
 
+type ContextMenuSubTriggerState = {
+  label: string
+  disabled: boolean
+}
+
+type ContextMenuSubTriggerActions = {
+  press: Record<string, never>
+}
+
 function ContextMenuSubTrigger({
   className,
   inset,
   children,
+  ref,
+  disabled = false,
+  agent,
   ...props
-}: Omit<ContextMenuPrimitive.SubmenuTrigger.Props, "className"> & {
+}: Omit<ContextMenuPrimitive.SubmenuTrigger.Props, "ref" | "className"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
   className?: string
   inset?: boolean
+  agent?: AgentProp
 }) {
+  const elementRef = React.useRef<HTMLElement>(null)
+  const label = useAccessibleName(elementRef, "Menu item")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  // A sub-trigger opens a submenu rather than performing an action, but it is
+  // still a thing you press: registering it as a button is what lets an agent
+  // reach a nested menu at all. `kind: "button"` already exists and already
+  // carries a `button_press` tool, so no new kind is needed.
+  useCapability<ContextMenuSubTriggerState, ContextMenuSubTriggerActions>({
+    agent: agentWithElementId(agent, props.id),
+    kind: "button",
+    defaultLabel: label,
+    read: () => ({ label, disabled }),
+    actions: {
+      press() {
+        if (disabled) {
+          rejectState(`"${label}" is disabled and cannot be pressed right now.`)
+        }
+        elementRef.current?.click()
+      },
+    },
+  })
+
   return (
     <ContextMenuPrimitive.SubmenuTrigger
       data-slot="context-menu-sub-trigger"
       data-inset={inset}
+      disabled={disabled}
       className={cn(
         "flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[inset]:pl-8 data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className
       )}
+      ref={mergedRef}
       {...props}
     >
       {children}
@@ -362,29 +408,66 @@ function ContextMenuContent({
   )
 }
 
-// ContextMenuItem has no agent capability. Its meaning is the application's
-// onSelect handler, not the component's own state — exposing it would let an
-// agent invoke arbitrary application logic the application never declared.
-// Use AgentAction to declare an explicit agent action when needed.
+type ContextMenuItemState = {
+  label: string
+  disabled: boolean
+}
+
+type ContextMenuItemActions = {
+  press: Record<string, never>
+}
+
 function ContextMenuItem({
   className,
   inset,
   variant = "default",
+  ref,
+  disabled = false,
+  agent,
   ...props
-}: Omit<ContextMenuPrimitive.Item.Props, "className"> & {
+}: Omit<ContextMenuPrimitive.Item.Props, "ref" | "className"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
   className?: string
   inset?: boolean
   variant?: "default" | "destructive"
+  agent?: AgentProp
 }) {
+  const elementRef = React.useRef<HTMLElement>(null)
+  const label = useAccessibleName(elementRef, "Menu item")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  // A menu item is a thing you press. `kind: "button"` already exists and
+  // already carries a `button_press` tool, so modelling the item as a new
+  // kind would multiply the protocol for no gain.
+  useCapability<ContextMenuItemState, ContextMenuItemActions>({
+    agent: agentWithElementId(agent, props.id),
+    kind: "button",
+    defaultLabel: label,
+    read: () => ({ label, disabled }),
+    actions: {
+      press() {
+        if (disabled) {
+          rejectState(`"${label}" is disabled and cannot be pressed right now.`)
+        }
+        // A click is what a person does: it runs the item's onClick and
+        // whatever handlers the menu itself attaches to the element.
+        elementRef.current?.click()
+      },
+    },
+  })
+
   return (
     <ContextMenuPrimitive.Item
       data-slot="context-menu-item"
       data-inset={inset}
       data-variant={variant}
+      disabled={disabled}
       className={cn(
         "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 data-[inset]:pl-8 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground data-[variant=destructive]:*:[svg]:text-destructive!",
         className
       )}
+      ref={mergedRef}
       {...props}
     />
   )

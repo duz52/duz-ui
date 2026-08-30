@@ -78,10 +78,11 @@ function capLength(text: string): string {
  *    the first `label[for="<id>"]` in the document; otherwise
  *    `element.closest("label")`. Take its `textContent`.
  * 4. The element's own subtree text, for elements whose native accessible
- *    name IS that text: `<button>` and `<a>`. Other elements keep their own
- *    native mechanisms — a `<select>`'s name is never its options' text, a
- *    `<textarea>`'s never its default value — so their text content is not
- *    a name source.
+ *    name IS that text: `<button>`, `<a>`, and the menu-item roles, which
+ *    the accessible-name specification names as taking their name from
+ *    content. Other elements keep their own native mechanisms — a
+ *    `<select>`'s name is never its options' text, a `<textarea>`'s never
+ *    its default value — so their text content is not a name source.
  * 5. `fallback`.
  *
  * Each source is normalised (trim, collapse whitespace) and an empty result
@@ -151,8 +152,16 @@ function resolveAccessibleName(element: NamedElement, fallback: string): string 
     if (label !== null) return capLength(label)
   }
 
-  // 4. The element's own subtree text — a button or link's visible text.
-  if (element.tagName === "BUTTON" || element.tagName === "A") {
+  // 4. The element's own subtree text — a button or link's visible text, or
+  // a menu item's, whose role takes its name from content.
+  const role = element.getAttribute("role")
+  if (
+    element.tagName === "BUTTON" ||
+    element.tagName === "A" ||
+    role === "menuitem" ||
+    role === "menuitemcheckbox" ||
+    role === "menuitemradio"
+  ) {
     const label = normaliseText(element.textContent)
     if (label !== null) return capLength(label)
   }

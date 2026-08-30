@@ -316,6 +316,9 @@ function SidebarTrigger({
 
   return (
     <Button
+      // The sidebar capability already has a `toggle` action; this button is
+      // the same act with a worse address.
+      agent={false}
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
       variant="ghost"

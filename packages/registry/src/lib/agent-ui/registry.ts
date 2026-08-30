@@ -18,6 +18,15 @@ import {
 export interface CapabilityRegistry {
   register(capability: Capability): () => void
   get(id: string): Capability | undefined
+  /**
+   * The capability with this id, or a refusal an agent can correct from.
+   *
+   * `get` is for a caller that treats absence as ordinary — a UI reading a
+   * stale snapshot. `require` is for a caller acting on an agent's request,
+   * where absence is something the agent must be told about. Neither reads
+   * state: resolving an id must not cost what reading it costs.
+   */
+  require(id: string): Capability
   list(): Capability[]
   listByKind(kind: string): Capability[]
   listKinds(): string[]
@@ -79,6 +88,10 @@ function createRegistry(): CapabilityRegistry {
 
     get(id) {
       return capabilities.get(id)
+    },
+
+    require(id) {
+      return requireCapability(id)
     },
 
     list() {

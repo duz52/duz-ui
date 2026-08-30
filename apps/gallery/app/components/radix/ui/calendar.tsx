@@ -485,6 +485,11 @@ function CalendarDayButton({
   return (
     <Button
       ref={ref}
+      // A month renders about forty of these. The calendar already exposes
+      // `date` with a `set` action, which names the date instead of making an
+      // agent find the right one of forty identical buttons, so the day cells
+      // stay out of discovery.
+      agent={false}
       variant="ghost"
       size="icon"
       data-day={day.date.toLocaleDateString(locale?.code)}

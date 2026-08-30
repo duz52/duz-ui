@@ -5,6 +5,12 @@ import * as RechartsPrimitive from "recharts"
 import type { TooltipValueType } from "recharts"
 
 import { cn } from "@/lib/utils"
+import {
+  agentWithElementId,
+  useAccessibleName,
+} from "@/lib/agent-ui/agent-identity"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
@@ -39,12 +45,43 @@ function useChart() {
   return context
 }
 
+type ChartSeries = {
+  key: string
+  label: string
+}
+
+type ChartContentState = {
+  series: ChartSeries[]
+  data: unknown[] | null
+  rowCount: number
+}
+
+/**
+ * The rows a chart plots, read off the single recharts child's `data` prop.
+ *
+ * Reaching into the child is correct here and nowhere else: this file is the
+ * recharts adapter and already types its `children` against recharts' own
+ * props, so the child's `data` prop is a contract of this module. The values
+ * an agent needs exist only as that prop — the rendered SVG is geometry, and
+ * reading the DOM would reconstruct what we already hold. Children that are
+ * not one element carrying a `data` array report null rather than a guess.
+ */
+function readChartData(children: React.ReactNode): unknown[] | null {
+  if (!React.isValidElement(children)) {
+    return null
+  }
+  const data = (children.props as { data?: unknown }).data
+  return Array.isArray(data) ? data : null
+}
+
 function ChartContainer({
   id,
   className,
   children,
   config,
   initialDimension = INITIAL_DIMENSION,
+  ref,
+  agent,
   ...props
 }: React.ComponentProps<"div"> & {
   config: ChartConfig
@@ -55,13 +92,42 @@ function ChartContainer({
     width: number
     height: number
   }
+  agent?: AgentProp
 }) {
+  const rootRef = React.useRef<HTMLDivElement>(null)
+  const mergedRef = useMergedRef(ref, rootRef)
+  const label = useAccessibleName(rootRef, "Chart")
+
+  // Reads are pull-based: they run only when an agent calls ui_list or
+  // ui_read, never on render. Reporting a whole series is affordable exactly
+  // because nothing pays for it until an agent asks.
+  useCapability<ChartContentState, Record<string, never>>({
+    agent: agentWithElementId(agent, id),
+    kind: "content",
+    defaultLabel: label,
+    read: () => {
+      const data = readChartData(children)
+      return {
+        series: Object.entries(config).map(([key, entry]) => ({
+          key,
+          // Only readable text names a series for an agent; an icon or
+          // element label falls back to the key it configures.
+          label: typeof entry.label === "string" ? entry.label : key,
+        })),
+        data,
+        rowCount: data?.length ?? 0,
+      }
+    },
+    actions: {},
+  })
+
   const uniqueId = React.useId()
   const chartId = `chart-${id ?? uniqueId.replace(/:/g, "")}`
 
   return (
     <ChartContext.Provider value={{ config }}>
       <div
+        ref={mergedRef}
         data-slot="chart"
         data-chart={chartId}
         className={cn(

@@ -73,17 +73,29 @@ export interface AgentContentProps extends React.ComponentProps<"div"> {
   label: string
   /** What the content is; reported with every read, like AgentAction's. */
   description?: string
+  /**
+   * The content as data, for content a person reads but text cannot carry.
+   *
+   * A chart is the case this exists for: its numbers are geometry, so the
+   * subtree's text is empty however carefully it is read. The application
+   * already holds the series it passed to the chart library, so it states it
+   * here rather than having anything try to reconstruct it from the SVG.
+   * Must be JSON-serialisable.
+   */
+  value?: unknown
   agent?: AgentProp
 }
 
 type AgentContentState = {
   text: string
   description: string | null
+  value: unknown
 }
 
 export function AgentContent({
   label,
   description,
+  value,
   agent,
   ref,
   ...props
@@ -101,6 +113,9 @@ export function AgentContent({
     read: () => ({
       text: readText(elementRef.current, SUBTREE_MAX_LENGTH),
       description: description ?? null,
+      // Reported unconditionally: an agent must be able to tell content that
+      // carries no data from content whose data happens to be absent.
+      value: value ?? null,
     }),
     actions: {},
   })

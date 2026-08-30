@@ -441,6 +441,32 @@ export const SIGNATURES: ComponentSignature[] = [
     internalDeclarations: [],
   },
   {
+    name: "chart",
+    requiredExports: [
+      "ChartContainer",
+      "ChartTooltip",
+      "ChartTooltipContent",
+      "ChartLegend",
+      "ChartLegendContent",
+      "ChartStyle",
+      "ChartConfig",
+    ],
+    // Recharts is the charting library on both bases.
+    primitiveModules: {
+      radix: ["recharts"],
+      base: ["recharts"],
+    },
+    internalDeclarations: [
+      "THEMES",
+      "INITIAL_DIMENSION",
+      "TooltipNameType",
+      "ChartContextProps",
+      "ChartContext",
+      "useChart",
+      "getPayloadConfigFromPayload",
+    ],
+  },
+  {
     name: "table",
     requiredExports: [
       "Table",
