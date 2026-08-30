@@ -485,4 +485,25 @@ export const SIGNATURES: ComponentSignature[] = [
     },
     internalDeclarations: [],
   },
+  {
+    // cmdk is primitive-agnostic: the stock file imports it directly on both
+    // bases.
+    name: "command",
+    requiredExports: [
+      "Command",
+      "CommandDialog",
+      "CommandInput",
+      "CommandList",
+      "CommandEmpty",
+      "CommandGroup",
+      "CommandItem",
+      "CommandShortcut",
+      "CommandSeparator",
+    ],
+    primitiveModules: {
+      radix: ["cmdk"],
+      base: ["cmdk"],
+    },
+    internalDeclarations: [],
+  },
 ]

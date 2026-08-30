@@ -155,13 +155,20 @@ function TableRow({ className, ref, ...props }: React.ComponentProps<"tr">) {
   // Resolved when a descendant capability registers, never during render:
   // the row's text exists only in the mounted DOM. The first cell that has
   // text names the row — usually not the cell holding the row's checkbox.
-  const itemLabel = React.useCallback(() => {
+  // The key is that text and nothing else: sorting or paging changes `index`
+  // while the row is the same row, so the label carries the position and the
+  // key does not.
+  const itemKey = React.useCallback((): string | undefined => {
     for (const cell of rowRef.current?.querySelectorAll("td") ?? []) {
       const text = readText(cell, ROW_LABEL_MAX_LENGTH)
-      if (text !== "") return `row ${index}: ${text}`
+      if (text !== "") return text
     }
-    return `row ${index}`
-  }, [index])
+    return undefined
+  }, [])
+  const itemLabel = React.useCallback(() => {
+    const key = itemKey()
+    return key === undefined ? `row ${index}` : `row ${index}: ${key}`
+  }, [index, itemKey])
   const row = (
     <tr
       ref={mergedRef}
@@ -177,7 +184,9 @@ function TableRow({ className, ref, ...props }: React.ComponentProps<"tr">) {
   // descendants keep their plain labels and inherit only the table as owner.
   if (index === null) return row
   return (
-    <AgentContainerProvider itemLabel={itemLabel}>{row}</AgentContainerProvider>
+    <AgentContainerProvider itemLabel={itemLabel} itemKey={itemKey}>
+      {row}
+    </AgentContainerProvider>
   )
 }
 

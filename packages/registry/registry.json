@@ -15,6 +15,7 @@
         "lib/agent-ui/agent-container.tsx",
         "lib/agent-ui/agent-content.tsx",
         "lib/agent-ui/agent-identity.ts",
+        "lib/agent-ui/agent-page.tsx",
         "lib/agent-ui/capability.ts",
         "lib/agent-ui/registry.ts",
         "lib/agent-ui/runtime.ts",
@@ -1370,7 +1371,7 @@
       "type": "registry:ui",
       "baseSpecific": true,
       "title": "Command",
-      "description": "A command palette built on cmdk whose search input is readable and settable by an agent; item selection stays the application's own onSelect semantics.",
+      "description": "A command palette built on cmdk whose search input and items are readable and operable by an agent, and whose content read reports the search string, the matched item count and the empty text.",
       "dependencies": [
         "cmdk",
         "lucide-react"
@@ -1387,10 +1388,20 @@
       "agentUi": {
         "capabilities": [
           {
+            "kind": "content",
+            "actions": []
+          },
+          {
             "kind": "input",
             "actions": [
               "set_value",
               "clear"
+            ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
             ]
           }
         ],

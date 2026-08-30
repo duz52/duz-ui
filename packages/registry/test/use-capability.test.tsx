@@ -33,6 +33,8 @@ let useCapability: typeof import("../src/lib/agent-ui/use-capability").useCapabi
 let getCapabilityRegistry: typeof import("../src/lib/agent-ui/registry").getCapabilityRegistry
 let rejectState: typeof import("../src/lib/agent-ui/validate").rejectState
 let AgentContent: typeof import("../src/lib/agent-ui/agent-content").AgentContent
+let AgentPage: typeof import("../src/lib/agent-ui/agent-page").AgentPage
+let agentWithElementId: typeof import("../src/lib/agent-ui/agent-identity").agentWithElementId
 
 before(async () => {
   React = await import("react")
@@ -41,6 +43,8 @@ before(async () => {
   ;({ getCapabilityRegistry } = await import("../src/lib/agent-ui/registry"))
   ;({ rejectState } = await import("../src/lib/agent-ui/validate"))
   ;({ AgentContent } = await import("../src/lib/agent-ui/agent-content"))
+  ;({ AgentPage } = await import("../src/lib/agent-ui/agent-page"))
+  ;({ agentWithElementId } = await import("../src/lib/agent-ui/agent-identity"))
 })
 
 /**
@@ -318,5 +322,125 @@ test("AgentContent with agent={false} registers nothing", async () => {
 
   assert.deepEqual(registry.list(), [])
 
+  await tree.unmount()
+})
+
+test("AgentPage states what the page is, renders nothing, and offers no action", async () => {
+  const registry = getCapabilityRegistry()
+  const tree = await mount(
+    React.createElement(AgentPage, {
+      agent: { id: "users-page" },
+      title: "User List",
+      description: "Manage your users and their roles here.",
+    }),
+  )
+
+  const [capability] = registry.describeAll()
+  assert.equal(capability?.kind, "page")
+  assert.equal(capability?.label, "User List")
+  assert.equal(capability?.description, "Manage your users and their roles here.")
+  assert.deepEqual(capability?.actions, [])
+  assert.deepEqual(registry.read("users-page"), {
+    title: "User List",
+    description: "Manage your users and their roles here.",
+    path: "/",
+  })
+
+  await tree.unmount()
+})
+
+test("AgentPage without a description reports null rather than omitting the key", async () => {
+  const registry = getCapabilityRegistry()
+  const tree = await mount(
+    React.createElement(AgentPage, { agent: { id: "bare" }, title: "Dashboard" }),
+  )
+
+  assert.equal(
+    (registry.read("bare") as { description: string | null }).description,
+    null,
+  )
+
+  await tree.unmount()
+})
+
+/**
+ * Identity precedence: an explicit `agent.id` wins; the element's own id is
+ * adopted unless it is in a React-generated shape, which is the very
+ * instability identity exists to escape; with no id anywhere, the resolved
+ * label becomes the id; with no label either, the generated form is the last
+ * resort.
+ */
+test("an explicit agent id wins over the label-derived form", async () => {
+  const registry = getCapabilityRegistry()
+
+  function Explicit() {
+    useCapability({
+      agent: { id: "chosen", label: "Invite User" },
+      kind: "tabs",
+      read: () => ({}),
+      actions: {},
+    })
+    return null
+  }
+
+  const tree = await mount(React.createElement(Explicit))
+  assert.deepEqual(registry.list().map((capability) => capability.id), ["chosen"])
+  await tree.unmount()
+})
+
+test("a React-generated element id is ignored in favour of the label-derived id", async () => {
+  const registry = getCapabilityRegistry()
+
+  function GeneratedElementId() {
+    // shadcn's Form builds ids like `_r_57_-form-item` from useId output.
+    const elementId = `${React.useId()}-form-item`
+    useCapability({
+      agent: agentWithElementId(undefined, elementId),
+      kind: "input",
+      defaultLabel: "Email",
+      read: () => ({}),
+      actions: {},
+    })
+    return null
+  }
+
+  const tree = await mount(React.createElement(GeneratedElementId))
+  assert.deepEqual(registry.list().map((capability) => capability.id), ["input.email"])
+  await tree.unmount()
+})
+
+test("a real application element id is adopted as identity", async () => {
+  const registry = getCapabilityRegistry()
+
+  function NamedField() {
+    useCapability({
+      agent: agentWithElementId(undefined, "invite-email"),
+      kind: "input",
+      defaultLabel: "Email",
+      read: () => ({}),
+      actions: {},
+    })
+    return null
+  }
+
+  const tree = await mount(React.createElement(NamedField))
+  assert.deepEqual(registry.list().map((capability) => capability.id), [
+    "invite-email",
+  ])
+  await tree.unmount()
+})
+
+test("with no label the generated form is the last resort", async () => {
+  const registry = getCapabilityRegistry()
+
+  function Anonymous() {
+    useCapability({ kind: "tabs", read: () => ({}), actions: {} })
+    return null
+  }
+
+  const tree = await mount(React.createElement(Anonymous))
+  const ids = registry.list().map((capability) => capability.id)
+  assert.equal(ids.length, 1)
+  assert.match(ids[0] ?? "", /^tabs_[A-Za-z0-9_.-]+$/)
   await tree.unmount()
 })

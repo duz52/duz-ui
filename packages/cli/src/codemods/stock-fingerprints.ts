@@ -27,6 +27,9 @@ export const STOCK_FINGERPRINTS: Record<string, Record<string, string[]>> = {
     "collapsible": [
       "e16c94231e7343bd56b4aa8f0d3cfd5464e73fca581a62b481eb266e3fbec223"
     ],
+    "command": [
+      "c15c0ec5651b6fa4cf63f1b64e8b2d7cd76f02d03e994ed4049e5063fc3237b2"
+    ],
     "context-menu": [
       "dbed5db45172f5d17265fbc34647b148b4f754425c44c90074641ee85b23dbe7"
     ],
@@ -121,6 +124,9 @@ export const STOCK_FINGERPRINTS: Record<string, Record<string, string[]>> = {
     ],
     "collapsible": [
       "e3fa1e37ee944c85da913968d096cae863b908838804371d6d1ee94af7dc00c2"
+    ],
+    "command": [
+      "06be632a74cdf9868e4bc6a618a62099de9d626c3da4dd185c3f708e3693599a"
     ],
     "context-menu": [
       "01042320fc77c5310972605e69ed0348c5d7e993718c15df5ff749c3e6391c7b"

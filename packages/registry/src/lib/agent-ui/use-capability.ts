@@ -58,7 +58,11 @@ export interface UseCapabilityOptions<
 }
 
 export interface CapabilityHandle {
-  /** Resolved identity, or undefined when the component opted out. */
+  /**
+   * Resolved identity, or undefined when the component opted out or has not
+   * registered yet — identity is resolved at registration, never during
+   * render.
+   */
   id: string | undefined
   registered: boolean
 }
@@ -89,6 +93,25 @@ function resolveConfig(agent: AgentProp | undefined): AgentConfig | undefined {
   return agent
 }
 
+/**
+ * Matches the shapes React's `useId()` produces — `«r1»`, `:r1:` and `_r_1_`
+ * — including ids composed from one, such as shadcn Form's
+ * `_r_57_-form-item`. The counter is base-32, so letters join the digits as
+ * it advances (`_r_e_`), and hydration spells the marker uppercase
+ * (`_R_1H1_`); the match is case-insensitive to cover both.
+ *
+ * Such an id is derived from the component's position in the React tree: it
+ * changes whenever anything above the component changes and means nothing.
+ * It is the very instability an agent-facing identity exists to escape, so it
+ * is never adopted — an element carrying one is treated as carrying no id at
+ * all, and identity falls through to the label-derived form.
+ */
+const REACT_GENERATED_ID = /«r[0-9a-v]+»|:r[0-9a-v]+:|_r_[0-9a-v]+_/i
+
+function isReactGeneratedId(id: string): boolean {
+  return REACT_GENERATED_ID.test(id)
+}
+
 export function useCapability<
   State extends CapabilityState,
   Actions extends Record<string, unknown>,
@@ -102,16 +125,26 @@ export function useCapability<
   // nothing.
   const runtime = getAgentUIRuntime()
   const { registry } = runtime
-  const generatedId = registry.createId(kind, React.useId())
-  const id = config ? (config.id ?? generatedId) : undefined
+  // The instance seed React assigned to this component. It is stable for the
+  // component's lifetime, which is what lets the registry hand a
+  // re-registering instance back the derived id it held before.
+  const seed = React.useId()
   const container = useAgentContainer()
   const explicitLabel = config?.label
   const containerItemLabel = container?.itemLabel
+  const containerItemKey = container?.itemKey
   // The `agent` prop wins over the option, exactly as it does for `label`.
   const resolvedDescription = config?.description ?? description
   // The `agent` prop wins over the option, and the option over the container
   // the capability was rendered inside.
   const resolvedOwner = config?.owner ?? owner ?? container?.ownerId
+  // An explicit `agent.id` always wins — but an id in React's generated shape
+  // is never adopted, whichever channel carried it in: an application that
+  // forwards one is forwarding the same position-derived instability the
+  // element-id channel must reject.
+  const explicitId =
+    config?.id !== undefined && !isReactGeneratedId(config.id) ? config.id : undefined
+  const enabled = config !== undefined
 
   // The label the capability registers under. An explicit `agent.label` wins
   // over everything. Otherwise, when a container names the position this
@@ -131,6 +164,25 @@ export function useCapability<
       ? itemLabel
       : `${itemLabel} — ${defaultLabel}`
   }, [explicitLabel, containerItemLabel, defaultLabel])
+
+  // The source the capability's id is derived from, mirroring `resolveLabel`
+  // with the container's `itemKey` in `itemLabel`'s place: the label may name
+  // a position ("row 3: ada@lovelace.dev — Checkbox"), which is right for
+  // display and wrong for identity, while the key names the item and nothing
+  // else. A container that supplies a key whose resolver resolves to nothing
+  // — a table row whose every cell is empty — leaves no stable identity to
+  // derive, and the capability falls to the generated form rather than
+  // carrying a position in its id.
+  const resolveIdentitySource = React.useCallback((): string | undefined => {
+    if (explicitLabel !== undefined) return explicitLabel
+    const itemKey =
+      typeof containerItemKey === "function" ? containerItemKey() : containerItemKey
+    if (containerItemKey !== undefined && itemKey === undefined) return undefined
+    if (itemKey !== undefined) {
+      return defaultLabel === undefined ? itemKey : `${itemKey} — ${defaultLabel}`
+    }
+    return resolveLabel()
+  }, [explicitLabel, containerItemKey, defaultLabel, resolveLabel])
 
   const actionKey = Object.keys(actions).sort().join(" ")
   const actionNames = React.useMemo(
@@ -173,14 +225,35 @@ export function useCapability<
     })
   }, [])
 
-  const [registered, setRegistered] = React.useState(false)
+  // Identity is a registration-time fact: it is resolved here, in the effect,
+  // never during render — a container's item key lives in text that only
+  // exists once the subtree is mounted, and the registry's discriminator
+  // bookkeeping is a side effect a render must not run. The resolved id is
+  // held in state so the handle can report it; a container that needs its id
+  // during render (to name itself as owner) receives undefined for the first
+  // pass, and its descendants re-register once the owner context carries the
+  // real id.
+  const [registeredId, setRegisteredId] = React.useState<string | undefined>(
+    undefined,
+  )
 
   React.useEffect(() => {
-    if (!id) return
+    if (!enabled) return
 
     // The adapter is connected because a capability committed, so a
     // discarded render connects nothing and `agent={false}` connects nothing.
     runtime.activate()
+
+    // Identity precedence: an explicit `agent.id` wins; otherwise the id is
+    // derived from what the capability can say about itself, scoped by its
+    // owner; with nothing to say, the generated form is the last resort.
+    const identitySource =
+      explicitId === undefined ? resolveIdentitySource() : undefined
+    const id =
+      explicitId ??
+      (identitySource !== undefined
+        ? registry.deriveId(resolvedOwner, kind, identitySource, seed)
+        : registry.createId(kind, seed))
 
     const capability: Capability<State, Actions> = {
       id,
@@ -213,22 +286,25 @@ export function useCapability<
     }
 
     const unregister = registry.register(capability as Capability)
-    setRegistered(true)
+    setRegisteredId(id)
     return () => {
       unregister()
-      setRegistered(false)
+      setRegisteredId(undefined)
     }
   }, [
+    enabled,
     runtime,
     registry,
-    id,
+    explicitId,
     kind,
     resolveLabel,
+    resolveIdentitySource,
     resolvedDescription,
     resolvedOwner,
     actionNames,
     waitForCommit,
+    seed,
   ])
 
-  return { id, registered }
+  return { id: registeredId, registered: registeredId !== undefined }
 }

@@ -3,28 +3,41 @@
 /**
  * Agent UI — Command.
  *
- * Wraps `cmdk` and binds exactly one part of it: the search input. Typing
- * into a command palette is setting a search string and nothing else, so
- * CommandInput carries the same `input` capability as Input — same state,
- * same actions, same refusals — driven through the native value channel of
- * the <input> element cmdk renders.
+ * A command palette is a text box and a list of things you press, and both
+ * already exist in the protocol:
  *
- * The items are deliberately not bound. CommandItem's meaning is the
- * application's onSelect handler, not the component's own state — a
- * component cannot know what that handler means, and exposing it would let
- * an agent invoke arbitrary application logic the application never
- * declared. The root's value/onValueChange is the highlighted item, not a
- * chosen one; exposing it would advertise a choice that does nothing. Use
- * AgentAction to declare an explicit agent action when needed.
+ *  - CommandInput carries the same `input` capability as Input — same state,
+ *    same actions, same refusals. cmdk owns the search string: Command's
+ *    value/onValueChange is the highlighted item, while the Input's pair is
+ *    the search text. Holding it through useControllableState lets the
+ *    application own it too, and gives the agent's set_value the channel
+ *    typing uses, so a set filters the list exactly like a keystroke.
+ *  - CommandItem is a thing you press: `kind: "button"`, whose `button_press`
+ *    tool already exists — a dedicated item kind would multiply the protocol
+ *    for no gain. The press goes through element.click(), like Button's.
+ *  - Command is `kind: "content"` and owns the rest: the search string, how
+ *    many items the current filter left mounted, and the empty text — enough
+ *    to see at a glance whether a filter matched anything. It contributes its
+ *    capability id as the container owner, so the input and the items nest
+ *    under the palette instead of the page, and sets no itemLabel: an item's
+ *    own name is already specific.
+ *
+ * An item cmdk has filtered out is unmounted and registers nothing — after
+ * `input_set_value`, listing the palette shows exactly the matches.
+ * CommandDialog adds nothing of its own: the dialog and the palette already
+ * provide everything.
  */
 
 import * as React from "react"
-import { Command as CommandPrimitive } from "cmdk"
+import { Command as CommandPrimitive, useCommandState } from "cmdk"
 
 import { cn } from "@/lib/utils"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { readText } from "@/lib/agent-ui/agent-content"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import {
   Dialog,
@@ -38,20 +51,6 @@ import {
   InputGroupAddon,
 } from "@/components/radix/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
-
-// A native <input> has exactly one semantic channel for changing its value:
-// setting the .value property and letting the input event propagate. cmdk's
-// Input renders a native <input> and listens to React's onChange — a
-// delegated listener for that native event — so the channel works whether
-// the search string is controlled or owned by cmdk's store.
-function setNativeValue(node: HTMLInputElement, value: string) {
-  const descriptor = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value",
-  )
-  descriptor?.set?.call(node, value)
-  node.dispatchEvent(new Event("input", { bubbles: true }))
-}
 
 function assertMutable(node: HTMLInputElement | null): HTMLInputElement {
   if (!node) {
@@ -79,19 +78,113 @@ type InputActions = {
   clear: Record<string, never>
 }
 
+/** Cap for the empty-state text a palette read reports. */
+const EMPTY_MAX_LENGTH = 200
+
+/** Cap for a command item's resolved name, matching the shared resolver. */
+const ITEM_NAME_MAX_LENGTH = 100
+
+/**
+ * Resolves a command item's accessible name. The item's element is
+ * `role="option"`, which the accessible-name specification takes its name
+ * from content — but the shared resolver's content-named list stops at the
+ * menu-item roles, so the item walks the same precedence here: an explicit
+ * `aria-label` or `aria-labelledby` wins, otherwise the item's own text is
+ * its name.
+ */
+function useCommandItemName(
+  ref: React.RefObject<HTMLElement | null>,
+  fallback: string,
+): string {
+  const [name, setName] = React.useState(fallback)
+
+  React.useLayoutEffect(() => {
+    const element = ref.current
+    if (!element) return
+
+    const labelledBy = element.getAttribute("aria-labelledby")
+    const resolved =
+      element.getAttribute("aria-label")?.trim() ||
+      (labelledBy
+        ? labelledBy
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((id) => document.getElementById(id)?.textContent ?? "")
+            .join(" ")
+            .trim()
+        : "") ||
+      readText(element, ITEM_NAME_MAX_LENGTH) ||
+      fallback
+    if (resolved !== name) {
+      setName(resolved)
+    }
+  })
+
+  return name
+}
+
+type CommandContentState = {
+  search: string
+  itemCount: number
+  emptyText: string | null
+}
+
+type CommandItemState = {
+  label: string
+  disabled: boolean
+}
+
+type CommandItemActions = {
+  press: Record<string, never>
+}
+
 function Command({
   className,
+  ref,
+  agent,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive>) {
+}: React.ComponentProps<typeof CommandPrimitive> & {
+  agent?: AgentProp
+}) {
+  const rootRef = React.useRef<HTMLDivElement>(null)
+  const mergedRef = useMergedRef(ref, rootRef)
+
+  // Reads are pull-based: they run only when an agent calls ui_list or
+  // ui_read, never on render and never in an effect. The committed DOM is
+  // the truth: the input's value is the search string, and the items cmdk
+  // left mounted are exactly the ones its filter matched.
+  const { id } = useCapability<CommandContentState, Record<string, never>>({
+    agent,
+    kind: "content",
+    defaultLabel: "Command palette",
+    read: () => {
+      const root = rootRef.current
+      if (!root) return { search: "", itemCount: 0, emptyText: null }
+      const input = root.querySelector<HTMLInputElement>("[cmdk-input]")
+      const empty = root.querySelector("[cmdk-empty]")
+      return {
+        search: input?.value ?? "",
+        itemCount: root.querySelectorAll("[cmdk-item]").length,
+        emptyText: empty ? readText(empty, EMPTY_MAX_LENGTH) : null,
+      }
+    },
+    actions: {},
+  })
+  // Every capability rendered inside the palette — the search input, the
+  // items — belongs to it. When the palette opted out, `id` is undefined
+  // and the provider passes `ownerId: undefined`, so descendants stay roots.
   return (
-    <CommandPrimitive
-      data-slot="command"
-      className={cn(
-        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
-        className
-      )}
-      {...props}
-    />
+    <AgentContainerProvider ownerId={id}>
+      <CommandPrimitive
+        ref={mergedRef}
+        data-slot="command"
+        className={cn(
+          "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+          className
+        )}
+        {...props}
+      />
+    </AgentContainerProvider>
   )
 }
 
@@ -130,6 +223,8 @@ function CommandDialog({
 function CommandInput({
   className,
   ref,
+  value,
+  onValueChange,
   agent,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input> & {
@@ -138,6 +233,16 @@ function CommandInput({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const label = useAccessibleName(inputRef, "Command input")
   const mergedRef = useMergedRef(ref, inputRef)
+
+  // cmdk owns the search string, and the application may own it back through
+  // `value`/`onValueChange`. useControllableState is the channel both sides
+  // share: typing and the agent's set_value travel the same path, so a set
+  // filters the list exactly like a keystroke.
+  const [search, setSearch] = useControllableState({
+    prop: value,
+    defaultProp: "",
+    onChange: onValueChange,
+  })
 
   useCapability<InputState, InputActions>({
     agent,
@@ -165,12 +270,12 @@ function CommandInput({
     actions: {
       set_value(input) {
         const next = expectString(input, "value")
-        const node = assertMutable(inputRef.current)
-        setNativeValue(node, next)
+        assertMutable(inputRef.current)
+        setSearch(next)
       },
       clear() {
-        const node = assertMutable(inputRef.current)
-        setNativeValue(node, "")
+        assertMutable(inputRef.current)
+        setSearch("")
       },
     },
   })
@@ -186,6 +291,8 @@ function CommandInput({
           )}
           ref={mergedRef}
           {...props}
+          value={search}
+          onValueChange={setSearch}
         />
         <InputGroupAddon>
           <SearchIcon className="size-4 shrink-0 opacity-50" />
@@ -240,31 +347,64 @@ function CommandGroup({
   )
 }
 
-function CommandSeparator({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive.Separator>) {
-  return (
-    <CommandPrimitive.Separator
-      data-slot="command-separator"
-      className={cn("-mx-1 h-px bg-border", className)}
-      {...props}
-    />
-  )
-}
-
 function CommandItem({
   className,
   children,
+  ref,
+  disabled = false,
+  agent,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Item>) {
+}: React.ComponentProps<typeof CommandPrimitive.Item> & {
+  agent?: AgentProp
+}) {
+  const itemRef = React.useRef<HTMLDivElement>(null)
+  const label = useCommandItemName(itemRef, "Command item")
+  const mergedRef = useMergedRef(ref, itemRef)
+
+  // cmdk filters by unmounting the item's element, and this wrapper stays
+  // mounted around a primitive that renders null — so the capability follows
+  // the element instead of the component: the store's filtered count pings
+  // the wrapper whenever filtering happens, and registration is gated on the
+  // element actually being there. A filtered-out item registers nothing,
+  // which is what makes `input_set_value` narrow the palette to its matches.
+  useCommandState((state) => state.filtered.count)
+  const [rendered, setRendered] = React.useState(false)
+  React.useLayoutEffect(() => {
+    const present = itemRef.current !== null
+    if (present !== rendered) {
+      setRendered(present)
+    }
+  })
+
+  // An item is a thing you press. `kind: "button"` already exists and
+  // already carries a `button_press` tool, so modelling the item as a new
+  // kind would multiply the protocol for no gain.
+  useCapability<CommandItemState, CommandItemActions>({
+    agent: rendered ? agent : false,
+    kind: "button",
+    defaultLabel: label,
+    read: () => ({ label, disabled }),
+    actions: {
+      press() {
+        if (disabled) {
+          rejectState(`"${label}" is disabled and cannot be pressed right now.`)
+        }
+        // A click is what a person does: it runs the item's onSelect and
+        // whatever handlers the palette itself attaches to the element.
+        itemRef.current?.click()
+      },
+    },
+  })
+
   return (
     <CommandPrimitive.Item
       data-slot="command-item"
+      disabled={disabled}
       className={cn(
         "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
         className
       )}
+      ref={mergedRef}
       {...props}
     >
       {children}
@@ -284,6 +424,19 @@ function CommandShortcut({
         "ml-auto text-xs tracking-widest text-muted-foreground group-data-selected/command-item:text-foreground",
         className
       )}
+      {...props}
+    />
+  )
+}
+
+function CommandSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Separator>) {
+  return (
+    <CommandPrimitive.Separator
+      data-slot="command-separator"
+      className={cn("-mx-1 h-px bg-border", className)}
       {...props}
     />
   )

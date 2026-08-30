@@ -1235,7 +1235,7 @@
       "name": "command",
       "type": "registry:ui",
       "title": "Command",
-      "description": "A command palette built on cmdk whose search input is readable and settable by an agent; item selection stays the application's own onSelect semantics.",
+      "description": "A command palette built on cmdk whose search input and items are readable and operable by an agent, and whose content read reports the search string, the matched item count and the empty text.",
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -1249,10 +1249,20 @@
       "agentUi": {
         "capabilities": [
           {
+            "kind": "content",
+            "actions": []
+          },
+          {
             "kind": "input",
             "actions": [
               "set_value",
               "clear"
+            ]
+          },
+          {
+            "kind": "button",
+            "actions": [
+              "press"
             ]
           }
         ],

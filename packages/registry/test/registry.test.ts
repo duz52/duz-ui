@@ -200,6 +200,83 @@ test("generated identity is document-local and tool-name safe", () => {
   assert.match(registry.createId("data-table", ":r2:"), /^[A-Za-z0-9_.-]+$/)
 })
 
+test("derived ids are scoped by owner and kind, and stay tool-name safe", () => {
+  const registry = freshRegistry()
+  assert.equal(registry.deriveId(undefined, "button", "Invite User", "s1"), "button.invite-user")
+  assert.equal(
+    registry.deriveId("content.table", "checkbox", "Ada — Checkbox", "s1"),
+    "content.table.checkbox.ada-checkbox",
+  )
+  // Unsafe characters never reach the id, however the label is spelled.
+  const unsafe = registry.deriveId(undefined, "button", "Invite «r1» — User!!!", "s1")
+  assert.match(unsafe, /^[A-Za-z0-9_.-]+$/)
+  // A long label cannot produce an unbounded name.
+  const long = registry.deriveId("owner", "button", "x".repeat(500), "s1")
+  assert.ok(long.length <= 120, "a derived id is capped at 120 characters")
+})
+
+test("derived uniqueness: the same three same-labelled capabilities land on the same three ids every time", () => {
+  const registry = freshRegistry()
+  const derive = (seed: string) => registry.deriveId("panel", "button", "Delete", seed)
+
+  // Three same-labelled capabilities under one owner mount one after
+  // another, each registering under the id it derived: the bare base, then
+  // numeric discriminators.
+  const ids: string[] = []
+  const offs = ["s1", "s2", "s3"].map((seed) => {
+    const id = derive(seed)
+    ids.push(id)
+    return registry.register(stub({ id }))
+  })
+  assert.deepEqual(ids, [
+    "panel.button.delete",
+    "panel.button.delete.2",
+    "panel.button.delete.3",
+  ])
+
+  // All unregistering and registering again lands on the same ids: the same
+  // tree mounting in the same order is deterministic.
+  for (const off of offs) off()
+  const again: string[] = []
+  for (const seed of ["s1", "s2", "s3"]) {
+    const id = derive(seed)
+    again.push(id)
+    const off = registry.register(stub({ id }))
+    off()
+  }
+  assert.deepEqual(again, ids)
+})
+
+test("a derived id survives a re-render that re-registers out of order", () => {
+  const registry = freshRegistry()
+  const derive = (seed: string) => registry.deriveId("panel", "button", "Delete", seed)
+
+  const first = derive("s1")
+  const offFirst = registry.register(stub({ id: first }))
+  const second = derive("s2")
+  const offSecond = registry.register(stub({ id: second }))
+  assert.deepEqual([first, second], ["panel.button.delete", "panel.button.delete.2"])
+
+  // A re-render unregisters both before either re-registers, and the
+  // re-registrations arrive in the opposite order. "Next free number" would
+  // swap the ids; the instance-held discriminator does not.
+  offFirst()
+  offSecond()
+  assert.equal(derive("s2"), second)
+  assert.equal(derive("s1"), first)
+
+  // A new instance mounting while predecessors are still live takes the
+  // lowest number no live capability holds, and keeps it across its own
+  // re-registrations.
+  const offLiveFirst = registry.register(stub({ id: first }))
+  const offLiveSecond = registry.register(stub({ id: second }))
+  const third = derive("s3")
+  assert.equal(third, "panel.button.delete.3")
+  assert.equal(derive("s3"), third)
+  offLiveFirst()
+  offLiveSecond()
+})
+
 test("require resolves without reading, and refuses an unknown id the way an agent can correct", () => {
   const registry = freshRegistry()
   let reads = 0

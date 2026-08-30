@@ -2894,3 +2894,466 @@ for (const base of BASES) {
     await tree.unmount()
   })
 }
+
+/**
+ * The command palette is the page's search box and its pressable list: the
+ * search is the same `input` capability every text box carries, the items
+ * are `button` capabilities owned by the palette, and the palette's own
+ * content read reports the search string, how many items the filter left
+ * mounted, and the empty text. The reads and tool calls below sit outside
+ * `act`, exactly like every tool call in this file: a read is answered from
+ * the committed DOM, and wrapping one in `act` would defer that commit and
+ * answer with pre-transition state.
+ *
+ * `settle` waits out one extra hop the palette has and other components do
+ * not: the search value commits with the input, and cmdk syncs its store
+ * from the committed value in a passive effect, so the filtered item list
+ * lands one render after the tool has reported the input's new state. A real
+ * agent's next tool call arrives in a later message and always sees the
+ * settled list; the test waits the same way.
+ */
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 50))
+}
+
+for (const base of BASES) {
+  test(`[${base}] command: a palette registers its content, its input and its items, all owned by the palette`, async () => {
+    const mod = modules.get(`${base}/command`)
+    assert.ok(mod, `the ${base} command module must load`)
+    const id = `${base}-command-palette`
+    const tree = await mount(
+      React.createElement(
+        mod.Command,
+        { agent: { id } },
+        React.createElement(mod.CommandInput, null),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(mod.CommandEmpty, null, "No results."),
+          React.createElement(mod.CommandItem, null, "Northwind Traders"),
+          React.createElement(mod.CommandItem, null, "Adventure Works"),
+          React.createElement(
+            mod.CommandItem,
+            { disabled: true },
+            "Archived Depot",
+          ),
+        ),
+      ),
+    )
+
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .map((capability) => ({
+          kind: capability.kind,
+          label: capability.label,
+          owner: capability.owner,
+        }))
+        .sort((a, b) => (a.kind + a.label).localeCompare(b.kind + b.label)),
+      [
+        { kind: "button", label: "Adventure Works", owner: id },
+        { kind: "button", label: "Archived Depot", owner: id },
+        { kind: "button", label: "Northwind Traders", owner: id },
+        { kind: "content", label: "Command palette", owner: undefined },
+        { kind: "input", label: "Command input", owner: id },
+      ],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] command: input_set_value filters the list to the matching item`, async () => {
+    const mod = modules.get(`${base}/command`)
+    assert.ok(mod, `the ${base} command module must load`)
+    const id = `${base}-command-filter`
+    const tree = await mount(
+      React.createElement(
+        mod.Command,
+        { agent: { id } },
+        React.createElement(mod.CommandInput, null),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(mod.CommandEmpty, null, "No results."),
+          React.createElement(mod.CommandItem, null, "Northwind Traders"),
+          React.createElement(mod.CommandItem, null, "Adventure Works"),
+          React.createElement(mod.CommandItem, null, "Archived Depot"),
+        ),
+      ),
+    )
+
+    const palette = registry
+      .describeAll()
+      .find((capability) => capability.kind === "content")
+    const input = registry
+      .describeAll()
+      .find((capability) => capability.kind === "input")
+    assert.ok(palette && input, "the palette and its input must register")
+
+    await tool("input_set_value").execute({ target: input.id, value: "northwind" })
+    await settle()
+
+    // A filtered-out item is unmounted, so it registers nothing: listing the
+    // palette shows exactly the matches.
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .filter((capability) => capability.kind === "button")
+        .map((capability) => capability.label),
+      ["Northwind Traders"],
+    )
+    assert.deepEqual(registry.read(palette.id), {
+      search: "northwind",
+      itemCount: 1,
+      emptyText: null,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] command: a term matching nothing leaves no items and reports the empty text`, async () => {
+    const mod = modules.get(`${base}/command`)
+    assert.ok(mod, `the ${base} command module must load`)
+    const id = `${base}-command-no-match`
+    const tree = await mount(
+      React.createElement(
+        mod.Command,
+        { agent: { id } },
+        React.createElement(mod.CommandInput, null),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(mod.CommandEmpty, null, "No results."),
+          React.createElement(mod.CommandItem, null, "Northwind Traders"),
+          React.createElement(mod.CommandItem, null, "Adventure Works"),
+          React.createElement(mod.CommandItem, null, "Archived Depot"),
+        ),
+      ),
+    )
+
+    const palette = registry
+      .describeAll()
+      .find((capability) => capability.kind === "content")
+    const input = registry
+      .describeAll()
+      .find((capability) => capability.kind === "input")
+    assert.ok(palette && input, "the palette and its input must register")
+
+    await tool("input_set_value").execute({ target: input.id, value: "zzz" })
+    await settle()
+
+    assert.deepEqual(
+      registry.describeAll().filter((capability) => capability.kind === "button"),
+      [],
+    )
+    assert.deepEqual(registry.read(palette.id), {
+      search: "zzz",
+      itemCount: 0,
+      emptyText: "No results.",
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] command: button_press on an item fires that item's onSelect`, async () => {
+    const mod = modules.get(`${base}/command`)
+    assert.ok(mod, `the ${base} command module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Command,
+        null,
+        React.createElement(mod.CommandInput, null),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(
+            mod.CommandItem,
+            { onSelect: () => seen.push("northwind") },
+            "Northwind Traders",
+          ),
+          React.createElement(
+            mod.CommandItem,
+            { onSelect: () => seen.push("adventure") },
+            "Adventure Works",
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find(
+        (capability) =>
+          capability.kind === "button" && capability.label === "Northwind Traders",
+      )
+    assert.ok(item, "the palette's items must register as pressable buttons")
+
+    await tool("button_press").execute({ target: item.id })
+
+    assert.deepEqual(seen, ["northwind"])
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] command: pressing a disabled item is rejected naming the item and runs nothing`, async () => {
+    const mod = modules.get(`${base}/command`)
+    assert.ok(mod, `the ${base} command module must load`)
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Command,
+        null,
+        React.createElement(mod.CommandInput, null),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(
+            mod.CommandItem,
+            { onSelect: () => seen.push("northwind") },
+            "Northwind Traders",
+          ),
+          React.createElement(
+            mod.CommandItem,
+            { disabled: true, onSelect: () => seen.push("archived") },
+            "Archived Depot",
+          ),
+        ),
+      ),
+    )
+
+    const item = registry
+      .describeAll()
+      .find(
+        (capability) =>
+          capability.kind === "button" && capability.label === "Archived Depot",
+      )
+    assert.ok(item, "the disabled item must register as a pressable button")
+
+    const output = JSON.parse(await tool("button_press").execute({ target: item.id }))
+
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.equal(
+      output.error.message,
+      '"Archived Depot" is disabled and cannot be pressed right now.',
+    )
+    assert.deepEqual(
+      seen,
+      [],
+      "a disabled item must never run the application's handler",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] command: agent={false} on the palette registers nothing for the palette itself`, async () => {
+    const mod = modules.get(`${base}/command`)
+    assert.ok(mod, `the ${base} command module must load`)
+    const tree = await mount(
+      React.createElement(
+        mod.Command,
+        { agent: false },
+        React.createElement(mod.CommandInput, null),
+        React.createElement(
+          mod.CommandList,
+          null,
+          React.createElement(mod.CommandItem, null, "Northwind Traders"),
+        ),
+      ),
+    )
+
+    // The palette itself registers nothing; its input and item carry their
+    // own agent props, so they register as roots with no owner.
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        kind: capability.kind,
+        owner: capability.owner,
+      })),
+      [
+        { kind: "input", owner: undefined },
+        { kind: "button", owner: undefined },
+      ],
+    )
+
+    await tree.unmount()
+  })
+}
+
+/**
+ * The acceptance criterion for agent-facing identity: an element's id is an
+ * address an agent plans against, so it must survive the tree changing around
+ * it. Both tests mount a table whose capabilities have no explicit ids —
+ * identity is derived from what they can say about themselves — and are
+ * written against the strongest form of each disturbance: the sibling test
+ * keys the table so the re-render REMOUNTS it with fresh React seeds, which
+ * is what a position-derived id could never survive.
+ *
+ * The renders sit inside `act`; the reads sit outside it, like every read in
+ * this file.
+ */
+for (const base of BASES) {
+  test(`[${base}] table: every capability id survives a re-render that changes the tree above it`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+
+    function Host({ sibling }: { sibling: boolean }) {
+      return React.createElement(
+        "div",
+        null,
+        sibling ? React.createElement("p", null, "A section above") : null,
+        React.createElement(
+          mod.Table,
+          // The key moves with the sibling so the re-render remounts the
+          // table — new React seeds, new fibers — the strongest form of
+          // "the tree above it changed".
+          { key: sibling ? "shifted" : "alone" },
+          React.createElement(
+            mod.TableHeader,
+            null,
+            React.createElement(
+              mod.TableRow,
+              null,
+              React.createElement(mod.TableHead, null, "Name"),
+              React.createElement(mod.TableHead, null, "Email"),
+            ),
+          ),
+          React.createElement(
+            mod.TableBody,
+            null,
+            React.createElement(
+              mod.TableRow,
+              null,
+              React.createElement(
+                mod.TableCell,
+                null,
+                React.createElement(checkbox.Checkbox),
+              ),
+              React.createElement(mod.TableCell, null, "Ada"),
+              React.createElement(mod.TableCell, null, "ada@lovelace.dev"),
+            ),
+            React.createElement(
+              mod.TableRow,
+              null,
+              React.createElement(
+                mod.TableCell,
+                null,
+                React.createElement(checkbox.Checkbox),
+              ),
+              React.createElement(mod.TableCell, null, "Grace"),
+              React.createElement(mod.TableCell, null, "grace@example.com"),
+            ),
+          ),
+        ),
+      )
+    }
+
+    const container = dom.window.document.createElement("div")
+    dom.window.document.body.appendChild(container)
+    const root = createRoot(container)
+    await withAct(async () => {
+      root.render(React.createElement(Host, { sibling: false }))
+    })
+
+    // Identity is content-derived: the table by its kind and label, each row
+    // control by its row's first meaningful cell text.
+    const before = registry.describeAll().map((capability) => capability.id).sort()
+    assert.deepEqual(before, [
+      "content.table",
+      "content.table.checkbox.ada-checkbox",
+      "content.table.checkbox.grace-checkbox",
+    ])
+
+    await withAct(async () => {
+      root.render(React.createElement(Host, { sibling: true }))
+    })
+
+    assert.deepEqual(
+      registry.describeAll().map((capability) => capability.id).sort(),
+      before,
+      "a re-render that changes the tree above the table must move no id",
+    )
+
+    await withAct(async () => {
+      root.unmount()
+    })
+    container.remove()
+  })
+
+  test(`[${base}] table: re-sorting the rows keeps a row control's id while its label's row number changes`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+
+    function Host({ rows }: { rows: readonly [string, string][] }) {
+      return React.createElement(
+        mod.Table,
+        null,
+        React.createElement(
+          mod.TableBody,
+          null,
+          rows.map(([name, email]) =>
+            React.createElement(
+              mod.TableRow,
+              { key: name },
+              React.createElement(
+                mod.TableCell,
+                null,
+                React.createElement(checkbox.Checkbox),
+              ),
+              React.createElement(mod.TableCell, null, name),
+              React.createElement(mod.TableCell, null, email),
+            ),
+          ),
+        ),
+      )
+    }
+
+    const container = dom.window.document.createElement("div")
+    dom.window.document.body.appendChild(container)
+    const root = createRoot(container)
+    await withAct(async () => {
+      root.render(
+        React.createElement(Host, {
+          rows: [
+            ["Ada", "ada@lovelace.dev"],
+            ["Grace", "grace@example.com"],
+          ],
+        }),
+      )
+    })
+
+    // The row control is addressed by id, not by its position: the id is
+    // derived from the row's name, the label carries the row number for
+    // display.
+    const adaId = "content.table.checkbox.ada-checkbox"
+    const ada = registry.get(adaId)
+    assert.ok(ada, "the Ada row's checkbox must register under its row's name")
+    assert.equal(ada.label, "row 1: Ada — Checkbox")
+
+    await withAct(async () => {
+      root.render(
+        React.createElement(Host, {
+          rows: [
+            ["Grace", "grace@example.com"],
+            ["Ada", "ada@lovelace.dev"],
+          ],
+        }),
+      )
+    })
+
+    const moved = registry.get(adaId)
+    assert.ok(moved, "the same control keeps its id across the sort")
+    assert.equal(
+      moved.label,
+      "row 2: Ada — Checkbox",
+      "the label follows the row's new position",
+    )
+
+    await withAct(async () => {
+      root.unmount()
+    })
+    container.remove()
+  })
+}

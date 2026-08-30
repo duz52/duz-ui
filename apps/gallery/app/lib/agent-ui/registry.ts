@@ -37,13 +37,72 @@ export interface CapabilityRegistry {
   invoke(id: string, action: string, input: unknown): Promise<CapabilityResult>
   /** Notified whenever the set of live capabilities changes. */
   subscribe(listener: () => void): () => void
-  /** Document-local identity for a capability that did not supply one. */
+  /** Document-local identity for a capability that resolved no label. */
   createId(kind: string, seed: string): string
+  /**
+   * Reserves a deterministic document-local id derived from what the
+   * capability can say about itself: `[owner, kind, slug(source)]`, joined
+   * with dots, capped at 120 characters and stripped to tool-name-safe
+   * characters.
+   *
+   * Two capabilities may derive the same base — two "Delete" buttons under
+   * one owner — so the id is made unique with a numeric discriminator: the
+   * first instance takes the bare base, later ones `base.2`, `base.3`, ….
+   *
+   * The discriminator belongs to the capability INSTANCE (`seed` — React's
+   * useId, stable for the instance's lifetime), not to the moment of
+   * registration: the registry remembers the number each seed held, and a
+   * re-registering instance reclaims it no matter how registration and
+   * unregistration interleave. That is what defeats the case where a new
+   * capability registers before its predecessor unregisters — there,
+   * "append the next free number" hands out a different id and the churn
+   * this scheme exists to remove comes straight back. A fresh instance takes
+   * the lowest number no live capability holds and forgets the dead instance
+   * that held it, so the memory per base stays bounded by the base's peak
+   * live instances and a remount — a dialog closed and reopened, whose
+   * content carries new seeds — numbers from 1 again and lands on the ids it
+   * had before.
+   */
+  deriveId(
+    owner: string | undefined,
+    kind: string,
+    source: string,
+    seed: string,
+  ): string
+}
+
+/** Characters an id may carry and still be a safe tool name. */
+const UNSAFE_ID_CHARACTERS = /[^a-zA-Z0-9_.-]/g
+
+/** A derived id is capped so a long label cannot produce an unbounded name. */
+const DERIVED_ID_MAX_LENGTH = 120
+
+/**
+ * Reduces a resolved label to the slug a derived id carries:
+ * "Invite User" → "invite-user". Runs of anything outside latin letters and
+ * digits collapse into one separator, so the result stays tool-name-safe.
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+/** The base id itself for discriminator 1, `base.2`, `base.3`, … after it. */
+function numberedId(base: string, number: number): string {
+  return number === 1 ? base : `${base}.${number}`
 }
 
 function createRegistry(): CapabilityRegistry {
   const capabilities = new Map<string, Capability>()
   const listeners = new Set<() => void>()
+  // Per derived base: the discriminator number each capability instance (its
+  // React useId seed) held when it last registered. Entries are forgotten
+  // when a fresh instance reuses their number, which keeps the memory per
+  // base bounded by the base's peak live instances.
+  const derivedNumbers = new Map<string, Map<string, number>>()
+
   // Snapshot for `useSyncExternalStore`. Held here because the registry is the
   // only thing that knows when the set of capabilities actually changed.
   let snapshot: CapabilityDescriptor[] | undefined
@@ -135,6 +194,42 @@ function createRegistry(): CapabilityRegistry {
 
     createId(kind, seed) {
       return `${kind}_${seed.replace(/[^a-zA-Z0-9_-]/g, "")}`
+    },
+
+    deriveId(owner, kind, source, seed) {
+      const base = [owner, kind, slugify(source)]
+        .filter((part) => part !== undefined && part !== "")
+        .join(".")
+        .replace(UNSAFE_ID_CHARACTERS, "")
+        .slice(0, DERIVED_ID_MAX_LENGTH)
+      let numbers = derivedNumbers.get(base)
+      if (!numbers) {
+        numbers = new Map()
+        derivedNumbers.set(base, numbers)
+      }
+
+      // A re-registering instance reclaims the discriminator it held.
+      const remembered = numbers.get(seed)
+      if (remembered !== undefined) {
+        const candidate = numberedId(base, remembered)
+        if (!capabilities.has(candidate)) return candidate
+        // The seed's slot is held by another live capability — two document
+        // roots can share a useId seed — so this registration takes a fresh
+        // number below without displacing the remembered one.
+      }
+
+      // A fresh instance takes the lowest number no live capability holds;
+      // the dead instance that held it is forgotten.
+      let number = 1
+      while (capabilities.has(numberedId(base, number))) number += 1
+      for (const [holder, held] of numbers) {
+        if (held === number) {
+          numbers.delete(holder)
+          break
+        }
+      }
+      numbers.set(seed, number)
+      return numberedId(base, number)
     },
   }
 }

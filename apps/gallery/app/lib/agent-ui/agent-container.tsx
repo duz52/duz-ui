@@ -25,6 +25,15 @@ export interface AgentContainer {
    * descendant capability registers, never during render.
    */
   itemLabel?: string | (() => string)
+  /**
+   * What this position is called for IDENTITY, e.g. "ada@lovelace.dev" — the
+   * item and nothing else, with no position in it. A descendant's id is
+   * derived from this while its label is composed from `itemLabel`, so the
+   * label can tell an agent where to look ("row 3") while the id survives
+   * sorting and paging. Same resolver contract as `itemLabel`. When a
+   * container supplies no `itemKey`, identity falls back to `itemLabel`.
+   */
+  itemKey?: string | (() => string | undefined)
 }
 
 /**
@@ -49,11 +58,13 @@ const AgentContainerContext = React.createContext<ContainerValue | null>(null)
 export function AgentContainerProvider({
   ownerId,
   itemLabel,
+  itemKey,
   claimItemPosition,
   children,
 }: {
   ownerId?: string
   itemLabel?: string | (() => string)
+  itemKey?: string | (() => string | undefined)
   claimItemPosition?: (identity: string) => number
   children: React.ReactNode
 }) {
@@ -65,9 +76,10 @@ export function AgentContainerProvider({
     () => ({
       ownerId: ownerId ?? outer?.ownerId,
       itemLabel: itemLabel ?? outer?.itemLabel,
+      itemKey: itemKey ?? outer?.itemKey,
       ...(claimItemPosition ? { claimItemPosition } : {}),
     }),
-    [ownerId, itemLabel, claimItemPosition, outer],
+    [ownerId, itemLabel, itemKey, claimItemPosition, outer],
   )
   return (
     <AgentContainerContext.Provider value={value}>
