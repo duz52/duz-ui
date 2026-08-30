@@ -5,6 +5,7 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -55,7 +56,7 @@ function AlertDialog({
 
   const [title, setTitle] = React.useState<string | null>(null)
 
-  useCapability<AlertDialogState, AlertDialogActions>({
+  const { id } = useCapability<AlertDialogState, AlertDialogActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Alert dialog",
@@ -75,15 +76,21 @@ function AlertDialog({
     [open, setOpen],
   )
 
+  // The content mounts only while the alert dialog is open; every
+  // capability it registers belongs to the alert dialog. When the alert
+  // dialog opted out, `id` is undefined and the provider passes
+  // `ownerId: undefined`, so descendants stay roots.
   return (
-    <AlertDialogContext.Provider value={contextValue}>
-      <AlertDialogPrimitive.Root
-        data-slot="alert-dialog"
-        open={open}
-        onOpenChange={setOpen}
-        {...props}
-      />
-    </AlertDialogContext.Provider>
+    <AgentContainerProvider ownerId={id}>
+      <AlertDialogContext.Provider value={contextValue}>
+        <AlertDialogPrimitive.Root
+          data-slot="alert-dialog"
+          open={open}
+          onOpenChange={setOpen}
+          {...props}
+        />
+      </AlertDialogContext.Provider>
+    </AgentContainerProvider>
   )
 }
 

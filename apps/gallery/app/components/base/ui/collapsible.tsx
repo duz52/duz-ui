@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
 
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
@@ -66,7 +67,7 @@ function Collapsible({
     setTriggerLabel((prev) => (prev === label ? prev : label))
   }, [])
 
-  useCapability<CollapsibleState, CollapsibleActions>({
+  const { id } = useCapability<CollapsibleState, CollapsibleActions>({
     agent,
     kind: "disclosure",
     defaultLabel: triggerLabel ?? "Collapsible",
@@ -98,16 +99,22 @@ function Collapsible({
     [reportTriggerLabel],
   )
 
+  // The content mounts only while the collapsible is open; every
+  // capability it registers belongs to the collapsible. When the
+  // collapsible opted out, `id` is undefined and the provider passes
+  // `ownerId: undefined`, so descendants stay roots.
   return (
-    <CollapsibleTriggerContext.Provider value={contextValue}>
-      <CollapsiblePrimitive.Root
-        data-slot="collapsible"
-        open={open}
-        onOpenChange={(next) => setOpen(next)}
-        disabled={disabled}
-        {...props}
-      />
-    </CollapsibleTriggerContext.Provider>
+    <AgentContainerProvider ownerId={id}>
+      <CollapsibleTriggerContext.Provider value={contextValue}>
+        <CollapsiblePrimitive.Root
+          data-slot="collapsible"
+          open={open}
+          onOpenChange={(next) => setOpen(next)}
+          disabled={disabled}
+          {...props}
+        />
+      </CollapsibleTriggerContext.Provider>
+    </AgentContainerProvider>
   )
 }
 

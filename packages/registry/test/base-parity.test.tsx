@@ -3357,3 +3357,208 @@ for (const base of BASES) {
     container.remove()
   })
 }
+
+/**
+ * A disclosure container owns the content it opens. Popover and dialog
+ * content mounts only while the container is open, and every capability
+ * that content registers belongs to the container that opened it: a filter
+ * popover's options must be its children, not anonymous roots that reuse
+ * the base id of every other palette on the page. Ownership is what lets an
+ * agent open `disclosure.status` and ask it for its children.
+ *
+ * The tool calls sit outside `act`, exactly like every tool call in this
+ * file: opening commits the content's mount, and the content's capabilities
+ * register from that commit, so wrapping the call would answer with
+ * pre-transition state.
+ */
+for (const base of BASES) {
+  test(`[${base}] popover: a closed popover has no children; opening it reveals its content, each owned by the popover`, async () => {
+    const mod = modules.get(`${base}/popover`)
+    assert.ok(mod, `the ${base} popover module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const id = `${base}-popover-owned-content`
+    const tree = await mount(
+      React.createElement(
+        mod.Popover,
+        { agent: { id } },
+        React.createElement(mod.PopoverTrigger, null, "Filter status"),
+        React.createElement(
+          mod.PopoverContent,
+          null,
+          React.createElement(checkbox.Checkbox),
+        ),
+      ),
+    )
+
+    // The content is unmounted while closed, so the popover honestly lists
+    // no children.
+    const closed = JSON.parse(await tool("ui_list").execute({ target: id }))
+    assert.deepEqual(closed.elements, [])
+
+    await tool("disclosure_open").execute({ target: id })
+
+    const listed = JSON.parse(await tool("ui_list").execute({ target: id }))
+    assert.deepEqual(
+      listed.elements.map((element: { kind: string; label?: string }) => ({
+        kind: element.kind,
+        label: element.label,
+      })),
+      [{ kind: "checkbox", label: "Checkbox" }],
+    )
+
+    const control = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(control, "the popover's content must register a capability")
+    assert.equal(
+      control.owner,
+      id,
+      "the content's capability must be owned by the popover",
+    )
+    assert.equal(control.id, listed.elements[0].id)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] dialog: content registered inside it carries the dialog as its owner`, async () => {
+    const mod = modules.get(`${base}/dialog`)
+    assert.ok(mod, `the ${base} dialog module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const id = `${base}-dialog-owned-content`
+    const tree = await mount(
+      React.createElement(
+        mod.Dialog,
+        { agent: { id } },
+        React.createElement(mod.DialogTrigger, null, "Open"),
+        React.createElement(
+          mod.DialogContent,
+          null,
+          React.createElement(mod.DialogTitle, null, "Confirm"),
+          React.createElement(checkbox.Checkbox),
+        ),
+      ),
+    )
+
+    const closed = JSON.parse(await tool("ui_list").execute({ target: id }))
+    assert.deepEqual(closed.elements, [])
+
+    await tool("dialog_open").execute({ target: id })
+
+    const listed = JSON.parse(await tool("ui_list").execute({ target: id }))
+    assert.deepEqual(
+      listed.elements.map((element: { kind: string; label?: string }) => ({
+        kind: element.kind,
+        label: element.label,
+      })),
+      [{ kind: "checkbox", label: "Checkbox" }],
+    )
+
+    const control = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(control, "the dialog's content must register a capability")
+    assert.equal(control.owner, id, "the content must be owned by the dialog")
+    assert.equal(control.id, listed.elements[0].id)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] popover: agent={false} leaves its content as roots with no owner`, async () => {
+    const mod = modules.get(`${base}/popover`)
+    assert.ok(mod, `the ${base} popover module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const tree = await mount(
+      React.createElement(
+        mod.Popover,
+        { agent: false, defaultOpen: true },
+        React.createElement(mod.PopoverTrigger, null, "Filter status"),
+        React.createElement(
+          mod.PopoverContent,
+          null,
+          React.createElement(checkbox.Checkbox),
+        ),
+      ),
+    )
+
+    // The popover registered nothing, and its provider passes `ownerId:
+    // undefined`, so the content is a root: no owner.
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        kind: capability.kind,
+        owner: capability.owner,
+      })),
+      [{ kind: "checkbox", owner: undefined }],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] popover: two popovers holding a same-named control give it different ids because its owner differs`, async () => {
+    const mod = modules.get(`${base}/popover`)
+    assert.ok(mod, `the ${base} popover module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const firstId = `${base}-popover-a`
+    const secondId = `${base}-popover-b`
+    const tree = await mount(
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          mod.Popover,
+          { agent: { id: firstId } },
+          React.createElement(mod.PopoverTrigger, null, "First"),
+          React.createElement(
+            mod.PopoverContent,
+            null,
+            React.createElement(checkbox.Checkbox),
+          ),
+        ),
+        React.createElement(
+          mod.Popover,
+          { agent: { id: secondId } },
+          React.createElement(mod.PopoverTrigger, null, "Second"),
+          React.createElement(
+            mod.PopoverContent,
+            null,
+            React.createElement(checkbox.Checkbox),
+          ),
+        ),
+      ),
+    )
+
+    // Open one popover at a time, as an agent would: each content's control
+    // registers scoped by the popover that owns it. Its identity is taken
+    // while its own popover is the one open — opening one popover's content
+    // can replace the other's on screen, so a control's registration is not
+    // guaranteed to outlive its container's replacement.
+    await tool("disclosure_open").execute({ target: firstId })
+    const first = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(first, "the first popover's content must register a checkbox")
+    assert.equal(first.label, "Checkbox")
+    assert.equal(first.owner, firstId)
+    assert.equal(first.id, `${first.owner}.checkbox.checkbox`)
+
+    await tool("disclosure_close").execute({ target: firstId })
+    await tool("disclosure_open").execute({ target: secondId })
+    const second = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(second, "the second popover's content must register a checkbox")
+    assert.equal(second.label, "Checkbox")
+    assert.equal(second.owner, secondId)
+    assert.equal(second.id, `${second.owner}.checkbox.checkbox`)
+
+    // Same kind, same label — only the scoping owner can tell them apart.
+    // An id that ignored the owner would hand the second control the first
+    // one's address; ownership scoping is what keeps the two ids distinct.
+    assert.notEqual(
+      first.id,
+      second.id,
+      "same-named controls in different owners must not share an id",
+    )
+
+    await tree.unmount()
+  })
+}

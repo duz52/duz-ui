@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 
 import { cn } from "@/lib/utils"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -56,7 +57,7 @@ function Sheet({
 
   const [title, setTitle] = React.useState<string | null>(null)
 
-  useCapability<SheetState, SheetActions>({
+  const { id } = useCapability<SheetState, SheetActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Sheet",
@@ -76,15 +77,21 @@ function Sheet({
     [open, setOpen],
   )
 
+  // The content mounts only while the sheet is open; every capability it
+  // registers belongs to the sheet. When the sheet opted out, `id` is
+  // undefined and the provider passes `ownerId: undefined`, so descendants
+  // stay roots.
   return (
-    // The Base UI root renders no element, so it carries no data-slot.
-    <SheetContext.Provider value={contextValue}>
-      <SheetPrimitive.Root
-        open={open}
-        onOpenChange={(next) => setOpen(next)}
-        {...props}
-      />
-    </SheetContext.Provider>
+    <AgentContainerProvider ownerId={id}>
+      {/* The Base UI root renders no element, so it carries no data-slot. */}
+      <SheetContext.Provider value={contextValue}>
+        <SheetPrimitive.Root
+          open={open}
+          onOpenChange={(next) => setOpen(next)}
+          {...props}
+        />
+      </SheetContext.Provider>
+    </AgentContainerProvider>
   )
 }
 

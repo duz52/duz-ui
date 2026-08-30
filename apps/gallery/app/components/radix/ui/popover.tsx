@@ -4,6 +4,7 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
@@ -63,7 +64,7 @@ function Popover({
     setTriggerLabel((prev) => (prev === label ? prev : label))
   }, [])
 
-  useCapability<PopoverState, PopoverActions>({
+  const { id } = useCapability<PopoverState, PopoverActions>({
     agent,
     kind: "disclosure",
     defaultLabel: triggerLabel ?? "Popover",
@@ -86,15 +87,21 @@ function Popover({
     [reportTriggerLabel],
   )
 
+  // The content mounts only while the popover is open; every capability it
+  // registers belongs to the popover. When the popover opted out, `id` is
+  // undefined and the provider passes `ownerId: undefined`, so descendants
+  // stay roots.
   return (
-    <PopoverTriggerContext.Provider value={contextValue}>
-      <PopoverPrimitive.Root
-        data-slot="popover"
-        open={open}
-        onOpenChange={setOpen}
-        {...props}
-      />
-    </PopoverTriggerContext.Provider>
+    <AgentContainerProvider ownerId={id}>
+      <PopoverTriggerContext.Provider value={contextValue}>
+        <PopoverPrimitive.Root
+          data-slot="popover"
+          open={open}
+          onOpenChange={setOpen}
+          {...props}
+        />
+      </PopoverTriggerContext.Provider>
+    </AgentContainerProvider>
   )
 }
 

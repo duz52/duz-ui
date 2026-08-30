@@ -6,6 +6,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -54,7 +55,7 @@ function Dialog({
 
   const [title, setTitle] = React.useState<string | null>(null)
 
-  useCapability<DialogState, DialogActions>({
+  const { id } = useCapability<DialogState, DialogActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Dialog",
@@ -74,15 +75,21 @@ function Dialog({
     [open, setOpen],
   )
 
+  // The content mounts only while the dialog is open; every capability it
+  // registers belongs to the dialog. When the dialog opted out, `id` is
+  // undefined and the provider passes `ownerId: undefined`, so descendants
+  // stay roots.
   return (
-    <DialogContext.Provider value={contextValue}>
-      <DialogPrimitive.Root
-        data-slot="dialog"
-        open={open}
-        onOpenChange={setOpen}
-        {...props}
-      />
-    </DialogContext.Provider>
+    <AgentContainerProvider ownerId={id}>
+      <DialogContext.Provider value={contextValue}>
+        <DialogPrimitive.Root
+          data-slot="dialog"
+          open={open}
+          onOpenChange={setOpen}
+          {...props}
+        />
+      </DialogContext.Provider>
+    </AgentContainerProvider>
   )
 }
 
