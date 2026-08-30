@@ -419,7 +419,7 @@ test("an unknown ui_list target is rejected with the registry's unknown_target m
   )
   assert.equal(output.ok, false)
   assert.equal(output.error.code, "unknown_target")
-  assert.match(output.error.message, /Available ids: settings\./)
+  assert.match(output.error.message, /Closest ids: settings\./)
 
   off()
 })
@@ -569,7 +569,7 @@ test("an unknown target is rejected with a message an agent can correct from", a
   ] as const) {
     const output = JSON.parse(await tools.get(name)!.execute(input))
     assert.equal(output.ok, false)
-    assert.match(output.error.message, /Available ids: settings\./)
+    assert.match(output.error.message, /Closest ids: settings\./)
   }
 
   off()

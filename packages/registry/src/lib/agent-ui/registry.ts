@@ -94,6 +94,42 @@ function numberedId(base: string, number: number): string {
   return number === 1 ? base : `${base}.${number}`
 }
 
+/**
+ * How many ids a refusal names. The message exists to be read, so it has to
+ * stay small enough to survive a tool's output budget: listing every id turned
+ * a correctable "no such element" into `output_too_large` on a page with a few
+ * hundred elements, and the agent lost the one thing that would have unstuck
+ * it. Ten is enough to spot a typo; `ui_list` is the way to see them all.
+ */
+const SUGGESTION_LIMIT = 10
+
+/** Length of the prefix two ids share, used to put likely typos first. */
+function sharedPrefixLength(a: string, b: string): number {
+  const limit = Math.min(a.length, b.length)
+  let shared = 0
+  while (shared < limit && a[shared] === b[shared]) shared += 1
+  return shared
+}
+
+function unknownTargetMessage(id: string, known: string[]): string {
+  if (known.length === 0) {
+    return `No UI element with id "${id}" is on the page. There are no agent-operable elements right now.`
+  }
+  // Nearest first, so a mistyped or stale id sits next to the one meant. Ties
+  // break on the shorter id: an owner is a likelier intent than its contents.
+  const nearest = [...known].sort((a, b) => {
+    const byPrefix = sharedPrefixLength(id, b) - sharedPrefixLength(id, a)
+    return byPrefix !== 0 ? byPrefix : a.length - b.length
+  })
+  const shown = nearest.slice(0, SUGGESTION_LIMIT)
+  const rest = known.length - shown.length
+  const tail =
+    rest > 0
+      ? `, and ${rest} more — call ui_list to see them all.`
+      : "."
+  return `No UI element with id "${id}" is on the page. Closest ids: ${shown.join(", ")}${tail}`
+}
+
 function createRegistry(): CapabilityRegistry {
   const capabilities = new Map<string, Capability>()
   const listeners = new Set<() => void>()
@@ -115,13 +151,7 @@ function createRegistry(): CapabilityRegistry {
   const requireCapability = (id: string): Capability => {
     const capability = capabilities.get(id)
     if (!capability) {
-      const known = [...capabilities.keys()]
-      throw new CapabilityError(
-        "unknown_target",
-        known.length
-          ? `No UI element with id "${id}" is on the page. Available ids: ${known.join(", ")}.`
-          : `No UI element with id "${id}" is on the page. There are no agent-operable elements right now.`,
-      )
+      throw new CapabilityError("unknown_target", unknownTargetMessage(id, [...capabilities.keys()]))
     }
     return capability
   }

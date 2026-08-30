@@ -147,7 +147,7 @@ test("an unknown target is rejected with the available ids", async () => {
     (error: unknown) => {
       assert.ok(error instanceof CapabilityError)
       assert.equal(error.code, "unknown_target")
-      assert.match(error.message, /Available ids: orders\./)
+      assert.match(error.message, /Closest ids: orders\./)
       return true
     },
   )
@@ -305,7 +305,35 @@ test("require resolves without reading, and refuses an unknown id the way an age
     (error: unknown) => {
       assert.ok(error instanceof CapabilityError)
       assert.equal(error.code, "unknown_target")
-      assert.match(error.message, /Available ids: orders\./)
+      assert.match(error.message, /Closest ids: orders\./)
+      return true
+    },
+  )
+})
+
+test("a refusal stays readable on a page with hundreds of elements", () => {
+  const registry = freshRegistry()
+  // A real dashboard with an open filter and a large table reaches this
+  // easily. Listing every id made the message 12,386 characters, which a
+  // tool's 8,000-character budget then replaced with "output_too_large" —
+  // so the agent was told the result was too big instead of being told which
+  // id to use, and lost the only thing that would have unstuck it.
+  for (let index = 0; index < 400; index += 1) {
+    registry.register(stub({ id: `content.table.checkbox.row-${index}-select-row` }))
+  }
+
+  assert.throws(
+    () => registry.require("content.table.checkbox.row-7-selct-row"),
+    (error: unknown) => {
+      assert.ok(error instanceof CapabilityError)
+      assert.equal(error.code, "unknown_target")
+      assert.ok(
+        error.message.length < 1000,
+        `the refusal must fit a tool's output budget, was ${error.message.length}`,
+      )
+      // The nearest id comes first, so a typo sits next to what was meant.
+      assert.match(error.message, /Closest ids: content\.table\.checkbox\.row-7-select-row/)
+      assert.match(error.message, /and \d+ more — call ui_list to see them all\./)
       return true
     },
   )
