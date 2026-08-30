@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { readText } from "@/lib/agent-ui/agent-content"
@@ -41,7 +42,7 @@ function Card({
 
   // Reads are pull-based: they run only when an agent calls ui_list or
   // ui_read, never on render and never in an effect.
-  useCapability<CardContentState, Record<string, never>>({
+  const { id } = useCapability<CardContentState, Record<string, never>>({
     agent,
     kind: "content",
     defaultLabel: "Card",
@@ -57,16 +58,21 @@ function Card({
     actions: {},
   })
   return (
-    <div
-      ref={mergedRef}
-      data-slot="card"
-      data-size={size}
-      className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
-        className
-      )}
-      {...props}
-    />
+    // A chart or a panel rendered inside a card is part of that card. Without
+    // this an agent reads the card as empty and the content beside it as
+    // unrelated, and has no way to tell that one is inside the other.
+    <AgentContainerProvider ownerId={id}>
+      <div
+        ref={mergedRef}
+        data-slot="card"
+        data-size={size}
+        className={cn(
+          "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+          className
+        )}
+        {...props}
+      />
+    </AgentContainerProvider>
   )
 }
 

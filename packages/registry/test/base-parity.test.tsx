@@ -4056,4 +4056,34 @@ for (const base of BASES) {
 
     await tree.unmount()
   })
+
+  test(`[${base}] card: content rendered inside a card belongs to that card`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const { AgentContent } = await import("../src/lib/agent-ui/agent-content")
+    const cardId = `${base}-card-owns-content`
+    const innerId = `${base}-card-inner-content`
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: { id: cardId } },
+        React.createElement(mod.CardTitle, null, "Overview"),
+        React.createElement(
+          AgentContent,
+          { agent: { id: innerId }, label: "Monthly revenue", value: [{ name: "Feb", total: 5764 }] },
+          React.createElement("svg", null),
+        ),
+      ),
+    )
+
+    // A chart's numbers are geometry, so the card itself reads empty. Without
+    // ownership an agent sees an empty card and an unrelated element beside
+    // it, and cannot show that one is the other's contents.
+    const inner = registry
+      .describeAll()
+      .find((capability) => capability.id === innerId)
+    assert.equal(inner?.owner, cardId)
+
+    await tree.unmount()
+  })
 }
