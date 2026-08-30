@@ -14,7 +14,7 @@
  *    typing uses, so a set filters the list exactly like a keystroke.
  *  - CommandItem is a thing you press: `kind: "button"`, whose `button_press`
  *    tool already exists — a dedicated item kind would multiply the protocol
- *    for no gain. The press goes through element.click(), like Button's.
+ *    for no gain. The press goes through pressElement(), like Button's.
  *  - Command is `kind: "content"` and owns the rest: the search string, how
  *    many items the current filter left mounted, and the empty text — enough
  *    to see at a glance whether a filter matched anything. It contributes its
@@ -36,6 +36,7 @@ import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { pressElement } from "@/lib/agent-ui/press"
 import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
 import { readText } from "@/lib/agent-ui/agent-content"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
@@ -389,9 +390,8 @@ function CommandItem({
         if (disabled) {
           rejectState(`"${label}" is disabled and cannot be pressed right now.`)
         }
-        // A click is what a person does: it runs the item's onSelect and
-        // whatever handlers the palette itself attaches to the element.
-        itemRef.current?.click()
+        // A press, not a bare click: the full sequence a person makes.
+        pressElement(itemRef.current!)
       },
     },
   })

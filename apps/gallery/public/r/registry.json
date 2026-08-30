@@ -356,6 +356,29 @@
       }
     },
     {
+      "name": "sonner",
+      "type": "registry:ui",
+      "title": "Toaster",
+      "description": "A toast region whose notifications are readable by an agent, including toasts that have already disappeared.",
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "bases": [
+        "base",
+        "radix"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
+      }
+    },
+    {
       "name": "tooltip",
       "type": "registry:ui",
       "title": "Tooltip",

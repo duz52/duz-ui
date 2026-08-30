@@ -3562,3 +3562,337 @@ for (const base of BASES) {
     await tree.unmount()
   })
 }
+
+/**
+ * The toaster is how the application says "this worked": a content
+ * capability reporting the notifications it raised. `recent` is why an
+ * agent can trust the answer — a toast disappears in seconds, so reporting
+ * only what is on screen would make the answer depend on when the read
+ * lands.
+ *
+ * sonner's `toast()` does render in jsdom, but it drives its own lifecycle
+ * with timers — a toast is inserted, auto-dismissed and removed on a clock —
+ * so a case driven through it would assert a race with sonner's timers,
+ * which is exactly the timing dependence this capability exists to remove.
+ * These cases therefore drive the parts this change adds — the observer
+ * and the reader — against toast markup that matches the exact contract
+ * the toaster renders (`[data-sonner-toast]` carrying `[data-title]`,
+ * `[data-description]` and `data-type`) and append it to the container
+ * sonner rendered. `visible` is pulled from the DOM at read time; the
+ * observer is what moves a toast into `recent`. The mutations sit inside
+ * `act` — a MutationObserver delivers on a microtask, which the `act` await
+ * settles — and the reads sit outside it, exactly like every read in this
+ * file.
+ */
+
+/** A toast as sonner renders it: the parts this task reads. */
+function toastElement(options: {
+  title: string
+  description?: string
+  type?: string
+}): HTMLElement {
+  const toast = dom.window.document.createElement("li")
+  toast.setAttribute("data-sonner-toast", "")
+  if (options.type !== undefined) toast.setAttribute("data-type", options.type)
+  const title = dom.window.document.createElement("div")
+  title.setAttribute("data-title", "")
+  title.textContent = options.title
+  toast.appendChild(title)
+  if (options.description !== undefined) {
+    const description = dom.window.document.createElement("div")
+    description.setAttribute("data-description", "")
+    description.textContent = options.description
+    toast.appendChild(description)
+  }
+  return toast
+}
+
+/** The container the toaster renders and observes. */
+function toasterContainer(): HTMLElement {
+  const container = dom.window.document.querySelector('[aria-live="polite"]')
+  assert.ok(container, "the toaster must render its container")
+  return container as HTMLElement
+}
+
+for (const base of BASES) {
+  test(`[${base}] toaster: a toast raised after mount appears in visible with its title and description`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/sonner`)) as ComponentModule
+    const id = `${base}-toaster-visible`
+    const tree = await mount(
+      React.createElement(mod.Toaster, { agent: { id } }),
+    )
+
+    await withAct(async () => {
+      toasterContainer().appendChild(
+        toastElement({
+          title: "Invite sent",
+          description: "ada@lovelace.dev",
+          type: "success",
+        }),
+      )
+    })
+
+    const state = registry.read(id) as {
+      visible: { title: string; description: string | null; kind: string; at: string }[]
+      recent: { title: string; description: string | null; kind: string; at: string }[]
+    }
+    assert.equal(state.visible.length, 1)
+    assert.deepEqual(
+      state.visible.map((toast) => ({
+        title: toast.title,
+        description: toast.description,
+        kind: toast.kind,
+      })),
+      [{ title: "Invite sent", description: "ada@lovelace.dev", kind: "success" }],
+    )
+    // A toast that is still visible appears in both lists, with the same `at`.
+    assert.deepEqual(state.recent, state.visible)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] toaster: a toast removed from the DOM leaves visible but stays in recent`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/sonner`)) as ComponentModule
+    const id = `${base}-toaster-recent`
+    const tree = await mount(
+      React.createElement(mod.Toaster, { agent: { id } }),
+    )
+
+    const toast = toastElement({ title: "Invite sent", type: "error" })
+    await withAct(async () => {
+      toasterContainer().appendChild(toast)
+    })
+    await withAct(async () => {
+      toast.remove()
+    })
+
+    const state = registry.read(id) as {
+      visible: { title: string }[]
+      recent: { title: string; kind: string }[]
+    }
+    assert.deepEqual(state.visible, [])
+    assert.deepEqual(
+      state.recent.map((entry) => ({ title: entry.title, kind: entry.kind })),
+      [{ title: "Invite sent", kind: "error" }],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] toaster: the recent log holds at most 20 entries, keeping the newest`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/sonner`)) as ComponentModule
+    const id = `${base}-toaster-bound`
+    const tree = await mount(
+      React.createElement(mod.Toaster, { agent: { id } }),
+    )
+
+    await withAct(async () => {
+      const container = toasterContainer()
+      for (let index = 1; index <= 25; index += 1) {
+        container.appendChild(toastElement({ title: `toast ${index}` }))
+      }
+    })
+
+    const state = registry.read(id) as {
+      visible: { title: string }[]
+      recent: { title: string }[]
+    }
+    assert.equal(state.recent.length, 20, "the log must never exceed its bound")
+    assert.equal(state.recent[0].title, "toast 6", "the oldest entries must be dropped")
+    assert.equal(state.recent[state.recent.length - 1].title, "toast 25")
+    // `visible` is the DOM's truth at read time, uncapped; the bound is the
+    // log's, so an agent reading after the fact still sees the newest 20.
+    assert.equal(state.visible.length, 25)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] toaster: a toast with no description reports description: null, not a missing key`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/sonner`)) as ComponentModule
+    const id = `${base}-toaster-no-description`
+    const tree = await mount(
+      React.createElement(mod.Toaster, { agent: { id } }),
+    )
+
+    await withAct(async () => {
+      toasterContainer().appendChild(toastElement({ title: "Just a title" }))
+    })
+
+    const state = registry.read(id) as {
+      visible: { title: string; description: string | null; kind: string; at: string }[]
+    }
+    assert.equal(state.visible.length, 1)
+    assert.equal(state.visible[0].title, "Just a title")
+    assert.ok("description" in state.visible[0], "the key must be present")
+    assert.equal(state.visible[0].description, null)
+    // No `data-type` on the element: the kind falls back to "message".
+    assert.equal(state.visible[0].kind, "message")
+    assert.match(state.visible[0].at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] toaster: agent={false} registers nothing`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/sonner`)) as ComponentModule
+    const tree = await mount(
+      React.createElement(mod.Toaster, { agent: false }),
+    )
+
+    assert.deepEqual(registry.describeAll(), [])
+
+    await tree.unmount()
+  })
+}
+
+/**
+ * A press must be the press a person makes: focus, then the full
+ * pointer/mouse sequence ending in click. A bare `element.click()` dispatches
+ * one click event, and a menu trigger never sees it — Radix opens its menus
+ * on `pointerdown` — so a press reported as success would have done nothing.
+ * These cases pin the press spelling through the tools, on both bases.
+ */
+for (const base of BASES) {
+  test(`[${base}] button: button_press on a dropdown menu's trigger opens the menu — a press the trigger does not see is a success that did nothing`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const menu = (await import(`../src/bases/${base}/ui/dropdown-menu`)) as ComponentModule
+    const id = `${base}-menu-trigger-press`
+    const tree = await mount(
+      React.createElement(
+        menu.DropdownMenu,
+        { agent: { id } },
+        React.createElement(
+          menu.DropdownMenuTrigger,
+          null,
+          React.createElement(mod.Button, null, "Priority"),
+        ),
+        React.createElement(
+          menu.DropdownMenuContent,
+          null,
+          React.createElement(menu.DropdownMenuItem, null, "Sort ascending"),
+        ),
+      ),
+    )
+
+    const button = registry
+      .describeAll()
+      .find((capability) => capability.kind === "button")
+    assert.ok(button, "the trigger's button must register a capability")
+
+    await tool("button_press").execute({ target: button.id })
+
+    // Read outside `act`, exactly like every tool call in this file.
+    const output = JSON.parse(await tool("ui_read").execute({ target: id }))
+    assert.equal(output.ok, true)
+    assert.equal(
+      output.state.open,
+      true,
+      "the press must open the menu, as a person's press does",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: a press fires the button's onClick exactly once`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-press-once`
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Button,
+        { agent: { id }, onClick: () => seen.push("click") },
+        "Save changes",
+      ),
+    )
+
+    await tool("button_press").execute({ target: id })
+
+    assert.deepEqual(
+      seen,
+      ["click"],
+      "the press sequence already ends in click, so calling element.click() on top would run onClick twice",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: a press dispatches the events a person's press dispatches, pointerdown before click`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-press-order`
+    const order: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Button,
+        {
+          agent: { id },
+          onPointerDown: () => order.push("pointerdown"),
+          onMouseDown: () => order.push("mousedown"),
+          onPointerUp: () => order.push("pointerup"),
+          onMouseUp: () => order.push("mouseup"),
+          onClick: () => order.push("click"),
+        },
+        "Priority",
+      ),
+    )
+
+    await tool("button_press").execute({ target: id })
+
+    assert.deepEqual(
+      order,
+      ["pointerdown", "mousedown", "pointerup", "mouseup", "click"],
+      "a press must dispatch the full sequence, in the order a person's press dispatches it",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: a press moves focus to the pressed element`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-press-focus`
+    const tree = await mount(
+      React.createElement(mod.Button, { agent: { id } }, "Priority"),
+    )
+    const element = tree.container.querySelector("button")
+    assert.ok(element, "the button must render a button element")
+    assert.notEqual(
+      dom.window.document.activeElement,
+      element,
+      "precondition: the button starts unfocused",
+    )
+
+    await tool("button_press").execute({ target: id })
+
+    assert.equal(
+      dom.window.document.activeElement,
+      element,
+      "a press must move focus to the pressed element",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: a press on a disabled button is rejected and dispatches nothing`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-press-disabled`
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Button,
+        {
+          agent: { id },
+          disabled: true,
+          onPointerDown: () => seen.push("pointerdown"),
+          onClick: () => seen.push("click"),
+        },
+        "Send Invitation",
+      ),
+    )
+
+    const output = JSON.parse(await tool("button_press").execute({ target: id }))
+
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.deepEqual(seen, [], "a rejected press must dispatch nothing")
+
+    await tree.unmount()
+  })
+}

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { pressElement } from "@/lib/agent-ui/press"
 import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
@@ -622,9 +623,8 @@ function MenubarItem({
         if (disabled) {
           rejectState(`"${label}" is disabled and cannot be pressed right now.`)
         }
-        // A click is what a person does: it runs the item's onClick and
-        // whatever handlers the menu itself attaches to the element.
-        elementRef.current?.click()
+        // A press, not a bare click: the full sequence a person makes.
+        pressElement(elementRef.current!)
       },
     },
   })
@@ -860,7 +860,7 @@ function MenubarSubTrigger({
         if (disabled) {
           rejectState(`"${label}" is disabled and cannot be pressed right now.`)
         }
-        elementRef.current?.click()
+        pressElement(elementRef.current!)
       },
     },
   })

@@ -506,4 +506,16 @@ export const SIGNATURES: ComponentSignature[] = [
     },
     internalDeclarations: [],
   },
+  {
+    // sonner is primitive-agnostic: the stock file imports it directly on
+    // both bases. Its capability is read-only — the toaster reports the
+    // notifications the application raised.
+    name: "sonner",
+    requiredExports: ["Toaster"],
+    primitiveModules: {
+      radix: ["sonner"],
+      base: ["sonner"],
+    },
+    internalDeclarations: [],
+  },
 ]

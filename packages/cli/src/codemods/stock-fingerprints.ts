@@ -84,6 +84,9 @@ export const STOCK_FINGERPRINTS: Record<string, Record<string, string[]>> = {
     "slider": [
       "75e9a95914351b28647a95dcd767902e8b14272496e8eab90d5d32d650f15280"
     ],
+    "sonner": [
+      "32c4ebf851c67f6001fbd27a7307351b11d4aeef6d31fb120a6e1102b5a14b4f"
+    ],
     "switch": [
       "9edc785e78bd6dc0654920987d8d315ceadce49b8f825ba95847545dc467a9a4"
     ],
@@ -181,6 +184,9 @@ export const STOCK_FINGERPRINTS: Record<string, Record<string, string[]>> = {
     ],
     "slider": [
       "e55a5dc06388df4cfb882fb2ad6c59ccd8af78641f7b55153041139bd597b86f"
+    ],
+    "sonner": [
+      "32c4ebf851c67f6001fbd27a7307351b11d4aeef6d31fb120a6e1102b5a14b4f"
     ],
     "switch": [
       "85e754ec1e197b27d0288df9ac83b2ae66c5798f6d9c3f96585f279e5bde4a21"

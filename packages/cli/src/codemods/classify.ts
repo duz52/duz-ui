@@ -27,7 +27,6 @@ const PRESENTATION_COMPONENTS = new Set([
   "breadcrumb",
   "progress",
   "scroll-area",
-  "sonner",
   "tooltip",
   "label",
   "pagination",

@@ -17,6 +17,7 @@
         "lib/agent-ui/agent-identity.ts",
         "lib/agent-ui/agent-page.tsx",
         "lib/agent-ui/capability.ts",
+        "lib/agent-ui/press.ts",
         "lib/agent-ui/registry.ts",
         "lib/agent-ui/runtime.ts",
         "lib/agent-ui/tools.ts",
@@ -415,6 +416,32 @@
       ],
       "agentUi": {
         "status": "presentation"
+      }
+    },
+    {
+      "name": "sonner",
+      "type": "registry:ui",
+      "baseSpecific": true,
+      "title": "Toaster",
+      "description": "A toast region whose notifications are readable by an agent, including toasts that have already disappeared.",
+      "dependencies": [
+        "sonner"
+      ],
+      "registryDependencies": [
+        "utils",
+        "agent-ui-runtime"
+      ],
+      "sources": [
+        "ui/sonner.tsx"
+      ],
+      "agentUi": {
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {

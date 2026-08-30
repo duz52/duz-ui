@@ -5,6 +5,7 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { pressElement } from "@/lib/agent-ui/press"
 import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
 import { rejectState } from "@/lib/agent-ui/validate"
 
@@ -91,11 +92,8 @@ function Button({
         if (elementRef.current?.hasAttribute("disabled")) {
           rejectState(`"${label}" is disabled and cannot be pressed right now.`)
         }
-        // A click is what a person does: it is the only activation that also
-        // submits the surrounding form, fires label behaviour, and runs
-        // whatever handlers other libraries attached to the element. Calling
-        // onClick directly would skip all of that.
-        elementRef.current?.click()
+        // A press, not a bare click: the full sequence a person makes.
+        pressElement(elementRef.current!)
       },
     },
   })
