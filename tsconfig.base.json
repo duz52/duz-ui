@@ -6,6 +6,11 @@
     "moduleResolution": "bundler",
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    // Dead code is forbidden by this project's rules, so the compiler enforces
+    // it rather than a reviewer having to notice. An unused React import
+    // shipped in a kernel file before this was on.
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

@@ -15,8 +15,6 @@
  * it. It renders nothing, so it can be dropped anywhere in the route.
  */
 
-import * as React from "react"
-
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 
 export interface AgentPageProps {

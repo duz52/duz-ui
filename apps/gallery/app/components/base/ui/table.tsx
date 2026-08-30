@@ -31,8 +31,25 @@ const TABLE_MAX_ROWS = 50
 type TableContentState = {
   columns: string[]
   rows: Record<string, string>[]
-  rowCount: number
+  renderedRowCount: number
+  totalRowCount: number | null
   rowsOmitted?: number
+}
+
+/**
+ * ARIA's `aria-rowcount` on a table is the total number of rows including
+ * those not currently in the DOM — the concept a total report needs on
+ * paginated and virtualised grids. `-1` is ARIA's "total unknown" and
+ * carries no more information than an absent attribute, so only a parseable
+ * non-negative integer becomes a reported total; anything else is `null`,
+ * the honest answer for a page that never stated one.
+ */
+function parseTotalRowCount(root: HTMLTableElement): number | null {
+  const raw = root.getAttribute("aria-rowcount")
+  if (raw === null) return null
+  const total = Number.parseInt(raw, 10)
+  if (!Number.isInteger(total) || total < 0) return null
+  return total
 }
 
 function Table({
@@ -52,7 +69,8 @@ function Table({
     defaultLabel: "Table",
     read: () => {
       const root = tableRef.current
-      if (!root) return { columns: [], rows: [], rowCount: 0 }
+      if (!root)
+        return { columns: [], rows: [], renderedRowCount: 0, totalRowCount: null }
 
       const columns = Array.from(root.querySelectorAll("thead th")).map((th) =>
         readText(th, CELL_MAX_LENGTH),
@@ -70,7 +88,11 @@ function Table({
       return {
         columns,
         rows,
-        rowCount: rowElements.length,
+        renderedRowCount: rowElements.length,
+        // The total comes only from the standard ARIA attribute, never from
+        // pagination controls or anything else: an inferred total that is
+        // wrong is worse than an absent one.
+        totalRowCount: parseTotalRowCount(root),
         ...(rowElements.length > TABLE_MAX_ROWS
           ? { rowsOmitted: rowElements.length - TABLE_MAX_ROWS }
           : {}),

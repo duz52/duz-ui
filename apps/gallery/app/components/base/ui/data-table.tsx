@@ -438,7 +438,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
   return (
     <div className={cn("space-y-4", props.className)}>
       <div className="rounded-md border">
-        <Table agent={false}>
+        <Table agent={false} aria-rowcount={filteredCount}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

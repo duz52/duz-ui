@@ -2147,13 +2147,14 @@ for (const base of BASES) {
         { Name: "Ada", Email: "ada@example.com", Status: "Paid" },
         { Name: "Grace", Email: "grace@example.com", Status: "Refunded" },
       ],
-      rowCount: 2,
+      renderedRowCount: 2,
+      totalRowCount: null,
     })
 
     await tree.unmount()
   })
 
-  test(`[${base}] table: a read is a window of 50 rows with the true rowCount`, async () => {
+  test(`[${base}] table: a read is a window of 50 rows with the true renderedRowCount`, async () => {
     const mod = modules.get(`${base}/table`)
     assert.ok(mod, `the ${base} table module must load`)
     const id = `${base}-table-window`
@@ -2187,11 +2188,13 @@ for (const base of BASES) {
     const state = registry.read(id) as {
       columns: string[]
       rows: Record<string, string>[]
-      rowCount: number
+      renderedRowCount: number
+      totalRowCount: number | null
       rowsOmitted?: number
     }
     assert.equal(state.rows.length, 50)
-    assert.equal(state.rowCount, 60)
+    assert.equal(state.renderedRowCount, 60)
+    assert.equal(state.totalRowCount, null)
     assert.equal(state.rowsOmitted, 10)
     assert.deepEqual(state.columns, ["Item"])
     assert.deepEqual(state.rows[0], { Item: "cell 0" })
@@ -3892,6 +3895,164 @@ for (const base of BASES) {
     assert.equal(output.ok, false)
     assert.equal(output.error.code, "rejected")
     assert.deepEqual(seen, [], "a rejected press must dispatch nothing")
+
+    await tree.unmount()
+  })
+}
+
+/**
+ * A table must not claim to know a total it cannot see. `renderedRowCount`
+ * is what the DOM actually renders; `totalRowCount` is read only from
+ * `aria-rowcount`, the ARIA attribute defined for exactly this — the total
+ * including rows not currently in the DOM — and is `null` whenever the page
+ * never stated one, or stated ARIA's "unknown". A DataTable states the real
+ * total through that same attribute, from the same filtered row model its
+ * capability read reports, so a screen reader and an agent see the same
+ * total from the same source.
+ *
+ * Reads and tool calls sit outside `act`, exactly like every read in this
+ * file.
+ */
+for (const base of BASES) {
+  test(`[${base}] table: a plain table reports renderedRowCount and no totalRowCount`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const id = `${base}-table-total-absent`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id } },
+        React.createElement(
+          mod.TableBody,
+          null,
+          Array.from({ length: 3 }, (_, index) =>
+            React.createElement(
+              mod.TableRow,
+              { key: index },
+              React.createElement(mod.TableCell, null, `cell ${index}`),
+            ),
+          ),
+        ),
+      ),
+    )
+
+    // No page ever stated a total, so the table says so: `null`, not a
+    // number an agent could mistake for the dataset size.
+    assert.deepEqual(registry.read(id), {
+      columns: [],
+      rows: [{ col0: "cell 0" }, { col0: "cell 1" }, { col0: "cell 2" }],
+      renderedRowCount: 3,
+      totalRowCount: null,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: aria-rowcount is reported as totalRowCount`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const id = `${base}-table-total-500`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id }, "aria-rowcount": "500" },
+        React.createElement(
+          mod.TableBody,
+          null,
+          Array.from({ length: 3 }, (_, index) =>
+            React.createElement(
+              mod.TableRow,
+              { key: index },
+              React.createElement(mod.TableCell, null, `cell ${index}`),
+            ),
+          ),
+        ),
+      ),
+    )
+
+    assert.deepEqual(registry.read(id), {
+      columns: [],
+      rows: [{ col0: "cell 0" }, { col0: "cell 1" }, { col0: "cell 2" }],
+      renderedRowCount: 3,
+      totalRowCount: 500,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: aria-rowcount="-1" reports null, ARIA's unknown is not a total`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const id = `${base}-table-total-unknown`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id }, "aria-rowcount": "-1" },
+        React.createElement(
+          mod.TableBody,
+          null,
+          Array.from({ length: 3 }, (_, index) =>
+            React.createElement(
+              mod.TableRow,
+              { key: index },
+              React.createElement(mod.TableCell, null, `cell ${index}`),
+            ),
+          ),
+        ),
+      ),
+    )
+
+    const state = registry.read(id) as {
+      renderedRowCount: number
+      totalRowCount: number | null
+    }
+    assert.equal(state.renderedRowCount, 3)
+    assert.equal(state.totalRowCount, null)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] data-table: aria-rowcount tracks the filtered row total`, async () => {
+    const mod = modules.get(`${base}/data-table`)
+    assert.ok(mod, `the ${base} data-table module must load`)
+    const id = `${base}-data-table-aria-total`
+    const rows = [
+      { id: "r1", name: "Ada" },
+      { id: "r2", name: "Grace" },
+      { id: "r3", name: "Alan" },
+    ]
+    const tree = await mount(
+      React.createElement(mod.DataTable, {
+        agent: { id },
+        data: rows,
+        columns: [
+          { id: "name", header: "Name", accessor: (r: (typeof rows)[number]) => r.name },
+        ],
+        getRowId: (r: (typeof rows)[number]) => r.id,
+        enableRowSelection: false,
+      }),
+    )
+
+    const table = tree.container.querySelector("table")
+    assert.ok(table, "the data table must render a table element")
+    assert.equal(
+      table.getAttribute("aria-rowcount"),
+      "3",
+      "the rendered table must state the filtered row total",
+    )
+    assert.equal(registry.read(id).rowCount, 3)
+
+    // Outside `act`, like every tool call in this file: the filter commits
+    // the narrowed row model, and the attribute is read from the committed
+    // DOM.
+    await tool("table_filter").execute({ target: id, column: "name", value: "Ada" })
+
+    assert.equal(
+      table.getAttribute("aria-rowcount"),
+      "1",
+      "a filter that narrows the rows must narrow the stated total",
+    )
+    assert.equal(registry.read(id).rowCount, 1)
 
     await tree.unmount()
   })
