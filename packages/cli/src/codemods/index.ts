@@ -26,7 +26,6 @@ export type MigrationOutcome =
   | { status: "already-migrated"; component: string; file: string }
   | { status: "unsupported"; component: string; file: string; reason: string }
   | { status: "presentation"; component: string }
-  | { status: "explicit-semantics"; component: string }
   | { status: "unknown"; component: string }
 
 export interface MigrateFileInput {

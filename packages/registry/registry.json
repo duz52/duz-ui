@@ -12,6 +12,8 @@
       "registryDependencies": [],
       "sources": [
         "lib/agent-ui/agent-action.tsx",
+        "lib/agent-ui/agent-container.tsx",
+        "lib/agent-ui/agent-content.tsx",
         "lib/agent-ui/agent-identity.ts",
         "lib/agent-ui/capability.ts",
         "lib/agent-ui/registry.ts",
@@ -55,18 +57,27 @@
       "type": "registry:ui",
       "baseSpecific": true,
       "title": "Button",
-      "description": "A polymorphic button with variant and size presets, styled for agent-driven interfaces.",
+      "description": "A button whose press action is available to an agent, going through the DOM exactly like a person's click.",
       "dependencies": [
         "class-variance-authority"
       ],
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "sources": [
         "ui/button.tsx"
       ],
       "agentUi": {
-        "status": "explicit-semantics"
+        "capabilities": [
+          {
+            "kind": "button",
+            "actions": [
+              "press"
+            ]
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {
@@ -216,16 +227,23 @@
       "type": "registry:ui",
       "baseSpecific": true,
       "title": "Card",
-      "description": "A composable surface that groups related content, actions, and metadata.",
+      "description": "A composable surface whose title, description, content and footer are readable by an agent.",
       "dependencies": [],
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "sources": [
         "ui/card.tsx"
       ],
       "agentUi": {
-        "status": "presentation"
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {
@@ -420,16 +438,23 @@
       "type": "registry:ui",
       "baseSpecific": true,
       "title": "Table",
-      "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable.",
+      "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable; an agent reads their columns and rows.",
       "dependencies": [],
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "sources": [
         "ui/table.tsx"
       ],
       "agentUi": {
-        "status": "presentation"
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {

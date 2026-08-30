@@ -267,10 +267,11 @@ for (const base of Object.keys(BASES) as BaseName[]) {
 
       assert.equal(readFileSync(callSite, "utf8"), callSiteSource, "no call site may change")
 
-      // Presentation-only and business-semantics components are reported, untouched.
-      assert.match(result.output, /button/)
+      // Presentation-only components are reported, untouched. Button is
+      // agent-native now and migrates with the rest.
       const button = readFileSync(join(dir, "src/components/ui/button.tsx"), "utf8")
-      assert.doesNotMatch(button, /agent-ui/, "button must never become an agent action")
+      assert.match(button, /useCapability/, "button must carry the capability binding")
+      assert.match(button, /from "@\/lib\/agent-ui\/use-capability"/)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

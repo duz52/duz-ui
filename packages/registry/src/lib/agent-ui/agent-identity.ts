@@ -17,7 +17,9 @@ import type { AgentConfig, AgentProp } from "./use-capability"
  *  - `id` is canonical addressing: `agent.id` → the component's own `id`
  *    prop → a generated document-local id.
  *  - `label` is description: `agent.label` → `aria-label` →
- *    `aria-labelledby` → the associated `<label>` → an intrinsic fallback.
+ *    `aria-labelledby` → the associated `<label>` → the element's own text
+ *    (a button or link's visible text is its native accessible name) → an
+ *    intrinsic fallback.
  *
  * Never use the label as the id.
  */
@@ -75,7 +77,12 @@ function capLength(text: string): string {
  *    one (real form controls do); otherwise, when the element has an `id`,
  *    the first `label[for="<id>"]` in the document; otherwise
  *    `element.closest("label")`. Take its `textContent`.
- * 4. `fallback`.
+ * 4. The element's own subtree text, for elements whose native accessible
+ *    name IS that text: `<button>` and `<a>`. Other elements keep their own
+ *    native mechanisms — a `<select>`'s name is never its options' text, a
+ *    `<textarea>`'s never its default value — so their text content is not
+ *    a name source.
+ * 5. `fallback`.
  *
  * Each source is normalised (trim, collapse whitespace) and an empty result
  * falls through to the next source. The final result is capped at
@@ -92,6 +99,7 @@ function capLength(text: string): string {
  */
 interface NamedElement {
   id: string
+  tagName: string
   textContent: string | null
   getAttribute(name: string): string | null
   closest(selectors: string): { textContent: string | null } | null
@@ -143,7 +151,13 @@ function resolveAccessibleName(element: NamedElement, fallback: string): string 
     if (label !== null) return capLength(label)
   }
 
-  // 4. fallback
+  // 4. The element's own subtree text — a button or link's visible text.
+  if (element.tagName === "BUTTON" || element.tagName === "A") {
+    const label = normaliseText(element.textContent)
+    if (label !== null) return capLength(label)
+  }
+
+  // 5. fallback
   return capLength(fallback)
 }
 

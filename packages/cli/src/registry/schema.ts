@@ -31,7 +31,6 @@ export const agentUiMetaSchema = z.discriminatedUnion("status", [
       .min(1),
   }),
   z.object({ status: z.literal("presentation") }),
-  z.object({ status: z.literal("explicit-semantics") }),
 ])
 
 /**

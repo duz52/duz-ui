@@ -144,18 +144,6 @@ function AgentCapabilities({
     )
   }
 
-  if (agentUi.status === "explicit-semantics") {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Requires explicit business semantics. A button cannot know what its{" "}
-        <code className="font-mono">onClick</code> means, so it never becomes
-        an automatic agent action. Wrap it in{" "}
-        <code className="font-mono">AgentAction</code> to expose a business
-        action.
-      </p>
-    )
-  }
-
   const capabilityTools = agentUi.capabilities.map((cap) => ({
     cap,
     tools: cap.actions.map((action) => ({

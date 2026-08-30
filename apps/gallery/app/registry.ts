@@ -42,7 +42,6 @@ type AgentUiMetadata =
       status: "agent-native"
     }
   | { status: "presentation" }
-  | { status: "explicit-semantics" }
 
 /**
  * Navigation-level entry from `registry.json`: what the sidebar and the base

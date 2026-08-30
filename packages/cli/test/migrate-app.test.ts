@@ -102,8 +102,6 @@ async function runMigration(dir: string, overwrite: boolean = false): Promise<Mi
       let outcome: MigrationOutcome
       if (classification.kind === "presentation") {
         outcome = { status: "presentation", component }
-      } else if (classification.kind === "explicit-semantics") {
-        outcome = { status: "explicit-semantics", component }
       } else {
         outcome = { status: "unknown", component }
       }
@@ -184,12 +182,15 @@ describe("migrate against a legacy shadcn app", () => {
       assert.equal(first.outcomes.get("checkbox")?.status, "needs-overwrite")
       assert.equal(first.outcomes.get("select")?.status, "needs-overwrite")
 
-      // 2. card is presentation and button is explicit-semantics.
-      assert.equal(first.outcomes.get("card")?.status, "presentation")
-      assert.equal(first.outcomes.get("button")?.status, "explicit-semantics")
+      // 2. card is unmodified stock, so a plain run migrates it in place;
+      //    button is an older generation, recognised but differing from
+      //    known stock.
+      assert.equal(first.outcomes.get("card")?.status, "migrated")
+      assert.equal(first.outcomes.get("button")?.status, "needs-overwrite")
 
-      // 3. No component file may change on a plain run.
+      // 3. No other component file may change on a plain run.
       for (const [name, content] of before) {
+        if (name === "card.tsx") continue
         assert.equal(
           readFileSync(join(uiDir, name), "utf8"),
           content,

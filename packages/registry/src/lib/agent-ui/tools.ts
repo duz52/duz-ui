@@ -10,7 +10,11 @@
  * lives here.
  */
 
-import { CapabilityError, type Capability } from "./capability"
+import {
+  CapabilityError,
+  type Capability,
+  type CapabilityState,
+} from "./capability"
 import type { CapabilityRegistry } from "./registry"
 import { expectString } from "./validate"
 
@@ -123,6 +127,14 @@ const KIND_TOOLS: readonly KindToolDef[] = [
         description: "Whether the checkbox should be checked.",
       },
     },
+  },
+  {
+    kind: "button",
+    name: "button_press",
+    action: "press",
+    description:
+      "Press a button, exactly as a person clicking it would. The button's own name — the text a person reads on it, like \"Send Invitation\" — is its label in ui_list. Pressing may submit a form, open a dialog, navigate, or trigger whatever the button is wired to.",
+    inputSchema: {},
   },
   {
     kind: "dialog",
@@ -317,23 +329,283 @@ const KIND_TOOLS: readonly KindToolDef[] = [
 ]
 
 /**
- * Agent context budget (Chrome WebMCP guidance): a tool output above roughly
- * 1.5K characters makes agents trip their own guardrails.
+ * Output budget for one tool result.
+ *
+ * This is our own choice, not a rule from anywhere else: the WebMCP
+ * specification says nothing about output length (it constrains *input*
+ * lengths, in its security mitigations, and leaves output to the
+ * implementation), and Chrome's guidance asks only that results be
+ * "written clearly and formatted correctly". A bound still belongs here —
+ * an unbounded result would spend the agent's context on one call — but it
+ * has to be wide enough for the state of a real component. A table's
+ * columns, paging, sort, filters, selection and visible rows do not fit in
+ * a couple of thousand characters, and a read that cannot return its own
+ * subject is worthless.
  */
-const MAX_OUTPUT = 1500
+const MAX_OUTPUT = 8000
+
+/** Longest string a digest keeps verbatim before cutting it. */
+const DIGEST_STRING_LIMIT = 80
+
+/** Longest scalar array a digest keeps whole; longer ones become `{items}`. */
+const DIGEST_ARRAY_LIMIT = 8
+
+function isScalar(value: unknown): boolean {
+  return (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  )
+}
 
 /**
- * Serialise a tool result for the agent. WebMCP requires string output. When
- * the payload exceeds the budget the envelope stays valid JSON and says so,
- * rather than handing the agent a truncated fragment it cannot parse.
+ * A generic, kind-agnostic digest of one capability state: scalars survive,
+ * bulk is replaced by counts, so a listing can carry every element's state
+ * inside one response.
+ *
+ * Reading is pull-based: `digest` runs only while a tool result is being
+ * produced, never on render or registration, so it stays off every hot path.
  */
-function serialise(value: unknown): string {
+export function digest(state: CapabilityState): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(state)) {
+    if (Array.isArray(value)) {
+      out[key] =
+        value.length <= DIGEST_ARRAY_LIMIT && value.every(isScalar)
+          ? value
+          : { items: value.length }
+    } else if (isRecord(value)) {
+      out[key] = { fields: Object.keys(value).length }
+    } else if (typeof value === "string" && value.length > DIGEST_STRING_LIMIT) {
+      out[key] = `${value.slice(0, DIGEST_STRING_LIMIT)}…`
+    } else {
+      out[key] = value
+    }
+  }
+  return out
+}
+
+/**
+ * Serialise a tool result for the agent. WebMCP requires string output.
+ *
+ * Every tool except `ui_list` returns its result as-is; one above the budget
+ * is refused with a message that names the tool and asks the agent to narrow
+ * its request. `ui_list` cannot refuse — a listing that lists nothing leaves
+ * the agent with no way forward — so it reduces its document instead (see
+ * `serialiseListDocument`).
+ */
+function serialise(toolName: string, value: unknown): string {
   const json = JSON.stringify(value)
   if (json.length <= MAX_OUTPUT) return json
   return JSON.stringify({
-    ok: true,
-    truncated: true,
-    reason: `The result is ${json.length} characters, above the ${MAX_OUTPUT} character tool output budget. Narrow the request, for example by filtering or paging.`,
+    ok: false,
+    error: {
+      code: "output_too_large",
+      message: `The result of "${toolName}" is ${json.length} characters, above this page's ${MAX_OUTPUT} character output budget. Narrow the request and try again.`,
+    },
+  })
+}
+
+/** One element of the `ui_list` document. */
+interface ListElement {
+  id: string
+  kind: string
+  label?: string
+  description?: string
+  actions?: string[]
+  /** The component's own summary when it provides one, else the state digest. */
+  state?: string | Record<string, unknown>
+  children?: ListElement[]
+  childrenOmitted?: number
+}
+
+/** The `ui_list` response: the page header plus every live element. */
+interface ListDocument {
+  ok: true
+  action: "list"
+  page?: { title?: string; description?: string }
+  elements: ListElement[]
+}
+
+function* eachElement(elements: ListElement[]): Generator<ListElement> {
+  for (const element of elements) {
+    yield element
+    if (element.children) yield* eachElement(element.children)
+  }
+}
+
+/**
+ * Build the `ui_list` document: the page header taken from the mounted `page`
+ * capability, if any, and every other live capability as an element carrying
+ * its current state, nested under the capability its `owner` names.
+ *
+ * Element states are read here, at listing time. Reading is pull-based —
+ * nothing reads capability state on render or registration — so a listing
+ * stays off every hot path.
+ */
+function buildListDocument(registry: CapabilityRegistry): ListDocument {
+  const capabilities = registry.list()
+  const doc: ListDocument = { ok: true, action: "list", elements: [] }
+
+  // The page is the document's header, not an element of it. Several page
+  // capabilities is a page bug: use the first and leave the rest out.
+  const pages = capabilities.filter((capability) => capability.kind === "page")
+  const page = pages[0]
+  if (page) {
+    if (pages.length > 1) {
+      console.error(
+        "[agent-ui]",
+        `Multiple capabilities of kind "page" are mounted; listing "${page.id}" as the page and leaving the rest out.`,
+      )
+    }
+    doc.page = { title: page.label, description: page.description }
+  }
+
+  const byId = new Map(
+    capabilities.map((capability) => [capability.id, capability]),
+  )
+  const nodes = new Map<string, ListElement>()
+  for (const capability of capabilities) {
+    if (capability.kind === "page") continue
+    const actions = [...capability.actions]
+    nodes.set(capability.id, {
+      id: capability.id,
+      kind: capability.kind,
+      label: capability.label,
+      description: capability.description,
+      actions: actions.length > 0 ? actions : undefined,
+      state: capability.summarise?.() ?? digest(capability.read()),
+      children: [],
+    })
+  }
+
+  // Resolve ownership against the listed elements: an element whose owner
+  // names one becomes that element's child; a dangling owner — or one that
+  // names the page itself — leaves the element a root, so the list never
+  // silently drops an element. Roots keep registration order, and a cycle
+  // cannot hang: the walk stops on any element already placed, and every
+  // element is placed exactly once.
+  const validOwner = (id: string): string | undefined => {
+    const ownerId = byId.get(id)?.owner
+    return ownerId !== undefined && ownerId !== id && nodes.has(ownerId)
+      ? ownerId
+      : undefined
+  }
+  const attached = new Set<string>()
+  const place = (id: string): void => {
+    if (attached.has(id)) return
+
+    // Walk up the owner chain to where this subtree anchors: an element with
+    // no valid owner, one that is already in the tree, or — in a cycle — the
+    // element whose owner loops back, which becomes a root so nothing is
+    // dropped.
+    const chain: string[] = []
+    const walking = new Set<string>()
+    let current = id
+    for (;;) {
+      if (attached.has(current) || walking.has(current)) break
+      walking.add(current)
+      chain.push(current)
+      const ownerId = validOwner(current)
+      if (ownerId === undefined) break
+      current = ownerId
+    }
+
+    // `chain` is never empty: `id` itself is pushed on the first iteration.
+    const anchorId = chain.pop()!
+    const anchorOwner = validOwner(anchorId)
+    attached.add(anchorId)
+    if (anchorOwner !== undefined && attached.has(anchorOwner)) {
+      nodes.get(anchorOwner)!.children!.push(nodes.get(anchorId)!)
+    } else {
+      doc.elements.push(nodes.get(anchorId)!)
+    }
+    for (const childId of chain.reverse()) {
+      attached.add(childId)
+      nodes.get(validOwner(childId)!)!.children!.push(nodes.get(childId)!)
+    }
+  }
+
+  for (const id of nodes.keys()) place(id)
+
+  // An element with no children carries no `children` key at all.
+  for (const node of nodes.values()) {
+    if (node.children?.length === 0) delete node.children
+  }
+
+  return doc
+}
+
+/**
+ * Serialise the list document, shedding in a fixed order that keeps the most
+ * navigable information when the full document exceeds the output budget:
+ * the structure first, then the states, then the descriptions, then the
+ * elements themselves. Each step re-serialises and returns as soon as the
+ * result fits. The last step always fits — it can keep a single element — so
+ * `ui_list` never returns an empty listing while capabilities exist.
+ */
+function serialiseListDocument(doc: ListDocument): string {
+  let json = JSON.stringify(doc)
+  if (json.length <= MAX_OUTPUT) return json
+
+  // Step 2: keep each root's own children; drop everything below them.
+  for (const root of doc.elements) {
+    for (const child of root.children ?? []) {
+      if (child.children?.length) {
+        child.childrenOmitted = child.children.length
+        delete child.children
+      }
+    }
+  }
+  json = JSON.stringify(doc)
+  if (json.length <= MAX_OUTPUT) return json
+
+  const everyElement = [...eachElement(doc.elements)]
+
+  // Step 3: drop every remaining children array — after step 2, the roots' own.
+  for (const element of everyElement) {
+    if (element.children?.length) {
+      element.childrenOmitted = element.children.length
+      delete element.children
+    }
+  }
+  json = JSON.stringify(doc)
+  if (json.length <= MAX_OUTPUT) return json
+
+  // Step 4: drop every state.
+  for (const element of everyElement) delete element.state
+  json = JSON.stringify(doc)
+  if (json.length <= MAX_OUTPUT) return json
+
+  // Step 5: drop every description.
+  for (const element of everyElement) delete element.description
+  if (doc.page) delete doc.page.description
+  json = JSON.stringify(doc)
+  if (json.length <= MAX_OUTPUT) return json
+
+  // Step 6: keep only the first N roots that fit. The largest N is found by
+  // bisection — a document with fewer roots is never larger. Even a single
+  // element is accepted when nothing smaller exists.
+  const total = doc.elements.length
+  const fits = (shown: number): boolean =>
+    JSON.stringify({
+      ...doc,
+      elements: doc.elements.slice(0, shown),
+      truncated: { shown, total },
+    }).length <= MAX_OUTPUT
+
+  let low = 1
+  let high = total
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2)
+    if (fits(mid)) low = mid
+    else high = mid
+  }
+  return JSON.stringify({
+    ...doc,
+    elements: doc.elements.slice(0, low),
+    truncated: { shown: low, total },
   })
 }
 
@@ -376,7 +648,7 @@ function makeExecutor(
       // is told only "Tool was executed but the invocation failed" — and these
       // messages exist to be read and acted on.
       if (error instanceof CapabilityError) {
-        return serialise({
+        return serialise(toolName, {
           ok: false,
           error: { code: error.code, message: error.message },
         })
@@ -384,7 +656,7 @@ function makeExecutor(
       // Any other thrown value is a bug in the page. Log the full error for
       // debugging; return only a neutral message that names the tool.
       console.error("[agent-ui]", error)
-      return serialise({
+      return serialise(toolName, {
         ok: false,
         error: {
           code: "internal",
@@ -399,7 +671,7 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_list",
     description:
-      "List the agent-operable UI elements currently on the page, with their id, kind, label and available actions. Call this first to discover valid target ids.",
+      "List the agent-operable UI elements on the page as a document: the page title, and for each element its id, kind, label, description, available actions, current state, and nested children. Call this first to discover valid target ids. Each element's state is current, so a state listed here does not need to be read again with ui_read; use ui_read only for the full detail a listed digest leaves out.",
     scope: { on: "page" },
     inputSchema: {
       type: "object",
@@ -408,31 +680,159 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true },
-    execute: makeExecutor("ui_list", async () => {
-      const capabilities = registry.describeAll()
-      return serialise({ ok: true, action: "list", state: { capabilities } })
-    }),
+    execute: makeExecutor("ui_list", async () =>
+      serialiseListDocument(buildListDocument(registry)),
+    ),
   }
+}
+
+/**
+ * An optional integer tool argument. The JSON Schema already declares the
+ * shape; this enforces it at execution time, where a host may not have.
+ */
+function expectOptionalInteger(
+  input: Record<string, unknown>,
+  key: string,
+  minimum: number,
+): number | undefined {
+  const value = input[key]
+  if (value === undefined) return undefined
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
+    throw new CapabilityError(
+      "invalid_input",
+      `"${key}" must be a whole number of at least ${minimum}.`,
+    )
+  }
+  return value
+}
+
+/** The window reported next to a state whose largest list was cut to fit. */
+interface ReadWindow {
+  field: string
+  offset: number
+  returned: number
+  total: number
+}
+
+/**
+ * Serialise a `ui_read` result, windowing the state's largest array field when
+ * the whole state exceeds the output budget.
+ *
+ * A read that answers a large table with nothing at all is the one answer that
+ * cannot be acted on, so an oversized state is not refused outright: the
+ * largest array field — measured by serialised length, the same measure as the
+ * budget — is cut to the largest window that fits, and the window is reported
+ * next to the state. `window.total` is the true total and `offset` walks the
+ * list, so paging never has to be discovered by trial. A state with no array
+ * to window cannot be reduced and is returned as-is, refusal still possible;
+ * a state whose entries cannot fit even alone is genuinely unrepresentable
+ * and is refused, naming the field.
+ */
+function serialiseReadState(
+  target: string,
+  state: CapabilityState,
+  offset: number | undefined,
+  limit: number | undefined,
+): string {
+  let best: { field: string; array: unknown[]; size: number } | undefined
+  for (const [key, value] of Object.entries(state)) {
+    if (!Array.isArray(value)) continue
+    const size = JSON.stringify(value).length
+    if (best === undefined || size > best.size) {
+      best = { field: key, array: value, size }
+    }
+  }
+
+  // No list to window: nothing can be reduced, so the state goes out as-is.
+  if (best === undefined) {
+    return serialise("ui_read", { ok: true, target, action: "read", state })
+  }
+  const { field, array } = best
+
+  const total = array.length
+  // An offset past the end is not an error: the empty window reports the true
+  // total, so the agent learns where the list ends.
+  const start = Math.min(offset ?? 0, total)
+  const remaining = total - start
+  const requested = limit !== undefined ? Math.min(limit, remaining) : remaining
+
+  const windowed = (count: number): Record<string, unknown> => ({
+    ok: true,
+    target,
+    action: "read",
+    state: { ...state, [field]: array.slice(start, start + count) },
+    window: { field, offset: start, returned: count, total } satisfies ReadWindow,
+  })
+  const fits = (count: number): boolean =>
+    JSON.stringify(windowed(count)).length <= MAX_OUTPUT
+
+  // Asked for the list from the start with no cap: the state can go out whole,
+  // with no window key, when it fits.
+  if (start === 0 && requested === total) {
+    const json = JSON.stringify({ ok: true, target, action: "read", state })
+    if (json.length <= MAX_OUTPUT) return json
+  }
+
+  if (fits(requested)) return JSON.stringify(windowed(requested))
+
+  // A single entry that cannot fit even alone is a genuinely unrepresentable
+  // state, not something to paper over with an empty window.
+  if (!fits(1)) {
+    return JSON.stringify({
+      ok: false,
+      error: {
+        code: "output_too_large",
+        message: `The state of "${target}" cannot be returned: even a single entry of its "${field}" list does not fit in this page's ${MAX_OUTPUT} character output budget.`,
+      },
+    })
+  }
+
+  // Bisect for the largest window that fits: `fits(low)` holds, `fits(high)`
+  // does not, and the loop ends with them adjacent.
+  let low = 1
+  let high = requested
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2)
+    if (fits(mid)) low = mid
+    else high = mid
+  }
+  return JSON.stringify(windowed(low))
 }
 
 function createReadTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_read",
     description:
-      "Read the current semantic state of one UI element by id. Use ui_list first to discover valid ids.",
+      "Read the current semantic state of one UI element by id. Use ui_list first to discover valid ids. When the state's largest list is long, it comes back windowed: window reports the list field, the offset, how many entries returned, and the true total. Walk a long list with offset.",
     scope: { on: "any-capability" },
     inputSchema: {
       type: "object",
-      properties: { target: TARGET_PROPERTY },
+      properties: {
+        target: TARGET_PROPERTY,
+        offset: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "Index of the first entry to return from this element's largest list. Defaults to 0.",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          description:
+            "How many entries of that list to return. Defaults to as many as fit.",
+        },
+      },
       required: ["target"],
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true },
     execute: makeExecutor("ui_read", async (input) => {
       const target = expectString(input, "target")
+      const offset = expectOptionalInteger(input, "offset", 0)
+      const limit = expectOptionalInteger(input, "limit", 1)
       // The registry owns target resolution and its rejection message.
       const state = registry.read(target)
-      return serialise({ ok: true, target, action: "read", state })
+      return serialiseReadState(target, state, offset, limit)
     }),
   }
 }
@@ -451,7 +851,7 @@ function createKindTool(
       const target = expectString(input, "target")
       const actionInput = withoutTarget(input)
       const result = await registry.invoke(target, def.action, actionInput)
-      return serialise({
+      return serialise(def.name, {
         ok: true,
         target,
         action: def.action,
@@ -522,7 +922,7 @@ function createActionTool(
     // Business actions are never read-only.
     execute: makeExecutor(name, async (input) => {
       const result = await registry.invoke(capability.id, "run", input)
-      return serialise({
+      return serialise(name, {
         ok: true,
         target: capability.id,
         action: "run",

@@ -34,16 +34,25 @@
       "name": "button",
       "type": "registry:ui",
       "title": "Button",
-      "description": "A polymorphic button with variant and size presets, styled for agent-driven interfaces.",
+      "description": "A button whose press action is available to an agent, going through the DOM exactly like a person's click.",
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "bases": [
         "base",
         "radix"
       ],
       "agentUi": {
-        "status": "explicit-semantics"
+        "capabilities": [
+          {
+            "kind": "button",
+            "actions": [
+              "press"
+            ]
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {
@@ -178,16 +187,23 @@
       "name": "card",
       "type": "registry:ui",
       "title": "Card",
-      "description": "A composable surface that groups related content, actions, and metadata.",
+      "description": "A composable surface whose title, description, content and footer are readable by an agent.",
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "bases": [
         "base",
         "radix"
       ],
       "agentUi": {
-        "status": "presentation"
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {
@@ -359,16 +375,23 @@
       "name": "table",
       "type": "registry:ui",
       "title": "Table",
-      "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable.",
+      "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable; an agent reads their columns and rows.",
       "registryDependencies": [
-        "utils"
+        "utils",
+        "agent-ui-runtime"
       ],
       "bases": [
         "base",
         "radix"
       ],
       "agentUi": {
-        "status": "presentation"
+        "capabilities": [
+          {
+            "kind": "content",
+            "actions": []
+          }
+        ],
+        "status": "agent-native"
       }
     },
     {

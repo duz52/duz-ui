@@ -16,12 +16,12 @@
  * toggle recolours code with no second palette and no re-render.
  */
 
-import { highlightTree } from "@lezer/highlight"
-import { classHighlighter } from "@lezer/highlight"
-import { parser } from "@lezer/javascript"
+import { highlightTree, classHighlighter } from "@lezer/highlight"
+import { parser as javascriptParser } from "@lezer/javascript"
+import { parser as jsonParser } from "@lezer/json"
 
 /** TypeScript with JSX: the dialect every `tsx` block on the site is written in. */
-const tsx = parser.configure({ dialect: "ts jsx" })
+const tsx = javascriptParser.configure({ dialect: "ts jsx" })
 
 /** Languages worth a grammar. `bash` blocks are one-line commands. */
 const SUPPORTED = new Set(["tsx", "ts"])
@@ -34,8 +34,8 @@ export function isHighlightable(lang: string | undefined): boolean {
  * The code as React nodes: highlighted ranges become spans carrying Lezer's
  * own `tok-*` class names, everything else stays text.
  */
-export function highlight(code: string): React.ReactNode[] {
-  const tree = tsx.parse(code)
+function highlightWith(grammar: typeof tsx, code: string): React.ReactNode[] {
+  const tree = grammar.parse(code)
   const nodes: React.ReactNode[] = []
   let position = 0
 
@@ -61,4 +61,14 @@ export function highlight(code: string): React.ReactNode[] {
   push(position, code.length)
 
   return nodes
+}
+
+/** TypeScript with JSX. */
+export function highlight(code: string): React.ReactNode[] {
+  return highlightWith(tsx, code)
+}
+
+/** JSON: the shape of every tool payload the site displays. */
+export function highlightJson(code: string): React.ReactNode[] {
+  return highlightWith(jsonParser, code)
 }

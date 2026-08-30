@@ -426,12 +426,16 @@ describe("aliases are configuration, not drift", () => {
 })
 
 describe("classify", () => {
-  it("classifies button as explicit-semantics", () => {
-    assert.deepEqual(classify("button"), { kind: "explicit-semantics" })
+  it("classifies button as migratable", () => {
+    assert.deepEqual(classify("button"), { kind: "migratable", name: "button" })
   })
 
-  it("classifies card as presentation", () => {
-    assert.deepEqual(classify("card"), { kind: "presentation" })
+  it("classifies card as migratable", () => {
+    assert.deepEqual(classify("card"), { kind: "migratable", name: "card" })
+  })
+
+  it("classifies table as migratable", () => {
+    assert.deepEqual(classify("table"), { kind: "migratable", name: "table" })
   })
 
   it("classifies data-table as unknown", () => {

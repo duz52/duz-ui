@@ -6,6 +6,7 @@ import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 /**
@@ -26,6 +27,27 @@ function usePopoverAnchorSetter(): (element: HTMLDivElement | null) => void {
     throw new Error("PopoverAnchor must be rendered inside <Popover>.")
   }
   return ctx.setAnchor
+}
+
+/**
+ * The root renders no DOM element of its own and the content is unmounted
+ * while closed, so the trigger is the only part that is always mounted and
+ * always carries the human-meaningful name. It resolves its own accessible
+ * name and reports it here; the root uses it as the capability's default
+ * label.
+ */
+interface PopoverTriggerContextValue {
+  setTriggerLabel: (label: string | null) => void
+}
+
+const PopoverTriggerContext = React.createContext<PopoverTriggerContextValue | null>(null)
+
+function usePopoverTriggerLabelSetter(): (label: string | null) => void {
+  const ctx = React.useContext(PopoverTriggerContext)
+  if (!ctx) {
+    throw new Error("PopoverTrigger must be rendered inside <Popover>.")
+  }
+  return ctx.setTriggerLabel
 }
 
 type PopoverState = {
@@ -51,6 +73,12 @@ function Popover({
   agent?: AgentProp
 }) {
   const [anchor, setAnchor] = React.useState<HTMLDivElement | null>(null)
+  const [triggerLabel, setTriggerLabel] = React.useState<string | null>(null)
+
+  // Ignore a label the root already holds, so a repeated report cannot loop.
+  const reportTriggerLabel = React.useCallback((label: string | null) => {
+    setTriggerLabel((prev) => (prev === label ? prev : label))
+  }, [])
 
   const [open, setOpen] = useControllableState<boolean>({
     prop: openProp,
@@ -61,7 +89,7 @@ function Popover({
   useCapability<PopoverState, PopoverActions>({
     agent,
     kind: "disclosure",
-    defaultLabel: "Popover",
+    defaultLabel: triggerLabel ?? "Popover",
     read: () => ({ open, disabled: false }),
     actions: {
       open() {
@@ -81,22 +109,51 @@ function Popover({
     [anchor, setAnchor],
   )
 
+  const triggerContextValue = React.useMemo<PopoverTriggerContextValue>(
+    () => ({ setTriggerLabel: reportTriggerLabel }),
+    [reportTriggerLabel],
+  )
+
   return (
     // The Base UI root renders no element, so it carries no data-slot.
-    <PopoverContext.Provider value={contextValue}>
-      <PopoverPrimitive.Root
-        open={open}
-        onOpenChange={(next) => setOpen(next)}
-        {...props}
-      />
-    </PopoverContext.Provider>
+    <PopoverTriggerContext.Provider value={triggerContextValue}>
+      <PopoverContext.Provider value={contextValue}>
+        <PopoverPrimitive.Root
+          open={open}
+          onOpenChange={(next) => setOpen(next)}
+          {...props}
+        />
+      </PopoverContext.Provider>
+    </PopoverTriggerContext.Provider>
   )
 }
 
 function PopoverTrigger({
+  ref,
   ...props
-}: PopoverPrimitive.Trigger.Props) {
-  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
+}: Omit<PopoverPrimitive.Trigger.Props, "ref"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
+}) {
+  const setTriggerLabel = usePopoverTriggerLabelSetter()
+  const elementRef = React.useRef<HTMLElement>(null)
+  // An empty resolution means the trigger carries no name; reporting null
+  // lets the root keep its generic default.
+  const label = useAccessibleName(elementRef, "")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  // Reported in an effect: the name exists only once the element is mounted.
+  React.useEffect(() => {
+    setTriggerLabel(label === "" ? null : label)
+  }, [setTriggerLabel, label])
+
+  return (
+    <PopoverPrimitive.Trigger
+      data-slot="popover-trigger"
+      ref={mergedRef}
+      {...props}
+    />
+  )
 }
 
 function PopoverContent({

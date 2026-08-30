@@ -192,7 +192,7 @@ interface CapabilityDescriptor {
 interface ListResult {
   ok: boolean
   action: string
-  state: { capabilities: CapabilityDescriptor[] }
+  elements: CapabilityDescriptor[]
 }
 
 /** Calls ui_list through the fake context's executeTool, the way an agent would. */
@@ -201,7 +201,7 @@ async function listCapabilities(): Promise<CapabilityDescriptor[]> {
   const uiList = registered.find((t) => t.name === "ui_list")
   if (!uiList) throw new Error("ui_list is not registered")
   const raw = await fake.executeTool(uiList, "{}")
-  return (JSON.parse(raw) as ListResult).state.capabilities
+  return (JSON.parse(raw) as ListResult).elements
 }
 
 test("no provider and no agent prop — the browser still sees tools", async () => {

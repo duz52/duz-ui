@@ -36,8 +36,6 @@ function capabilitySummary(agentUi: AgentUiMeta | undefined): string {
         .join(" / ")
     case "presentation":
       return "presentation only, no agent capabilities"
-    case "explicit-semantics":
-      return "requires explicit semantics (AgentAction)"
   }
 }
 

@@ -11,15 +11,13 @@ import { SIGNATURES } from "./signatures.js"
 export type Classification =
   | { kind: "migratable"; name: string }
   | { kind: "presentation" }
-  | { kind: "explicit-semantics" }
   | { kind: "unknown" }
 
 /**
- * Stock shadcn components with no intrinsic agent semantics. They expose
- * nothing to agents and are never touched by migration.
+ * Stock shadcn components that carry no state and no actions. There is
+ * nothing on them for an agent to operate, so migration never touches them.
  */
 const PRESENTATION_COMPONENTS = new Set([
-  "card",
   "badge",
   "avatar",
   "separator",
@@ -31,7 +29,6 @@ const PRESENTATION_COMPONENTS = new Set([
   "scroll-area",
   "sonner",
   "tooltip",
-  "table",
   "label",
   "pagination",
 ])
@@ -42,8 +39,6 @@ const MIGRATABLE_NAMES = new Set(SIGNATURES.map((s) => s.name))
  * Classify a component by its file base name (without extension).
  *
  * - `migratable` — the component is in the Agent UI signature set.
- * - `explicit-semantics` — `button`; the component cannot infer what
- *   `onClick` means, so it never becomes an automatic agent action.
  * - `presentation` — stock shadcn components with no agent semantics.
  * - `unknown` — everything else, including components that have real agent
  *   semantics but no Agent UI implementation yet (accordion, calendar, form,
@@ -52,9 +47,6 @@ const MIGRATABLE_NAMES = new Set(SIGNATURES.map((s) => s.name))
 export function classify(componentName: string): Classification {
   if (MIGRATABLE_NAMES.has(componentName)) {
     return { kind: "migratable", name: componentName }
-  }
-  if (componentName === "button") {
-    return { kind: "explicit-semantics" }
   }
   if (PRESENTATION_COMPONENTS.has(componentName)) {
     return { kind: "presentation" }

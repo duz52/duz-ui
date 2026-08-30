@@ -1,14 +1,64 @@
+"use client"
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { readText } from "@/lib/agent-ui/agent-content"
+
+/** Cap for each card field reported to an agent. */
+const FIELD_MAX_LENGTH = 500
+
+type CardContentState = {
+  title: string | null
+  description: string | null
+  content: string | null
+  footer: string | null
+}
+
+/**
+ * Reads one card part out of the card's own subtree. A part that is not
+ * rendered reads as null, so an agent can tell "empty" from "absent".
+ */
+function slotText(root: HTMLElement | null, selector: string): string | null {
+  const element = root?.querySelector(selector)
+  return element ? readText(element, FIELD_MAX_LENGTH) : null
+}
 
 function Card({
   className,
   size = "default",
+  ref,
+  agent,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & {
+  size?: "default" | "sm"
+  agent?: AgentProp
+}) {
+  const rootRef = React.useRef<HTMLDivElement>(null)
+  const mergedRef = useMergedRef(ref, rootRef)
+
+  // Reads are pull-based: they run only when an agent calls ui_list or
+  // ui_read, never on render and never in an effect.
+  useCapability<CardContentState, Record<string, never>>({
+    agent,
+    kind: "content",
+    defaultLabel: "Card",
+    read: () => {
+      const root = rootRef.current
+      return {
+        title: slotText(root, '[data-slot="card-title"]'),
+        description: slotText(root, '[data-slot="card-description"]'),
+        content: slotText(root, '[data-slot="card-content"]'),
+        footer: slotText(root, '[data-slot="card-footer"]'),
+      }
+    },
+    actions: {},
+  })
   return (
     <div
+      ref={mergedRef}
       data-slot="card"
       data-size={size}
       className={cn(

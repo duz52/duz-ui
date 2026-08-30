@@ -17,6 +17,7 @@ import * as React from "react"
 
 import { Button } from "@/components/radix/ui/button"
 import { CopyButton } from "@/components/site/copy-button"
+import { JsonBlock } from "@/components/site/json-block"
 import type { CapabilityState } from "@/lib/agent-ui/capability"
 import {
   getCapabilityRegistry,
@@ -110,11 +111,6 @@ const STATUS_COLOR: Record<StepStatus, string> = {
   refused: "text-destructive",
   error: "text-destructive",
 }
-
-// Same surface as the tool runner's output area: bordered, muted, monospaced,
-// horizontally scrolling. Not a third style.
-const TRANSCRIPT_PRE =
-  "overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed"
 
 export function ScenarioRunner({
   scenarios,
@@ -271,7 +267,7 @@ export function ScenarioRunner({
           transcript
         </p>
         {active === null ? (
-          <pre className={cn(TRANSCRIPT_PRE, "min-h-28")}>
+          <pre className="min-h-28 rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed">
             <code>
               <span className="text-muted-foreground">
                 Run a scenario to see every tool call it makes.
@@ -282,6 +278,12 @@ export function ScenarioRunner({
           <ol className="space-y-3">
             {active.scenario.steps.map((step, index) => {
               const record = active.steps[index]!
+              // A refusal is a result, not a crash; a thrown dispatch is a
+              // failure. Only the tone differs.
+              const responseTone =
+                record.status === "refused" || record.status === "error"
+                  ? record.status
+                  : "default"
               return (
                 <li
                   key={index}
@@ -311,23 +313,20 @@ export function ScenarioRunner({
                     <p className="font-mono text-[11px] text-muted-foreground">
                       request
                     </p>
-                    <pre className={cn(TRANSCRIPT_PRE, "min-h-14")}>
-                      <code>{record.request ?? ""}</code>
-                    </pre>
+                    <JsonBlock
+                      payload={record.request ?? ""}
+                      className="min-h-14"
+                    />
                   </div>
                   <div className="space-y-1">
                     <p className="font-mono text-[11px] text-muted-foreground">
                       response
                     </p>
-                    <pre
-                      className={cn(
-                        TRANSCRIPT_PRE,
-                        "min-h-14",
-                        record.status === "error" && "text-destructive",
-                      )}
-                    >
-                      <code>{record.response ?? ""}</code>
-                    </pre>
+                    <JsonBlock
+                      payload={record.response ?? ""}
+                      tone={responseTone}
+                      className="min-h-14"
+                    />
                   </div>
                 </li>
               )

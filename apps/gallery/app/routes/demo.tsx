@@ -197,8 +197,11 @@ export default function Demo(): React.JSX.Element {
         eyebrow="Scenarios"
       />
 
+      {/* `min-w-0` on the content column: a `1fr` grid track will not shrink
+          below its content's min-content width, so the orders table pushed the
+          console column past the viewport edge. */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Scenario runner: recorded tool calls against the live registry */}
           <ScenarioRunner scenarios={SCENARIOS} />
 

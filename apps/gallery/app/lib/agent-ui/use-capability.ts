@@ -11,6 +11,7 @@
 
 import * as React from "react"
 
+import { useAgentContainer } from "./agent-container"
 import type { Capability, CapabilityResult, CapabilityState } from "./capability"
 import { CapabilityError } from "./capability"
 import { getAgentUIRuntime } from "./runtime"
@@ -21,6 +22,10 @@ export type AgentConfig = {
   id?: string
   /** Human-meaningful name the agent sees in discovery. */
   label?: string
+  /** What this specific element is for, one sentence. */
+  description?: string
+  /** id of the capability that contains this one, when it is nested. */
+  owner?: string
 }
 
 export type AgentProp = AgentConfig | boolean
@@ -39,6 +44,15 @@ export interface UseCapabilityOptions<
   kind: string
   /** Label used when the `agent` prop does not carry one. */
   defaultLabel?: string
+  /** What this specific element is for, used when the `agent` prop does not carry one. */
+  description?: string
+  /** id of the containing capability, used when the `agent` prop does not carry one. */
+  owner?: string
+  /**
+   * One-line digest of current state, when the component can say it better
+   * than a generic formatter can.
+   */
+  summarise?: () => string
   read: () => State
   actions: ActionMap<Actions>
 }
@@ -79,7 +93,8 @@ export function useCapability<
   State extends CapabilityState,
   Actions extends Record<string, unknown>,
 >(options: UseCapabilityOptions<State, Actions>): CapabilityHandle {
-  const { agent, kind, defaultLabel, read, actions } = options
+  const { agent, kind, defaultLabel, description, owner, summarise, read, actions } =
+    options
 
   const config = resolveConfig(agent)
   // The binding asks the runtime for the registry and knows nothing about
@@ -89,7 +104,33 @@ export function useCapability<
   const { registry } = runtime
   const generatedId = registry.createId(kind, React.useId())
   const id = config ? (config.id ?? generatedId) : undefined
-  const label = config?.label ?? defaultLabel
+  const container = useAgentContainer()
+  const explicitLabel = config?.label
+  const containerItemLabel = container?.itemLabel
+  // The `agent` prop wins over the option, exactly as it does for `label`.
+  const resolvedDescription = config?.description ?? description
+  // The `agent` prop wins over the option, and the option over the container
+  // the capability was rendered inside.
+  const resolvedOwner = config?.owner ?? owner ?? container?.ownerId
+
+  // The label the capability registers under. An explicit `agent.label` wins
+  // over everything. Otherwise, when a container names the position this
+  // capability occupies, the label is composed as
+  // `${itemLabel} — ${defaultLabel}` — "row 3: ada@lovelace.dev — Checkbox".
+  // A container whose position name lives in mounted text supplies a
+  // resolver, so the composition runs when the capability registers, never
+  // during render. With no container, `defaultLabel` is used unchanged.
+  const resolveLabel = React.useCallback((): string | undefined => {
+    if (explicitLabel !== undefined) return explicitLabel
+    const itemLabel =
+      typeof containerItemLabel === "function"
+        ? containerItemLabel()
+        : containerItemLabel
+    if (itemLabel === undefined) return defaultLabel
+    return defaultLabel === undefined
+      ? itemLabel
+      : `${itemLabel} — ${defaultLabel}`
+  }, [explicitLabel, containerItemLabel, defaultLabel])
 
   const actionKey = Object.keys(actions).sort().join(" ")
   const actionNames = React.useMemo(
@@ -99,6 +140,7 @@ export function useCapability<
 
   const readRef = React.useRef(read)
   const actionsRef = React.useRef(actions)
+  const summariseRef = React.useRef(summarise)
   const commitWaiters = React.useRef(new Set<() => void>())
 
   // Runs on every commit, before passive effects. Afterwards the refs hold the
@@ -107,6 +149,7 @@ export function useCapability<
   React.useLayoutEffect(() => {
     readRef.current = read
     actionsRef.current = actions
+    summariseRef.current = summarise
     if (commitWaiters.current.size === 0) return
     const pending = [...commitWaiters.current]
     commitWaiters.current.clear()
@@ -142,9 +185,16 @@ export function useCapability<
     const capability: Capability<State, Actions> = {
       id,
       kind,
-      label,
+      label: resolveLabel(),
+      description: resolvedDescription,
+      owner: resolvedOwner,
       actions: actionNames,
       read: () => readRef.current(),
+      // Routed through a ref like `read`, so the registered capability always
+      // calls the committed render's summarise.
+      summarise: summariseRef.current
+        ? () => summariseRef.current?.()
+        : undefined,
       async invoke(action, input): Promise<CapabilityResult<State>> {
         const handler = actionsRef.current[action]
         if (!handler) {
@@ -168,7 +218,17 @@ export function useCapability<
       unregister()
       setRegistered(false)
     }
-  }, [runtime, registry, id, kind, label, actionNames, waitForCommit])
+  }, [
+    runtime,
+    registry,
+    id,
+    kind,
+    resolveLabel,
+    resolvedDescription,
+    resolvedOwner,
+    actionNames,
+    waitForCommit,
+  ])
 
   return { id, registered }
 }

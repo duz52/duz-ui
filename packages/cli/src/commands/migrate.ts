@@ -7,7 +7,7 @@
  *
  * 1. Load the project and create the registry client.
  * 2. List the component files and plan every one of them — classify by name
- *    (migratable / presentation / explicit-semantics / unknown), fetch the
+ *    (migratable / presentation / unknown), fetch the
  *    Agent UI registry item, rewrite its import aliases to the project's
  *    aliases, and run `planMigration` to decide whether the file is stock
  *    (→ replace), already migrated (→ skip), or locally modified (→ refuse).
@@ -90,7 +90,6 @@ function printReport(
   const needsOverwrite: Extract<MigrationOutcome, { status: "needs-overwrite" }>[] = []
   const unsupported: Extract<MigrationOutcome, { status: "unsupported" }>[] = []
   const presentation: Extract<MigrationOutcome, { status: "presentation" }>[] = []
-  const explicitSemantics: Extract<MigrationOutcome, { status: "explicit-semantics" }>[] = []
   const unknown: Extract<MigrationOutcome, { status: "unknown" }>[] = []
 
   for (const { outcome } of results) {
@@ -109,9 +108,6 @@ function printReport(
         break
       case "presentation":
         presentation.push(outcome)
-        break
-      case "explicit-semantics":
-        explicitSemantics.push(outcome)
         break
       case "unknown":
         unknown.push(outcome)
@@ -146,15 +142,12 @@ function printReport(
     printedAny = true
   }
 
-  const skipped = [...presentation, ...explicitSemantics, ...unknown]
+  const skipped = [...presentation, ...unknown]
   if (skipped.length > 0) {
     if (printedAny) blank()
     info("Skipped:")
     for (const o of presentation) {
       warn(line(o.component, "presentation-only", columnWidth))
-    }
-    for (const o of explicitSemantics) {
-      warn(line(o.component, "explicit business semantics required", columnWidth))
     }
     for (const o of unknown) {
       warn(line(o.component, "not supported yet", columnWidth))
@@ -250,8 +243,6 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
       let outcome: MigrationOutcome
       if (classification.kind === "presentation") {
         outcome = { status: "presentation", component }
-      } else if (classification.kind === "explicit-semantics") {
-        outcome = { status: "explicit-semantics", component }
       } else {
         outcome = { status: "unknown", component }
       }

@@ -25,7 +25,6 @@ type GalleryItemStatus = NonNullable<GalleryIndexItem["agentUi"]>["status"]
 const GROUPS: { status: GalleryItemStatus; label: string }[] = [
   { status: "agent-native", label: "Agent-native" },
   { status: "presentation", label: "Presentation" },
-  { status: "explicit-semantics", label: "Explicit semantics" },
 ]
 
 export function GallerySidebar(): React.JSX.Element {

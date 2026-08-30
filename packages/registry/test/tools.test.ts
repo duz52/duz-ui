@@ -3,12 +3,14 @@ import test from "node:test"
 
 import type { Capability, CapabilityResult } from "../src/lib/agent-ui/capability"
 import { getCapabilityRegistry } from "../src/lib/agent-ui/registry"
-import { createAgentTools, type AgentTool } from "../src/lib/agent-ui/tools"
+import { createAgentTools, digest, type AgentTool } from "../src/lib/agent-ui/tools"
 
 /**
- * Spec sections 7 and 8: the adapter exposes a stable tool surface keyed by
- * capability kind, dispatches only through the registry, and never invents a
- * tool per component instance.
+ * The adapter exposes a stable tool surface keyed by capability kind,
+ * dispatches only through the registry, and never invents a tool per
+ * component instance. `ui_list` returns the page as a document — structure
+ * and current state together — and degrades honestly when the document
+ * exceeds the output budget: structure first, then states, then elements.
  */
 
 const registry = getCapabilityRegistry()
@@ -17,8 +19,11 @@ function stub(options: {
   id: string
   kind: string
   label?: string
+  description?: string
+  owner?: string
   actions: string[]
   state?: Record<string, unknown>
+  summarise?: () => string
   onInvoke?: (action: string, input: unknown) => unknown
 }): Capability {
   let state: Record<string, unknown> = options.state ?? { value: "a" }
@@ -26,8 +31,11 @@ function stub(options: {
     id: options.id,
     kind: options.kind,
     label: options.label,
+    description: options.description,
+    owner: options.owner,
     actions: options.actions,
     read: () => state,
+    summarise: options.summarise,
     async invoke(action, input): Promise<CapabilityResult> {
       const detail = options.onInvoke?.(action, input)
       state = { ...state, lastAction: action, lastInput: input }
@@ -39,6 +47,39 @@ function stub(options: {
 function byName(tools: AgentTool[]): Map<string, AgentTool> {
   return new Map(tools.map((tool) => [tool.name, tool]))
 }
+
+// — digest —
+
+test("digest keeps scalars as-is and cuts long strings", () => {
+  assert.deepEqual(digest({ open: false, count: 3, nothing: null }), {
+    open: false,
+    count: 3,
+    nothing: null,
+  })
+
+  const note = "x".repeat(200)
+  const cut = digest({ note }).note as string
+  assert.equal(cut.length, 81, "80 characters plus the ellipsis")
+  assert.equal(cut.slice(0, 80), "x".repeat(80))
+  assert.ok(cut.endsWith("…"))
+})
+
+test("digest replaces bulky arrays and objects with counts and keeps small scalar arrays", () => {
+  assert.deepEqual(digest({ rows: [{ id: 1 }, { id: 2 }] }), { rows: { items: 2 } })
+  assert.deepEqual(digest({ values: [1, 2, 3, 4, 5, 6, 7, 8, 9] }), {
+    values: { items: 9 },
+  })
+  assert.deepEqual(digest({ values: [1, 2, 3, 4, 5, 6, 7, 8] }), {
+    values: [1, 2, 3, 4, 5, 6, 7, 8],
+  })
+  assert.deepEqual(digest({ options: ["a", "b", "c"] }), { options: ["a", "b", "c"] })
+  assert.deepEqual(digest({ meta: { a: 1, b: 2, c: 3 } }), { meta: { fields: 3 } })
+
+  // Key order is preserved.
+  assert.deepEqual(Object.keys(digest({ z: 1, a: 2, m: 3 })), ["z", "a", "m"])
+})
+
+// — tool surface —
 
 test("discovery tools are always present and marked read-only", () => {
   const tools = byName(createAgentTools(registry))
@@ -59,6 +100,34 @@ test("kind tools exist only while a capability of that kind is mounted", () => {
   assert.equal(byName(createAgentTools(registry)).has("tabs_select"), false)
 })
 
+test("button_press exists only while a button capability is mounted and dispatches press to the right target", async () => {
+  const seen: unknown[] = []
+  const off = registry.register(
+    stub({
+      id: "invite",
+      kind: "button",
+      label: "Send Invitation",
+      actions: ["press"],
+      onInvoke: (action, input) => seen.push([action, input]),
+    }),
+  )
+
+  assert.ok(byName(createAgentTools(registry)).has("button_press"))
+
+  const output = JSON.parse(
+    await byName(createAgentTools(registry)).get("button_press")!.execute({
+      target: "invite",
+    }),
+  )
+  assert.equal(output.ok, true)
+  assert.equal(output.target, "invite")
+  assert.equal(output.action, "press")
+  assert.deepEqual(seen, [["press", {}]], "press dispatches to the named target alone")
+
+  off()
+  assert.equal(byName(createAgentTools(registry)).has("button_press"), false)
+})
+
 test("tool count scales with kinds, not with component instances", () => {
   const a = registry.register(stub({ id: "t1", kind: "tabs", actions: ["select"] }))
   const one = createAgentTools(registry).length
@@ -72,26 +141,112 @@ test("tool count scales with kinds, not with component instances", () => {
   c()
 })
 
-test("ui_list reports every mounted capability", async () => {
+test("ui_list returns the page document with every element's current state", async () => {
   const off = registry.register(
     stub({
       id: "orders",
       kind: "data-table",
       label: "Orders",
       actions: ["filter", "sort", "select_rows", "set_page"],
+      state: { page: 2, filtered: false },
     }),
   )
-  const tools = byName(createAgentTools(registry))
 
-  const output = JSON.parse(await tools.get("ui_list")!.execute({}))
-  assert.deepEqual(output.state.capabilities, [
+  const output = JSON.parse(await byName(createAgentTools(registry)).get("ui_list")!.execute({}))
+  assert.equal(output.ok, true)
+  assert.equal(output.action, "list")
+  assert.deepEqual(output.elements, [
     {
       id: "orders",
       kind: "data-table",
       label: "Orders",
       actions: ["filter", "sort", "select_rows", "set_page"],
+      state: { page: 2, filtered: false },
     },
   ])
+  assert.equal("page" in output, false, "no page header without a page capability")
+
+  off()
+})
+
+test("ui_list nests an element under the capability its owner names, and a dangling owner still appears as a root", async () => {
+  const dispose = [
+    registry.register(stub({ id: "panel", kind: "tabs", label: "Panel", actions: ["select"] })),
+    registry.register(
+      stub({ id: "rows", kind: "data-table", label: "Rows", actions: ["filter"], owner: "panel" }),
+    ),
+    registry.register(
+      stub({
+        id: "ghosted",
+        kind: "input",
+        label: "Ghosted",
+        actions: ["set_value"],
+        owner: "missing",
+      }),
+    ),
+  ]
+
+  const output = JSON.parse(await byName(createAgentTools(registry)).get("ui_list")!.execute({}))
+  assert.deepEqual(output.elements, [
+    {
+      id: "panel",
+      kind: "tabs",
+      label: "Panel",
+      actions: ["select"],
+      state: { value: "a" },
+      children: [
+        {
+          id: "rows",
+          kind: "data-table",
+          label: "Rows",
+          actions: ["filter"],
+          state: { value: "a" },
+        },
+      ],
+    },
+    {
+      id: "ghosted",
+      kind: "input",
+      label: "Ghosted",
+      actions: ["set_value"],
+      state: { value: "a" },
+    },
+  ])
+
+  for (const off of dispose) off()
+})
+
+test("ui_list promotes a page capability into the page header and does not list it", async () => {
+  const dispose = [
+    registry.register(
+      stub({ id: "admin", kind: "page", label: "Admin", description: "Manage the store." }),
+    ),
+    registry.register(stub({ id: "table", kind: "data-table", label: "Orders", actions: ["filter"] })),
+  ]
+
+  const output = JSON.parse(await byName(createAgentTools(registry)).get("ui_list")!.execute({}))
+  assert.deepEqual(output.page, { title: "Admin", description: "Manage the store." })
+  assert.deepEqual(
+    output.elements.map((element: { id: string }) => element.id),
+    ["table"],
+  )
+
+  for (const off of dispose) off()
+})
+
+test("ui_list uses the component's own summary when it provides one", async () => {
+  const off = registry.register(
+    stub({
+      id: "wizard",
+      kind: "tabs",
+      label: "Wizard",
+      actions: ["select"],
+      summarise: () => "step 2 of 4",
+    }),
+  )
+
+  const output = JSON.parse(await byName(createAgentTools(registry)).get("ui_list")!.execute({}))
+  assert.equal(output.elements[0].state, "step 2 of 4")
 
   off()
 })
@@ -204,23 +359,173 @@ test("every tool name fits the WebMCP charset and the 30 character budget", () =
   for (const dispose of off) dispose()
 })
 
-test("an oversized result stays valid JSON and says it was truncated", async () => {
+test("an oversized read with no list to window is refused with a message that names the tool", async () => {
   const off = registry.register(
     stub({
       id: "orders",
       kind: "data-table",
       actions: ["filter"],
-      state: { rows: Array.from({ length: 400 }, (_, index) => ({ id: `ORD-${index}` })) },
+      state: { page: 1, note: "x".repeat(9000) },
     }),
   )
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(await tools.get("ui_read")!.execute({ target: "orders" }))
+
+  assert.equal(parsed.ok, false)
+  assert.equal(parsed.error.code, "output_too_large")
+  assert.match(parsed.error.message, /ui_read/)
+  assert.match(parsed.error.message, /[Nn]arrow/)
+
+  off()
+})
+
+test("a state that is bulky but within budget is returned whole", async () => {
+  const off = registry.register(
+    stub({
+      id: "small-table",
+      kind: "data-table",
+      actions: ["filter"],
+      state: {
+        page: 1,
+        rows: Array.from({ length: 8 }, (_, index) => ({
+          id: `ORD-${index}`,
+          cells: { customer: "Northwind Traders", status: "pending", total: 642.5 },
+        })),
+      },
+    }),
+  )
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "small-table" }),
+  )
+  assert.equal(parsed.state.rows.length, 8)
+  assert.equal("window" in parsed, false, "a whole state does not grow a window key")
+
+  off()
+})
+
+// — windowing an over-budget read —
+
+/** A data-table whose state is `rows` of compact entries, for windowing tests. */
+function rowTable(id: string, rows: number): Capability {
+  return stub({
+    id,
+    kind: "data-table",
+    actions: ["filter"],
+    state: {
+      page: 1,
+      rows: Array.from({ length: rows }, (_, index) => ({
+        id: `ORD-${index}`,
+        status: "pending",
+      })),
+    },
+  })
+}
+
+test("an over-budget read windows the largest array and reports the true total", async () => {
+  const off = registry.register(rowTable("orders", 500))
   const tools = byName(createAgentTools(registry))
 
   const raw = await tools.get("ui_read")!.execute({ target: "orders" })
   const parsed = JSON.parse(raw)
 
-  assert.ok(raw.length <= 1500)
-  assert.equal(parsed.truncated, true)
-  assert.match(parsed.reason, /tool output budget/)
+  assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.action, "read")
+  assert.ok(parsed.state.rows.length < 500, "the rows came back windowed")
+  assert.deepEqual(parsed.window, {
+    field: "rows",
+    offset: 0,
+    returned: parsed.state.rows.length,
+    total: 500,
+  })
+
+  off()
+})
+
+test("an offset returns the tail of the list and reports where it starts", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "orders", offset: 400 }),
+  )
+
+  assert.equal(parsed.state.rows.length, 100)
+  assert.equal(parsed.state.rows[0].id, "ORD-400")
+  assert.deepEqual(parsed.window, {
+    field: "rows",
+    offset: 400,
+    returned: 100,
+    total: 500,
+  })
+
+  off()
+})
+
+test("an offset past the end returns an empty window and the true total", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "orders", offset: 999 }),
+  )
+
+  assert.equal(parsed.ok, true)
+  assert.deepEqual(parsed.state.rows, [])
+  assert.deepEqual(parsed.window, {
+    field: "rows",
+    offset: 500,
+    returned: 0,
+    total: 500,
+  })
+
+  off()
+})
+
+test("an explicit limit is honoured exactly", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "orders", limit: 10 }),
+  )
+
+  assert.equal(parsed.state.rows.length, 10)
+  assert.deepEqual(parsed.window, {
+    field: "rows",
+    offset: 0,
+    returned: 10,
+    total: 500,
+  })
+
+  off()
+})
+
+test("a single entry that cannot fit even alone is refused, naming the field", async () => {
+  const off = registry.register(
+    stub({
+      id: "orders",
+      kind: "data-table",
+      actions: ["filter"],
+      state: {
+        note: "context ".repeat(900),
+        rows: Array.from({ length: 5 }, (_, index) => ({
+          id: `ORD-${index}`,
+          cells: { customer: "Northwind Traders Limited".repeat(60) },
+        })),
+      },
+    }),
+  )
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(await tools.get("ui_read")!.execute({ target: "orders" }))
+
+  assert.equal(parsed.ok, false)
+  assert.equal(parsed.error.code, "output_too_large")
+  assert.match(parsed.error.message, /rows/)
 
   off()
 })
@@ -319,4 +624,191 @@ test("a business action tool is scoped to the one capability it runs", () => {
   assert.deepEqual(tool?.scope, { on: "capability", id: "refresh-orders" })
 
   off()
+})
+
+// — honest degradation of an over-budget listing —
+
+test("an over-budget listing first drops grandchildren and marks each dropped-from parent", async () => {
+  const label = "Child section ".repeat(6)
+  const grandchildLabel = "Grandchild section ".repeat(6)
+  const dispose: (() => void)[] = []
+  try {
+    dispose.push(
+      registry.register(stub({ id: "root", kind: "tabs", label: "Root", actions: ["select"] })),
+    )
+    for (let c = 0; c < 30; c++) {
+      dispose.push(
+        registry.register(
+          stub({ id: `child-${c}`, kind: "input", label, actions: ["set_value"], owner: "root" }),
+        ),
+      )
+      for (let g = 0; g < 8; g++) {
+        dispose.push(
+          registry.register(
+            stub({
+              id: `grandchild-${c}-${g}`,
+              kind: "input",
+              label: grandchildLabel,
+              actions: ["set_value"],
+              owner: `child-${c}`,
+            }),
+          ),
+        )
+      }
+    }
+
+    const raw = await byName(createAgentTools(registry)).get("ui_list")!.execute({})
+    const parsed = JSON.parse(raw)
+
+    assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+    assert.equal(parsed.elements.length, 1)
+    const root = parsed.elements[0]
+    assert.equal(root.children.length, 30, "each root keeps its own children")
+    for (const child of root.children) {
+      assert.equal(child.childrenOmitted, 8)
+      assert.equal("children" in child, false)
+    }
+    assert.equal("truncated" in parsed, false)
+    assert.equal(raw.includes("grandchild-"), false, "grandchildren are gone entirely")
+  } finally {
+    for (const off of dispose) off()
+  }
+})
+
+test("an over-budget listing then drops every remaining children array", async () => {
+  const label = "Child section ".repeat(8)
+  const dispose: (() => void)[] = []
+  try {
+    dispose.push(
+      registry.register(stub({ id: "root", kind: "tabs", label: "Root", actions: ["select"] })),
+    )
+    for (let c = 0; c < 200; c++) {
+      dispose.push(
+        registry.register(
+          stub({ id: `child-${c}`, kind: "input", label, actions: ["set_value"], owner: "root" }),
+        ),
+      )
+      dispose.push(
+        registry.register(
+          stub({
+            id: `grandchild-${c}`,
+            kind: "input",
+            label: "G",
+            actions: ["set_value"],
+            owner: `child-${c}`,
+          }),
+        ),
+      )
+    }
+
+    const raw = await byName(createAgentTools(registry)).get("ui_list")!.execute({})
+    const parsed = JSON.parse(raw)
+
+    assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+    assert.equal(parsed.elements.length, 1)
+    const root = parsed.elements[0]
+    assert.equal(root.childrenOmitted, 200)
+    assert.equal("children" in root, false)
+    assert.equal("truncated" in parsed, false)
+    assert.equal(raw.includes("Child section"), false)
+  } finally {
+    for (const off of dispose) off()
+  }
+})
+
+test("an over-budget listing then drops every state", async () => {
+  const wideState = Object.fromEntries(
+    Array.from({ length: 200 }, (_, index) => [`field-${index}`, "some value"]),
+  )
+  const dispose: (() => void)[] = []
+  try {
+    for (let i = 0; i < 10; i++) {
+      dispose.push(
+        registry.register(
+          stub({
+            id: `wide-${i}`,
+            kind: "input",
+            label: `Wide ${i}`,
+            actions: ["set_value"],
+            state: wideState,
+          }),
+        ),
+      )
+    }
+
+    const raw = await byName(createAgentTools(registry)).get("ui_list")!.execute({})
+    const parsed = JSON.parse(raw)
+
+    assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+    assert.equal(parsed.elements.length, 10)
+    for (const element of parsed.elements) {
+      assert.equal("state" in element, false)
+      assert.equal("children" in element, false)
+    }
+    assert.equal("truncated" in parsed, false)
+    assert.equal(raw.includes("some value"), false)
+  } finally {
+    for (const off of dispose) off()
+  }
+})
+
+test("an over-budget listing then drops every description", async () => {
+  const description = "Element description text. ".repeat(20)
+  const dispose: (() => void)[] = []
+  try {
+    for (let i = 0; i < 20; i++) {
+      dispose.push(
+        registry.register(
+          stub({
+            id: `described-${i}`,
+            kind: "input",
+            label: `Described ${i}`,
+            description,
+            actions: ["set_value"],
+          }),
+        ),
+      )
+    }
+
+    const raw = await byName(createAgentTools(registry)).get("ui_list")!.execute({})
+    const parsed = JSON.parse(raw)
+
+    assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+    assert.equal(parsed.elements.length, 20)
+    for (const element of parsed.elements) {
+      assert.equal("description" in element, false)
+      assert.equal("state" in element, false, "earlier steps stay applied")
+    }
+    assert.equal("truncated" in parsed, false)
+    assert.equal(raw.includes("Element description"), false)
+  } finally {
+    for (const off of dispose) off()
+  }
+})
+
+test("an over-budget listing finally keeps the first roots that fit and reports the truncation", async () => {
+  const dispose: (() => void)[] = []
+  try {
+    for (let i = 0; i < 300; i++) {
+      dispose.push(
+        registry.register(stub({ id: `element-${i}`, kind: "input", actions: ["set_value"] })),
+      )
+    }
+
+    const raw = await byName(createAgentTools(registry)).get("ui_list")!.execute({})
+    const parsed = JSON.parse(raw)
+
+    assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+    assert.deepEqual(parsed.truncated, { shown: parsed.elements.length, total: 300 })
+    assert.ok(parsed.elements.length >= 1, "at least one element is always listed")
+    assert.equal(parsed.elements[0].id, "element-0", "the first roots are kept")
+    // Everything that can be shed has been shed by the time truncation happens.
+    for (const element of parsed.elements) {
+      assert.equal("state" in element, false)
+      assert.equal("description" in element, false)
+      assert.equal("children" in element, false)
+    }
+  } finally {
+    for (const off of dispose) off()
+  }
 })

@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import type { Route } from "./+types/playground"
+import { JsonBlock } from "@/components/site/json-block"
 import { KindBadge } from "@/components/site/kind-badge"
 import { PageHeader } from "@/components/site/page-header"
 import { ToolRunner } from "@/components/site/tool-runner"
@@ -132,15 +133,160 @@ function CapabilityCard({
   )
 }
 
+const isString = (value: unknown): value is string => typeof value === "string"
+
+const isNumber = (value: unknown): value is number => typeof value === "number"
+
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  )
+}
+
+function isNumberArray(value: unknown): value is number[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "number")
+  )
+}
+
+// One formatter per kind, each returning the single fact that matters for
+// that kind. A formatter returns null when the state's shape does not match
+// what its kind reports; digestFor then falls back to a key count rather
+// than guess.
+function digestTabs(state: CapabilityState): string | null {
+  if (!isString(state.value) || !Array.isArray(state.tabs)) return null
+  return `value: "${state.value}"`
+}
+
+function digestSelect(state: CapabilityState): string | null {
+  const value = state.value
+  if (!isString(value) && value !== null) return null
+  if (!Array.isArray(state.options)) return null
+  return `value: ${JSON.stringify(value)}`
+}
+
+function digestMultiSelect(state: CapabilityState): string | null {
+  if (!isStringArray(state.value) || !Array.isArray(state.options)) return null
+  return `${state.value.length} of ${state.options.length} selected`
+}
+
+function digestCheckbox(state: CapabilityState): string | null {
+  if (state.checked === true) return "checked"
+  if (state.checked === false) return "unchecked"
+  if (state.checked === "indeterminate") return "indeterminate"
+  return null
+}
+
+function digestInput(state: CapabilityState): string | null {
+  if (!isString(state.value)) return null
+  if (state.value === "") return "empty"
+  const text =
+    state.value.length > 28 ? `${state.value.slice(0, 27)}…` : state.value
+  return `"${text}"`
+}
+
+function digestAccordion(state: CapabilityState): string | null {
+  if (!isStringArray(state.value) || !Array.isArray(state.items)) return null
+  return `${state.value.length} of ${state.items.length} expanded`
+}
+
+function digestSlider(state: CapabilityState): string | null {
+  if (
+    !isNumberArray(state.value) ||
+    !isNumber(state.min) ||
+    !isNumber(state.max)
+  ) {
+    return null
+  }
+  if (state.value.length !== 1) return null
+  const value = state.value[0]
+  if (value === undefined) return null
+  return `${value} (${state.min}–${state.max})`
+}
+
+function digestDate(state: CapabilityState): string | null {
+  if (!isString(state.mode)) return null
+  const value = state.value
+  if (value === null || value === undefined) return `${state.mode} · none`
+  // The calendar erases every mode to one shape: value is an array of
+  // YYYY-MM-DD strings, empty when nothing is selected.
+  if (!isStringArray(value)) return null
+  const [first] = value
+  if (first === undefined) return `${state.mode} · none`
+  return value.length === 1
+    ? `${state.mode} · ${first}`
+    : `${state.mode} · ${value.length} dates`
+}
+
+function digestOpen(state: CapabilityState): string | null {
+  if (typeof state.open !== "boolean") return null
+  return state.open ? "open" : "closed"
+}
+
+function digestDataTable(state: CapabilityState): string | null {
+  const { rowCount, totalRowCount, page, pageCount, selectedRowIds } = state
+  if (
+    !isNumber(rowCount) ||
+    !isNumber(totalRowCount) ||
+    !isNumber(page) ||
+    !isNumber(pageCount) ||
+    !isStringArray(selectedRowIds)
+  ) {
+    return null
+  }
+  return `${rowCount} of ${totalRowCount} rows · page ${page}/${pageCount} · ${selectedRowIds.length} selected`
+}
+
+function digestProgress(state: CapabilityState): string | null {
+  if (!isNumber(state.value) || !isNumber(state.max)) return null
+  return `${state.value} / ${state.max}`
+}
+
+function digestAction(state: CapabilityState): string | null {
+  if (!isString(state.description)) return null
+  return "business action"
+}
+
+const DIGEST_BY_KIND: Record<
+  string,
+  (state: CapabilityState) => string | null
+> = {
+  tabs: digestTabs,
+  select: digestSelect,
+  "multi-select": digestMultiSelect,
+  checkbox: digestCheckbox,
+  input: digestInput,
+  accordion: digestAccordion,
+  slider: digestSlider,
+  date: digestDate,
+  dialog: digestOpen,
+  disclosure: digestOpen,
+  "data-table": digestDataTable,
+  progress: digestProgress,
+  action: digestAction,
+}
+
+/** The digest line for one row; a mismatched shape degrades to a key count. */
+function digestFor(kind: string, state: CapabilityState): string {
+  const digest = DIGEST_BY_KIND[kind]?.(state) ?? null
+  if (digest !== null) return digest
+  const count = Object.keys(state).length
+  return `${count} ${count === 1 ? "key" : "keys"}`
+}
+
 /**
- * Live view of every capability on the page: identity, actions and current
- * semantic state, refreshed as the visitor drives the controls by hand. The
- * per-row "read" button demonstrates the on-demand path an agent takes.
+ * Live view of every capability on the page. Collapsed, each row is one
+ * line — identity, kind and a one-line digest of the current state —
+ * refreshed as the visitor drives the controls by hand. Expanding a row
+ * shows the full state, and the per-row "read" button demonstrates the
+ * on-demand path an agent takes.
  */
 function CapabilityInspector(): React.JSX.Element {
   const capabilities = useCapabilities()
   const registry = getCapabilityRegistry()
-  const [states, setStates] = React.useState<CapabilityState[]>([])
+  // `undefined` for an element that unregistered between the snapshot and
+  // the read — the row then shows no digest rather than the page failing.
+  const [states, setStates] = React.useState<(CapabilityState | undefined)[]>([])
   const [read, setRead] = React.useState<{
     id: string
     text: string
@@ -163,7 +309,12 @@ function CapabilityInspector(): React.JSX.Element {
   //    only when the serialised snapshot actually differs, so the loop
   //    terminates instead of scheduling renders forever.
   React.useEffect(() => {
-    const next = capabilities.map((cap) => registry.read(cap.id))
+    // `get`, not `read`: `capabilities` is a snapshot and the registry is
+    // live, so an id can vanish between the two. A live view showing nothing
+    // for a gone element is correct; throwing would take the page down. The
+    // per-row "read" button below deliberately uses the throwing form,
+    // because that one is demonstrating the agent's own path.
+    const next = capabilities.map((cap) => registry.get(cap.id)?.read())
     setStates((prev) =>
       JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
     )
@@ -195,71 +346,102 @@ function CapabilityInspector(): React.JSX.Element {
     )
   }
 
+  const kindCount = new Set(capabilities.map((cap) => cap.kind)).size
+
   return (
     <div className="space-y-2">
-      {capabilities.map((cap, index) => {
-        const state = states[index]
-        return (
-          <div
-            key={cap.id}
-            className="space-y-2 rounded-lg border border-border p-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <code className="truncate font-mono text-[13px]">{cap.id}</code>
-              <button
-                type="button"
-                onClick={() => handleRead(cap.id)}
-                aria-label={`Read the current state of ${cap.id}`}
-                className="rounded border border-border px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-              >
-                read
-              </button>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <KindBadge kind={cap.kind} />
-              <span className="truncate text-muted-foreground">
-                {cap.label ?? "—"}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {cap.actions.length === 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  no actions — read-only
-                </span>
-              ) : (
-                cap.actions.map((action) => (
-                  <code
-                    key={action}
-                    className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
-                  >
-                    {action}
-                  </code>
-                ))
-              )}
-            </div>
-            {state !== undefined && (
-              <pre className="overflow-x-auto rounded-md bg-muted/40 p-2.5 font-mono text-[11px] leading-relaxed">
-                <code>{JSON.stringify(state, null, 2)}</code>
-              </pre>
-            )}
-            {read?.id === cap.id && (
-              <div className="space-y-1">
-                <p className="font-mono text-[11px] text-muted-foreground">
-                  read()
-                </p>
-                <pre
-                  className={cn(
-                    "overflow-x-auto rounded-md bg-muted/40 p-2.5 font-mono text-[11px] leading-relaxed",
-                    read.failed && "text-destructive",
-                  )}
+      <div className="space-y-1">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          What an agent sees when it looks at this page: every element it can
+          operate, and the state it can read.
+        </p>
+        <p className="font-mono text-[11px] text-muted-foreground">
+          {capabilities.length} elements · {kindCount} kinds
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        {capabilities.map((cap, index) => {
+          const state = states[index]
+          return (
+            <details
+              key={cap.id}
+              className="group rounded-lg border border-border"
+            >
+              <summary className="flex cursor-pointer list-none items-center gap-1 rounded-lg px-2 py-2 transition-colors hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
                 >
-                  <code>{read.text}</code>
-                </pre>
+                  <path d="m6 3 5 5-5 5" />
+                </svg>
+                <KindBadge kind={cap.kind} />
+                <code className="shrink-0 font-mono text-[11px]">{cap.id}</code>
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                  {cap.label ?? "—"}
+                </span>
+                {state !== undefined && (
+                  <span className="shrink-0 text-[10px] font-medium text-foreground">
+                    {digestFor(cap.kind, state)}
+                  </span>
+                )}
+              </summary>
+              <div className="space-y-2.5 border-t border-border px-2 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    {cap.actions.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        no actions — read-only
+                      </span>
+                    ) : (
+                      cap.actions.map((action) => (
+                        <code
+                          key={action}
+                          className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+                        >
+                          {action}
+                        </code>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRead(cap.id)}
+                    aria-label={`Read the current state of ${cap.id}`}
+                    className="shrink-0 rounded border border-border px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    read
+                  </button>
+                </div>
+                {state !== undefined && (
+                  <div className="space-y-1">
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      state
+                    </p>
+                    <JsonBlock payload={JSON.stringify(state)} />
+                  </div>
+                )}
+                {read?.id === cap.id && (
+                  <div className="space-y-1">
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      read()
+                    </p>
+                    <JsonBlock
+                      payload={read.text}
+                      tone={read.failed ? "error" : "default"}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )
-      })}
+            </details>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -298,8 +480,11 @@ export default function Playground(): React.JSX.Element {
         description="Every capability kind in the system, mounted live at once, with the semantic state an agent reads and the tools it can call."
       />
 
+      {/* `min-w-0` on the surfaces column: a `1fr` grid track will not shrink
+          below its content's min-content width, so the orders table would push
+          the console column past the viewport edge. */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
-        <section className="space-y-4">
+        <section className="min-w-0 space-y-4">
           <h2 className={SECTION_HEADING}>Surfaces</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <CapabilityCard

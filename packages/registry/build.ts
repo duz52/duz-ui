@@ -39,7 +39,6 @@ interface ManifestItem {
   agentUi?:
     | { capabilities: { kind: string; actions: string[] }[]; status: "agent-native" }
     | { status: "presentation" }
-    | { status: "explicit-semantics" }
 }
 
 interface Manifest {
@@ -102,17 +101,38 @@ function readSourceFile(itemName: string, src: string, base?: string): RegistryF
 const FRAMEWORK_PEERS = new Set(["react", "react-dom"])
 
 /**
+ * Module specifiers a source imports.
+ *
+ * A statement always begins a line and always ends in its quoted specifier, so
+ * the scan is anchored to a line-leading `import`/`export`. Scanning the whole
+ * text for `from "…"` instead would read prose as code: a comment saying an
+ * absent field can be told `"empty" from "absent"` produced a dependency on a
+ * package named `absent`, and the registry shipped it.
+ */
+function importedSpecifiers(source: string): string[] {
+  const specifiers: string[] = []
+  for (const match of source.matchAll(
+    /^(?:import|export)\b[\s\S]*?\bfrom\s*"([^"]+)"/gm,
+  )) {
+    specifiers.push(match[1])
+  }
+  // A side-effect import carries its specifier with no `from` clause.
+  for (const match of source.matchAll(/^import\s+"([^"]+)"/gm)) {
+    specifiers.push(match[1])
+  }
+  return specifiers
+}
+
+/**
  * The npm packages a variant's sources import, resolved from bare specifiers:
  * `@scope/pkg/sub` resolves to `@scope/pkg`, `pkg/sub` to `pkg`. Aliased
  * (`@/…`) and relative specifiers are project-internal and become registry
- * dependencies instead. Sources import statically, so the `from "…"` clause
- * covers every import.
+ * dependencies instead.
  */
 function importedPackages(files: RegistryFile[]): Set<string> {
   const packages = new Set<string>()
   for (const file of files) {
-    for (const match of file.content.matchAll(/from "([^"]+)"/g)) {
-      const spec = match[1]
+    for (const spec of importedSpecifiers(file.content)) {
       if (spec.startsWith("@/") || spec.startsWith(".")) continue
       packages.add(
         spec.startsWith("@")
@@ -230,6 +250,27 @@ for (const item of manifest.items) {
     indexItem.agentUi = item.agentUi
   }
   indexItems.push(indexItem)
+}
+
+/**
+ * Every kernel source must be shipped by some item.
+ *
+ * The runtime item lists its sources by hand, so a new kernel file is invisible
+ * until someone remembers to add it: the registry builds, the tests pass, and
+ * only a consuming app fails to resolve the import. The manifest stays the
+ * declaration — this only refuses to build a registry that would ship a broken
+ * runtime.
+ */
+const shippedSources = new Set(manifest.items.flatMap((item) => item.sources))
+const kernelDir = join(srcRoot, "lib", "agent-ui")
+const unshipped = readdirSync(kernelDir)
+  .map((file) => `lib/agent-ui/${file}`)
+  .filter((src) => !shippedSources.has(src))
+if (unshipped.length > 0) {
+  console.error(
+    `No registry item ships ${unshipped.join(", ")}. Add them to the sources of "agent-ui-runtime".`,
+  )
+  process.exit(1)
 }
 
 writeJson(join(outputDir, "registry.json"), {

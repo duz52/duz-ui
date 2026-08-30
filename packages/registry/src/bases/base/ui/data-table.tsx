@@ -201,8 +201,16 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
         enableSorting: false,
         enableColumnFilter: false,
         enableHiding: false,
+        // `agent={false}` on both: the table's selection is already a
+        // semantic action (`select_rows`, which addresses rows by id). Left to
+        // register themselves, these controls would add one anonymous
+        // capability per visible row — `checkbox__r_7_`, all labelled "Select
+        // row" — burying the page's real elements in noise an agent cannot
+        // act on. A composite's internal controls belong to the composite's
+        // capability, never to their own.
         header: ({ table: t }) => (
           <Checkbox
+            agent={false}
             checked={t.getIsAllRowsSelected()}
             // Base UI factors indeterminate out of `checked` into its own
             // prop. `getIsSomeRowsSelected` is already false when every row
@@ -214,6 +222,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
         ),
         cell: ({ row }) => (
           <Checkbox
+            agent={false}
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(value)}
             onClick={(e) => e.stopPropagation()}
@@ -429,7 +438,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
   return (
     <div className={cn("space-y-4", props.className)}>
       <div className="rounded-md border">
-        <Table>
+        <Table agent={false}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -440,6 +449,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
                       : header.column.getCanSort()
                         ? (
                             <Button
+                              agent={false}
                               variant="ghost"
                               size="sm"
                               onClick={
@@ -505,6 +515,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
           </span>
           <div className="flex items-center gap-2">
             <Button
+              agent={false}
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
@@ -513,6 +524,7 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
               Previous
             </Button>
             <Button
+              agent={false}
               variant="outline"
               size="sm"
               onClick={() => table.nextPage()}

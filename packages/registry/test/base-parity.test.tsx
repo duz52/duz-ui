@@ -1125,6 +1125,9 @@ const READ_ONLY_CASES: readonly ReadOnlyCaseDef[] = [
   },
 ]
 
+/** Loaded for the per-base tests below that are not driven by a case table. */
+const EXTRA_MODULES = ["card", "data-table", "table"] as const
+
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
 let registry: import("../src/lib/agent-ui/registry").CapabilityRegistry
@@ -1147,6 +1150,13 @@ before(async () => {
       modules.set(
         `${base}/${def.component}`,
         (await import(`../src/bases/${base}/ui/${def.component}`)) as ComponentModule,
+      )
+    }
+    // Components asserted on outside the case tables.
+    for (const name of EXTRA_MODULES) {
+      modules.set(
+        `${base}/${name}`,
+        (await import(`../src/bases/${base}/ui/${name}`)) as ComponentModule,
       )
     }
   }
@@ -1289,6 +1299,124 @@ for (const base of BASES) {
       await tree.unmount()
     })
   }
+
+  test(`[${base}] button: registers one capability whose label is its visible text`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-label`
+    const tree = await mount(
+      React.createElement(mod.Button, { agent: { id } }, "Send Invitation"),
+    )
+
+    const capability = registry.get(id)
+    assert.ok(capability, "button must register a capability while mounted")
+    assert.equal(capability.kind, "button")
+    assert.deepEqual([...capability.actions], ["press"])
+    assert.equal(capability.label, "Send Invitation")
+    assert.deepEqual(registry.read(id), {
+      label: "Send Invitation",
+      disabled: false,
+      type: "button",
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: press fires the button's onClick`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-press`
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Button,
+        { agent: { id }, onClick: () => seen.push("click") },
+        "Save changes",
+      ),
+    )
+
+    const output = JSON.parse(await tool("button_press").execute({ target: id }))
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(seen, ["click"], "press must run the application's onClick")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: press on a submit button inside a form submits it`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-submit`
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        "form",
+        {
+          onSubmit: (event: React.FormEvent) => {
+            event.preventDefault()
+            seen.push("submit")
+          },
+        },
+        React.createElement(
+          mod.Button,
+          { agent: { id }, type: "submit" },
+          "Send Invitation",
+        ),
+      ),
+    )
+
+    const output = JSON.parse(await tool("button_press").execute({ target: id }))
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(
+      seen,
+      ["submit"],
+      "a click on a submit button must submit the surrounding form",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: press on a disabled button is rejected naming the button and runs nothing`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const id = `${base}-button-disabled`
+    const seen: string[] = []
+    const tree = await mount(
+      React.createElement(
+        mod.Button,
+        {
+          agent: { id },
+          disabled: true,
+          onClick: () => seen.push("click"),
+        },
+        "Send Invitation",
+      ),
+    )
+
+    const output = JSON.parse(await tool("button_press").execute({ target: id }))
+
+    assert.equal(output.ok, false)
+    assert.equal(output.error.code, "rejected")
+    assert.equal(
+      output.error.message,
+      '"Send Invitation" is disabled and cannot be pressed right now.',
+    )
+    assert.deepEqual(
+      seen,
+      [],
+      "a disabled button must never run the application's onClick",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] button: agent={false} registers nothing`, async () => {
+    const mod = (await import(`../src/bases/${base}/ui/button`)) as ComponentModule
+    const tree = await mount(
+      React.createElement(mod.Button, { agent: false }, "Send Invitation"),
+    )
+
+    assert.deepEqual(registry.describeAll(), [])
+
+    await tree.unmount()
+  })
 }
 
 for (const base of BASES) {
@@ -1316,6 +1444,424 @@ for (const base of BASES) {
       await tree.unmount()
     })
   }
+}
+
+/**
+ * Card and table carry the page's actual content, so they register a
+ * `content` capability — an ordinary capability whose action map is empty.
+ * The reads below sit outside `act`, exactly like every tool call in this
+ * file: a read is answered from the committed DOM, and wrapping one in `act`
+ * would defer that commit and answer with pre-transition state.
+ */
+for (const base of BASES) {
+  test(`[${base}] card: registers one content capability that reads its parts`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const id = `${base}-card-content`
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: { id } },
+        React.createElement(
+          mod.CardHeader,
+          null,
+          React.createElement(mod.CardTitle, null, "Total revenue"),
+          React.createElement(mod.CardDescription, null, "For the last 30 days"),
+        ),
+        React.createElement(mod.CardContent, null, "$45,231"),
+      ),
+    )
+
+    assert.deepEqual(
+      registry.describeAll().map((capability) => capability.id),
+      [id],
+      "the card must be the only capability its subtree registers",
+    )
+    assert.deepEqual(registry.read(id), {
+      title: "Total revenue",
+      description: "For the last 30 days",
+      content: "$45,231",
+      footer: null,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: sibling blocks read as separate words, not one fused token`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const id = `${base}-card-block-boundaries`
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: { id } },
+        React.createElement(
+          mod.CardContent,
+          null,
+          React.createElement("div", null, "$45,231.89"),
+          React.createElement("p", null, "+20.1% from last month"),
+        ),
+      ),
+    )
+
+    // textContent would fuse these into "$45,231.89+20.1% from last month",
+    // which reads as arithmetic rather than as two facts.
+    assert.equal(
+      (registry.read(id) as { content: string }).content,
+      "$45,231.89 +20.1% from last month",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card: a part that is not rendered reads as null, not a missing key`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const id = `${base}-card-absent-part`
+    const tree = await mount(
+      React.createElement(
+        mod.Card,
+        { agent: { id } },
+        React.createElement(mod.CardTitle, null, "Just a title"),
+        React.createElement(mod.CardContent, null, "body"),
+      ),
+    )
+
+    assert.deepEqual(registry.read(id), {
+      title: "Just a title",
+      description: null,
+      content: "body",
+      footer: null,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: reads columns and rows keyed by header text`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const id = `${base}-table-content`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id } },
+        React.createElement(
+          mod.TableHeader,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableHead, null, "Name"),
+            React.createElement(mod.TableHead, null, "Email"),
+            React.createElement(mod.TableHead, null, "Status"),
+          ),
+        ),
+        React.createElement(
+          mod.TableBody,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableCell, null, "Ada"),
+            React.createElement(mod.TableCell, null, "ada@example.com"),
+            React.createElement(mod.TableCell, null, "Paid"),
+          ),
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableCell, null, "Grace"),
+            React.createElement(mod.TableCell, null, "grace@example.com"),
+            React.createElement(mod.TableCell, null, "Refunded"),
+          ),
+        ),
+      ),
+    )
+
+    assert.deepEqual(registry.read(id), {
+      columns: ["Name", "Email", "Status"],
+      rows: [
+        { Name: "Ada", Email: "ada@example.com", Status: "Paid" },
+        { Name: "Grace", Email: "grace@example.com", Status: "Refunded" },
+      ],
+      rowCount: 2,
+    })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: a read is a window of 50 rows with the true rowCount`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const id = `${base}-table-window`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id } },
+        React.createElement(
+          mod.TableHeader,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableHead, null, "Item"),
+          ),
+        ),
+        React.createElement(
+          mod.TableBody,
+          null,
+          Array.from({ length: 60 }, (_, index) =>
+            React.createElement(
+              mod.TableRow,
+              { key: index },
+              React.createElement(mod.TableCell, null, `cell ${index}`),
+            ),
+          ),
+        ),
+      ),
+    )
+
+    const state = registry.read(id) as {
+      columns: string[]
+      rows: Record<string, string>[]
+      rowCount: number
+      rowsOmitted?: number
+    }
+    assert.equal(state.rows.length, 50)
+    assert.equal(state.rowCount, 60)
+    assert.equal(state.rowsOmitted, 10)
+    assert.deepEqual(state.columns, ["Item"])
+    assert.deepEqual(state.rows[0], { Item: "cell 0" })
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] card and table: agent={false} registers nothing`, async () => {
+    const mod = modules.get(`${base}/card`)
+    assert.ok(mod, `the ${base} card module must load`)
+    const tableMod = modules.get(`${base}/table`)
+    assert.ok(tableMod, `the ${base} table module must load`)
+
+    const cardTree = await mount(
+      React.createElement(mod.Card, { agent: false }, "content"),
+    )
+    assert.deepEqual(registry.describeAll(), [])
+    await cardTree.unmount()
+
+    const tableTree = await mount(React.createElement(tableMod.Table, { agent: false }))
+    assert.deepEqual(registry.describeAll(), [])
+    await tableTree.unmount()
+  })
+
+  /**
+   * A control inside a table belongs to that table's row, and the row belongs
+   * to the table. Discovery must say so directly — `owner` names the table
+   * and the label names the row — so an agent never has to brute-force the
+   * mapping between a checkbox and the row it controls.
+   */
+  test(`[${base}] table: a row checkbox belongs to the table and is named by its row`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const id = `${base}-table-row-owner`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id } },
+        React.createElement(
+          mod.TableHeader,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableHead, null, "Name"),
+            React.createElement(mod.TableHead, null, "Email"),
+          ),
+        ),
+        React.createElement(
+          mod.TableBody,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(
+              mod.TableCell,
+              null,
+              React.createElement(checkbox.Checkbox),
+            ),
+            React.createElement(mod.TableCell, null, "Ada"),
+            React.createElement(mod.TableCell, null, "ada@lovelace.dev"),
+          ),
+        ),
+      ),
+    )
+
+    // Outside `act`, like every read in this file: the label is composed when
+    // the checkbox registers, from the row's committed cells.
+    const rowCheckbox = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(rowCheckbox, "the row checkbox must register a capability")
+    assert.equal(
+      rowCheckbox.owner,
+      id,
+      "the row checkbox must be owned by the table",
+    )
+    // The checkbox's own cell has no text, so the row is named by the first
+    // cell that does.
+    assert.equal(rowCheckbox.label, "row 1: Ada — Checkbox")
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: an explicit agent label on a row control still wins`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const id = `${base}-table-row-explicit-label`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id } },
+        React.createElement(
+          mod.TableBody,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(
+              mod.TableCell,
+              null,
+              React.createElement(checkbox.Checkbox, { agent: { label: "Pick me" } }),
+            ),
+            React.createElement(mod.TableCell, null, "Ada"),
+          ),
+        ),
+      ),
+    )
+
+    const rowCheckbox = registry
+      .describeAll()
+      .find((capability) => capability.kind === "checkbox")
+    assert.ok(rowCheckbox, "the row checkbox must register a capability")
+    assert.equal(rowCheckbox.label, "Pick me")
+    // Ownership is not the label's business: the control still belongs to
+    // the table it was rendered in.
+    assert.equal(rowCheckbox.owner, id)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: row numbering counts body rows only`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const id = `${base}-table-row-numbering`
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: { id } },
+        React.createElement(
+          mod.TableHeader,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableHead, null, React.createElement(checkbox.Checkbox)),
+            React.createElement(mod.TableHead, null, "Name"),
+          ),
+        ),
+        React.createElement(
+          mod.TableBody,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableCell, null, React.createElement(checkbox.Checkbox)),
+            React.createElement(mod.TableCell, null, "Ada"),
+          ),
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableCell, null, React.createElement(checkbox.Checkbox)),
+            React.createElement(mod.TableCell, null, "Grace"),
+          ),
+        ),
+      ),
+    )
+
+    // The header select-all is not "row 1": it claims no row position and
+    // keeps the generic name, while the body rows number from 1.
+    assert.deepEqual(
+      registry
+        .describeAll()
+        .filter((capability) => capability.kind === "checkbox")
+        .map((capability) => capability.label),
+      ["Checkbox", "row 1: Ada — Checkbox", "row 2: Grace — Checkbox"],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] table: agent={false} leaves row controls as roots with no owner`, async () => {
+    const mod = modules.get(`${base}/table`)
+    assert.ok(mod, `the ${base} table module must load`)
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const tree = await mount(
+      React.createElement(
+        mod.Table,
+        { agent: false },
+        React.createElement(
+          mod.TableHeader,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableHead, null, "Name"),
+          ),
+        ),
+        React.createElement(
+          mod.TableBody,
+          null,
+          React.createElement(
+            mod.TableRow,
+            null,
+            React.createElement(mod.TableCell, null, React.createElement(checkbox.Checkbox)),
+            React.createElement(mod.TableCell, null, "Ada"),
+          ),
+        ),
+      ),
+    )
+
+    // The table registered nothing and the checkbox is a root: no owner. Its
+    // label still names its row — row naming belongs to the body, not to the
+    // table's capability.
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        kind: capability.kind,
+        label: capability.label,
+        owner: capability.owner,
+      })),
+      [{ kind: "checkbox", label: "row 1: Ada — Checkbox", owner: undefined }],
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] checkbox: outside any container it is a root with its plain label`, async () => {
+    const checkbox = (await import(`../src/bases/${base}/ui/checkbox`)) as ComponentModule
+    const tree = await mount(React.createElement(checkbox.Checkbox))
+
+    assert.deepEqual(
+      registry.describeAll().map((capability) => ({
+        kind: capability.kind,
+        label: capability.label,
+        owner: capability.owner,
+      })),
+      [{ kind: "checkbox", label: "Checkbox", owner: undefined }],
+    )
+
+    await tree.unmount()
+  })
 }
 
 /**
@@ -1404,4 +1950,198 @@ for (const base of BASES) {
 
     await tree.unmount()
   })
+}
+
+/**
+ * A composite's internal controls belong to the composite's capability. The
+ * data table already exposes selection as `select_rows`, addressing rows by
+ * id; if its per-row checkboxes registered too, every discovery call would
+ * return one anonymous `checkbox` per visible row and an agent would have to
+ * pick through them to find the page's real elements.
+ */
+for (const base of BASES) {
+  test(`[${base}] data-table: row selection checkboxes register no capability of their own`, async () => {
+    const mod = modules.get(`${base}/data-table`)
+    assert.ok(mod, `the ${base} data-table module must load`)
+    const id = `${base}-data-table-selection-noise`
+    const rows = [
+      { id: "r1", name: "Ada" },
+      { id: "r2", name: "Grace" },
+      { id: "r3", name: "Alan" },
+    ]
+    const tree = await mount(
+      React.createElement(mod.DataTable, {
+        agent: { id, label: "People" },
+        data: rows,
+        columns: [{ id: "name", header: "Name", accessor: (r: (typeof rows)[number]) => r.name }],
+        getRowId: (r: (typeof rows)[number]) => r.id,
+        enableRowSelection: true,
+      }),
+    )
+
+    // Three rows plus a header checkbox would be four extra capabilities.
+    assert.deepEqual(
+      registry.describeAll().map((c) => c.id),
+      [id],
+      "the table must be the only capability its subtree registers",
+    )
+    assert.deepEqual(
+      createAgentTools(registry).map((c) => c.name).filter((n) => n.startsWith("checkbox")),
+      [],
+      "no checkbox tool may appear for a table's own selection controls",
+    )
+
+    await tree.unmount()
+  })
+}
+
+/**
+ * A disclosure container's root renders no DOM element of its own and its
+ * content is unmounted while closed, so the trigger is the only part that is
+ * always mounted and always carries the human-meaningful name. The container
+ * takes its label from the trigger's accessible name; an explicit
+ * `agent.label` still wins, and a trigger with no resolvable name keeps the
+ * generic fallback.
+ */
+interface TriggerLabelCaseDef {
+  component: string
+  /** The label the container reports when its trigger names nothing. */
+  generic: string
+  mount: (
+    mod: ComponentModule,
+    rootProps: AnyProps,
+    triggerProps: AnyProps,
+  ) => React.ReactElement
+}
+
+const TRIGGER_LABEL_CASES: readonly TriggerLabelCaseDef[] = [
+  {
+    component: "collapsible",
+    generic: "Collapsible",
+    mount: (mod, rootProps, triggerProps) =>
+      React.createElement(
+        mod.Collapsible,
+        rootProps,
+        React.createElement(mod.CollapsibleTrigger, triggerProps),
+        React.createElement(mod.CollapsibleContent, null, "details"),
+      ),
+  },
+  {
+    component: "popover",
+    generic: "Popover",
+    mount: (mod, rootProps, triggerProps) =>
+      React.createElement(
+        mod.Popover,
+        rootProps,
+        React.createElement(mod.PopoverTrigger, triggerProps),
+        React.createElement(mod.PopoverContent, null, "popover body"),
+      ),
+  },
+  {
+    component: "dropdown-menu",
+    generic: "Dropdown menu",
+    mount: (mod, rootProps, triggerProps) =>
+      React.createElement(
+        mod.DropdownMenu,
+        rootProps,
+        React.createElement(mod.DropdownMenuTrigger, triggerProps),
+        React.createElement(
+          mod.DropdownMenuContent,
+          null,
+          React.createElement(mod.DropdownMenuItem, null, "Cut"),
+        ),
+      ),
+  },
+]
+
+for (const base of BASES) {
+  for (const def of TRIGGER_LABEL_CASES) {
+    test(`[${base}] ${def.component}: a closed container takes its label from its trigger`, async () => {
+      const mod = modules.get(`${base}/${def.component}`)
+      assert.ok(mod, `the ${base} ${def.component} module must load`)
+      const id = `${base}-${def.component}-trigger-label`
+      const tree = await mount(
+        def.mount(mod, { agent: { id } }, { children: "Toggle theme" }),
+      )
+
+      // Outside `act`, like every read in this file: the label is resolved
+      // from the committed DOM and reported from the trigger's effect.
+      assert.deepEqual(
+        registry.describeAll().map((capability) => ({
+          id: capability.id,
+          label: capability.label,
+        })),
+        [{ id, label: "Toggle theme" }],
+      )
+
+      await tree.unmount()
+    })
+
+    test(`[${base}] ${def.component}: the trigger's aria-label wins over its visible text`, async () => {
+      const mod = modules.get(`${base}/${def.component}`)
+      assert.ok(mod, `the ${base} ${def.component} module must load`)
+      const id = `${base}-${def.component}-trigger-aria-label`
+      const tree = await mount(
+        def.mount(
+          mod,
+          { agent: { id } },
+          { "aria-label": "Row actions", children: "Toggle theme" },
+        ),
+      )
+
+      assert.deepEqual(
+        registry.describeAll().map((capability) => ({
+          id: capability.id,
+          label: capability.label,
+        })),
+        [{ id, label: "Row actions" }],
+      )
+
+      await tree.unmount()
+    })
+
+    test(`[${base}] ${def.component}: a trigger with no resolvable name keeps the generic label`, async () => {
+      const mod = modules.get(`${base}/${def.component}`)
+      assert.ok(mod, `the ${base} ${def.component} module must load`)
+      const id = `${base}-${def.component}-trigger-unnamed`
+      // An icon-only trigger carries no text, no aria-label and no label
+      // association.
+      const tree = await mount(
+        def.mount(mod, { agent: { id } }, { children: React.createElement("svg") }),
+      )
+
+      assert.deepEqual(
+        registry.describeAll().map((capability) => ({
+          id: capability.id,
+          label: capability.label,
+        })),
+        [{ id, label: def.generic }],
+      )
+
+      await tree.unmount()
+    })
+
+    test(`[${base}] ${def.component}: an explicit agent label beats the trigger's name`, async () => {
+      const mod = modules.get(`${base}/${def.component}`)
+      assert.ok(mod, `the ${base} ${def.component} module must load`)
+      const id = `${base}-${def.component}-trigger-explicit-label`
+      const tree = await mount(
+        def.mount(
+          mod,
+          { agent: { id, label: "Explicit" } },
+          { children: "Toggle theme" },
+        ),
+      )
+
+      assert.deepEqual(
+        registry.describeAll().map((capability) => ({
+          id: capability.id,
+          label: capability.label,
+        })),
+        [{ id, label: "Explicit" }],
+      )
+
+      await tree.unmount()
+    })
+  }
 }

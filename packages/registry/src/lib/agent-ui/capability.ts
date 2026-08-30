@@ -16,6 +16,10 @@ export interface Capability<
   id: string
   kind: string
   label?: string
+  /** What this specific element is for, one sentence. Instance-specific. */
+  description?: string
+  /** id of the capability that contains this one, when it is nested. */
+  owner?: string
 
   /**
    * Names of the actions this capability supports. Discovery cannot be
@@ -24,6 +28,12 @@ export interface Capability<
   actions: readonly (keyof Actions & string)[]
 
   read(): State
+
+  /**
+   * One-line digest of current state, when the component can say it better
+   * than a generic formatter can.
+   */
+  summarise?(): string | undefined
 
   invoke<Action extends keyof Actions & string>(
     action: Action,
@@ -71,14 +81,23 @@ export interface CapabilityDescriptor {
   id: string
   kind: string
   label?: string
+  description?: string
+  owner?: string
   actions: readonly string[]
 }
 
 export function describe(capability: Capability): CapabilityDescriptor {
-  return {
+  // Absent optional fields are left off the descriptor entirely, so a
+  // descriptor never carries an `undefined` placeholder.
+  const descriptor: CapabilityDescriptor = {
     id: capability.id,
     kind: capability.kind,
-    label: capability.label,
     actions: capability.actions,
   }
+  if (capability.label !== undefined) descriptor.label = capability.label
+  if (capability.description !== undefined) {
+    descriptor.description = capability.description
+  }
+  if (capability.owner !== undefined) descriptor.owner = capability.owner
+  return descriptor
 }

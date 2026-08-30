@@ -91,15 +91,12 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
   const agentNative: string[] = []
   const notMigrated: string[] = []
   const presentation: string[] = []
-  const explicitSemantics: string[] = []
 
   for (const item of known) {
     if (!installed.has(item.name)) continue
     const status = item.agentUi?.status
     if (status === "presentation") {
       presentation.push(item.name)
-    } else if (status === "explicit-semantics") {
-      explicitSemantics.push(item.name)
     } else if (isAgentNative(componentPath(config, item.name), config)) {
       agentNative.push(item.name)
     } else {
@@ -120,12 +117,6 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
     blank()
     info("Presentation only")
     for (const name of presentation) step(name)
-  }
-
-  if (explicitSemantics.length > 0) {
-    blank()
-    info("Requires explicit semantics")
-    for (const name of explicitSemantics) step(name)
   }
 
   blank()

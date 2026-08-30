@@ -80,6 +80,20 @@ export const SIGNATURES: ComponentSignature[] = [
     internalDeclarations: [],
   },
   {
+    // A plain button is pressable: its accessible name — "Send Invitation",
+    // "Save changes" — is the semantics, and it is right there in the DOM.
+    // This is not the same as an AgentAction, which is a described,
+    // confirmable business action ("Delete account") the developer chooses
+    // to expose; a pressable button does not replace it.
+    name: "button",
+    requiredExports: ["Button", "buttonVariants"],
+    primitiveModules: {
+      radix: ["radix-ui", "@radix-ui/react-slot"],
+      base: ["@base-ui/react/button"],
+    },
+    internalDeclarations: [],
+  },
+  {
     name: "dialog",
     requiredExports: [
       "Dialog",
@@ -407,5 +421,42 @@ export const SIGNATURES: ComponentSignature[] = [
       "useDrawer",
       "DrawerSwipeHandle",
     ],
+  },
+  {
+    name: "card",
+    requiredExports: [
+      "Card",
+      "CardHeader",
+      "CardFooter",
+      "CardTitle",
+      "CardAction",
+      "CardDescription",
+      "CardContent",
+    ],
+    // Card is plain elements on both bases; there is no primitive to import.
+    primitiveModules: {
+      radix: [],
+      base: [],
+    },
+    internalDeclarations: [],
+  },
+  {
+    name: "table",
+    requiredExports: [
+      "Table",
+      "TableHeader",
+      "TableBody",
+      "TableFooter",
+      "TableHead",
+      "TableRow",
+      "TableCell",
+      "TableCaption",
+    ],
+    // Table is plain elements on both bases; there is no primitive to import.
+    primitiveModules: {
+      radix: [],
+      base: [],
+    },
+    internalDeclarations: [],
   },
 ]

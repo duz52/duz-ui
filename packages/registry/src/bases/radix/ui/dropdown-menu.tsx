@@ -22,6 +22,27 @@ type DropdownMenuActions = {
   toggle: Record<string, never>
 }
 
+/**
+ * The root renders no DOM element of its own and the content is unmounted
+ * while closed, so the trigger is the only part that is always mounted and
+ * always carries the human-meaningful name. It resolves its own accessible
+ * name and reports it here; the root uses it as the capability's default
+ * label.
+ */
+interface DropdownMenuTriggerContextValue {
+  setTriggerLabel: (label: string | null) => void
+}
+
+const DropdownMenuTriggerContext = React.createContext<DropdownMenuTriggerContextValue | null>(null)
+
+function useDropdownMenuTriggerLabelSetter(): (label: string | null) => void {
+  const ctx = React.useContext(DropdownMenuTriggerContext)
+  if (!ctx) {
+    throw new Error("DropdownMenuTrigger must be rendered inside <DropdownMenu>.")
+  }
+  return ctx.setTriggerLabel
+}
+
 function DropdownMenu({
   open: openProp,
   defaultOpen,
@@ -37,10 +58,17 @@ function DropdownMenu({
     onChange: onOpenChange,
   })
 
+  const [triggerLabel, setTriggerLabel] = React.useState<string | null>(null)
+
+  // Ignore a label the root already holds, so a repeated report cannot loop.
+  const reportTriggerLabel = React.useCallback((label: string | null) => {
+    setTriggerLabel((prev) => (prev === label ? prev : label))
+  }, [])
+
   useCapability<DropdownMenuState, DropdownMenuActions>({
     agent,
     kind: "disclosure",
-    defaultLabel: "Dropdown menu",
+    defaultLabel: triggerLabel ?? "Dropdown menu",
     read: () => ({ open, disabled: false }),
     actions: {
       open() {
@@ -55,13 +83,20 @@ function DropdownMenu({
     },
   })
 
+  const contextValue = React.useMemo<DropdownMenuTriggerContextValue>(
+    () => ({ setTriggerLabel: reportTriggerLabel }),
+    [reportTriggerLabel],
+  )
+
   return (
-    <DropdownMenuPrimitive.Root
-      data-slot="dropdown-menu"
-      open={open}
-      onOpenChange={setOpen}
-      {...props}
-    />
+    <DropdownMenuTriggerContext.Provider value={contextValue}>
+      <DropdownMenuPrimitive.Root
+        data-slot="dropdown-menu"
+        open={open}
+        onOpenChange={setOpen}
+        {...props}
+      />
+    </DropdownMenuTriggerContext.Provider>
   )
 }
 
@@ -74,11 +109,25 @@ function DropdownMenuPortal({
 }
 
 function DropdownMenuTrigger({
+  ref,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+  const setTriggerLabel = useDropdownMenuTriggerLabelSetter()
+  const elementRef = React.useRef<HTMLButtonElement>(null)
+  // An empty resolution means the trigger carries no name; reporting null
+  // lets the root keep its generic default.
+  const label = useAccessibleName(elementRef, "")
+  const mergedRef = useMergedRef(ref, elementRef)
+
+  // Reported in an effect: the name exists only once the element is mounted.
+  React.useEffect(() => {
+    setTriggerLabel(label === "" ? null : label)
+  }, [setTriggerLabel, label])
+
   return (
     <DropdownMenuPrimitive.Trigger
       data-slot="dropdown-menu-trigger"
+      ref={mergedRef}
       {...props}
     />
   )

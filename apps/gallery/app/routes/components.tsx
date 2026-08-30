@@ -20,11 +20,6 @@ const GROUPS: { status: GalleryItemStatus; label: string; note: string }[] = [
     note: "Registers a capability. An agent can read its state and act on it.",
   },
   {
-    status: "explicit-semantics",
-    label: "Explicit semantics",
-    note: "Needs the application to say what the action means before an agent may take it.",
-  },
-  {
     status: "presentation",
     label: "Presentation",
     note: "No capability. Layout and display only.",
@@ -80,8 +75,12 @@ export default function Components(): React.JSX.Element {
                     </p>
                     {item.agentUi?.status === "agent-native" ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {item.agentUi.capabilities.map((cap) => (
-                          <KindBadge key={cap.kind} kind={cap.kind} />
+                        {/* Keyed by position, not by kind: one component may
+                            declare several capabilities of the same kind — the
+                            menubar reports two `select`s — and a duplicate key
+                            makes React drop one of the badges. */}
+                        {item.agentUi.capabilities.map((cap, index) => (
+                          <KindBadge key={index} kind={cap.kind} />
                         ))}
                       </div>
                     ) : null}

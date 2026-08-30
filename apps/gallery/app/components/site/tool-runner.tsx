@@ -11,12 +11,22 @@
  * registry: with WebMCP the browser dispatches to the tool it registered,
  * without it the closure is called directly. One definition, two transports.
  *
+ * The panel is laid out as four labelled blocks — ELEMENT, TOOL, PARAMETERS,
+ * RESULT — adopting the vocabulary of the MCP Inspector's Tools screen
+ * (tools list → parameters → results). In one column the panes become blocks
+ * in a fixed order, and the order itself teaches the protocol: discover,
+ * choose, send, read. Each chip is badged `reads` or `writes` from
+ * `AgentTool.annotations?.readOnlyHint`, and the result header reports
+ * outcome, elapsed time, and transport. Payloads render through `JsonBlock`,
+ * which re-indents the compact wire string and wraps it.
+ *
  * `document.modelContext` is never touched here — that belongs to the adapter
  * alone (spec invariant 6), which exposes `executeViaWebMCP` for this.
  */
 
 import * as React from "react"
 
+import { JsonBlock } from "@/components/site/json-block"
 import {
   fieldsFor,
   initialArguments,
@@ -29,9 +39,15 @@ import type {
 import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
 import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
 import { executeViaWebMCP, isWebMCPSupported } from "@/lib/agent-ui/webmcp"
-import { cn } from "@/lib/utils"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/radix/ui/select"
 
-/** Shared control styling for the runner's text inputs and selects. */
+/** Shared control styling for the runner's text and number inputs. */
 const CONTROL_CLASS =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 font-mono text-[13px] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
 
@@ -39,8 +55,81 @@ const CONTROL_CLASS =
 const MODE_BUTTON_CLASS =
   "rounded-md px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground data-[active=true]:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground"
 
+/**
+ * Label for one of the runner's four fixed blocks. Full `text-muted-foreground`
+ * — opacity variants of text this small measured below WCAG AA.
+ */
+function BlockLabel({
+  children,
+}: {
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+      {children}
+    </p>
+  )
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+/** How a completed run is reported in the result header. */
+type Outcome =
+  | { kind: "ok" }
+  | { kind: "refused"; code: string | null }
+  | { kind: "error" }
+
+/**
+ * Classify a completed run. A returned payload with `ok === false` is a
+ * refusal — a designed outcome of this protocol, not a crash — so it is
+ * never an exception; only a thrown dispatch failure is `error`. A payload
+ * that does not parse is still a returned result, shown verbatim as `ok`.
+ */
+function outcomeOf(
+  result: string | null,
+  error: string | null,
+): Outcome | null {
+  if (error !== null) return { kind: "error" }
+  if (result === null) return null
+  try {
+    const parsed: unknown = JSON.parse(result)
+    if (isRecord(parsed) && parsed.ok === false) {
+      const err = parsed.error
+      return {
+        kind: "refused",
+        code: isRecord(err) && typeof err.code === "string" ? err.code : null,
+      }
+    }
+  } catch {
+    // Not JSON — report it as a result and let JsonBlock show it verbatim.
+  }
+  return { kind: "ok" }
+}
+
+function outcomeText(outcome: Outcome): string {
+  switch (outcome.kind) {
+    case "ok":
+      return "ok"
+    case "refused":
+      return outcome.code === null ? "refused" : `refused · ${outcome.code}`
+    case "error":
+      return "error"
+  }
+}
+
+function outcomeToneClass(kind: Outcome["kind"]): string {
+  switch (kind) {
+    case "ok":
+      return "text-foreground"
+    case "refused":
+      // Amber to match JsonBlock's refused border — not red: a refusal is a
+      // designed outcome, not a failure.
+      return "text-amber-600 dark:text-amber-400"
+    case "error":
+      return "text-destructive"
+  }
 }
 
 /** Whether `tool` can act on the element described by `cap`. */
@@ -233,24 +322,38 @@ function ArgumentField({
     case "choice":
       return (
         <div className="space-y-1.5">
-          <label className="block space-y-1.5">
+          <div className="space-y-1.5">
             {nameLabel}
-            <select
+            {/* agent={false}: the runner must not register its own controls as
+                agent capabilities, or it would list and operate itself — the
+                same reason gallery-layout passes agent={false} to
+                SidebarProvider. */}
+            <Select
+              agent={false}
               value={typeof value === "string" ? value : ""}
-              onChange={(e) => onChange(field.name, e.target.value)}
-              className={CONTROL_CLASS}
+              onValueChange={(next) => onChange(field.name, next)}
             >
-              {field.options.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  disabled={option.disabled}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              {/* The trigger is a button, so the field name is carried by
+                  aria-label rather than a wrapping <label>. */}
+              <SelectTrigger
+                aria-label={field.name}
+                className="w-full font-mono text-[13px]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {field.options.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {help}
         </div>
       )
@@ -409,7 +512,19 @@ export function ToolRunner({
   preferredTarget?: string
 } = {}): React.JSX.Element {
   const registry = getCapabilityRegistry()
-  const webmcpAvailable = isWebMCPSupported()
+  // Read after mount, never during render. `document.modelContext` exists
+  // only in the browser, so reading it while rendering makes the server say
+  // "not available" and a WebMCP-capable client say "available" — a
+  // hydration mismatch. React 19 answers that by discarding the server HTML
+  // and re-rendering the whole document, which re-writes <html>'s className
+  // and strips the theme class the pre-paint bootstrap had put there: the
+  // page flashed dark, then reverted to light, and navigations could land on
+  // the error boundary. Deferring the read keeps the first client render
+  // identical to the server's.
+  const [webmcpAvailable, setWebmcpAvailable] = React.useState(false)
+  React.useEffect(() => {
+    setWebmcpAvailable(isWebMCPSupported())
+  }, [])
 
   const [caps, setCaps] = React.useState<CapabilityDescriptor[]>(() =>
     registry.describeAll(),
@@ -430,10 +545,9 @@ export function ToolRunner({
   const [jsonError, setJsonError] = React.useState<string | null>(null)
   const [result, setResult] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
+  const [elapsedMs, setElapsedMs] = React.useState<number | null>(null)
   const [running, setRunning] = React.useState(false)
-  const [usedPath, setUsedPath] = React.useState<"webmcp" | "in-page" | null>(
-    null,
-  )
+  const [refusalExplained, setRefusalExplained] = React.useState(false)
 
   // Tools scale with mounted capability kinds, so refresh on every registry
   // notification (mount/unmount of any agent-operable component).
@@ -477,22 +591,38 @@ export function ToolRunner({
 
     const tool = tools.find((entry) => entry.name === nextName)
     if (tool === undefined) return
-    const state = nextTarget === null ? null : registry.read(nextTarget)
+    // `get`, not `read`: `caps` is a React snapshot and the registry is live,
+    // so between a navigation unmounting one page's capabilities and this
+    // effect running, the chosen id can already be gone. For a display the
+    // honest answer is "no state"; the throwing `read` exists so an *agent*
+    // is told why its target is missing, and letting that throw here took
+    // the whole route down with it.
+    const state =
+      nextTarget === null ? null : (registry.get(nextTarget)?.read() ?? null)
     const args = initialArguments(tool, nextTarget, state)
     setFormValues(args)
     setArgState(state)
     setJsonText(JSON.stringify(args, null, 2))
+    // The previous result is discarded with the old selection; if it was a
+    // refusal, its one-line explanation has been seen.
+    if (outcomeOf(result, error)?.kind === "refused") {
+      setRefusalExplained(true)
+    }
     setResult(null)
     setError(null)
-    setUsedPath(null)
+    setElapsedMs(null)
     setJsonError(null)
-  }, [caps, tools, target, selectedName, registry, preferredTarget])
+    // `result` and `error` are read only to mark a discarded refusal as
+    // explained; the key guard above keeps the reruns they cause a no-op.
+  }, [caps, tools, target, selectedName, registry, preferredTarget, result, error])
 
   const selectedCap = caps.find((entry) => entry.id === target)
   const selectedTool = tools.find((entry) => entry.name === selectedName) ?? null
   const eligibleTools = actionToolsFor(tools, selectedCap)
   const fields: Field[] =
     selectedTool === null ? [] : fieldsFor(selectedTool, argState)
+  const payload = error ?? result
+  const outcome = React.useMemo(() => outcomeOf(result, error), [result, error])
 
   function setFormValue(name: string, value: unknown): void {
     setFormValues((prev) => ({ ...prev, [name]: value }))
@@ -502,20 +632,24 @@ export function ToolRunner({
     tool: AgentTool,
     args: Record<string, unknown>,
   ): Promise<void> {
+    // The refusal on screen is being replaced; its one-line explanation has
+    // been seen and later refusals do not repeat it.
+    if (outcome?.kind === "refused") setRefusalExplained(true)
+
     setRunning(true)
     setResult(null)
     setError(null)
-    setUsedPath(null)
+    setElapsedMs(null)
 
+    const startedAt = performance.now()
     try {
-      if (webmcpAvailable) {
-        setResult(await executeViaWebMCP(tool.name, args))
-        setUsedPath("webmcp")
-      } else {
-        setResult(await tool.execute(args))
-        setUsedPath("in-page")
-      }
+      const output = webmcpAvailable
+        ? await executeViaWebMCP(tool.name, args)
+        : await tool.execute(args)
+      setElapsedMs(performance.now() - startedAt)
+      setResult(output)
     } catch (e) {
+      setElapsedMs(performance.now() - startedAt)
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setRunning(false)
@@ -596,7 +730,7 @@ export function ToolRunner({
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <p className="font-mono text-[11px] text-muted-foreground">
         {webmcpAvailable ? (
           "WebMCP available"
@@ -618,42 +752,63 @@ export function ToolRunner({
           {listElementsButton}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2">
-              <span className="font-mono text-[11px] text-muted-foreground">
-                element
-              </span>
-              <select
+        <>
+          <section aria-label="Element" className="space-y-2">
+            <BlockLabel>Element</BlockLabel>
+            <p className="text-xs text-muted-foreground">
+              The discovery tools — the two calls an agent makes first: list
+              what is mounted on the page, then read the state of one element.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* agent={false}: without it this picker registers a `select`
+                  capability and the runner would list and operate itself — the
+                  same reason gallery-layout passes agent={false} to
+                  SidebarProvider. */}
+              <Select
+                agent={false}
                 value={target ?? ""}
-                onChange={(e) => setTarget(e.target.value)}
-                className="h-9 max-w-72 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+                onValueChange={setTarget}
               >
-                {caps.map((cap) => (
-                  <option key={cap.id} value={cap.id}>
-                    {`${cap.label ?? cap.id} — ${cap.kind}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {target}
-            </span>
-            <div className="ml-auto flex gap-1.5">
-              {listElementsButton}
-              <button
-                type="button"
-                onClick={() => runDiscovery("ui_read", { target })}
-                disabled={running}
-                className={discoveryButtonClass}
-              >
-                Read state
-              </button>
+                <SelectTrigger aria-label="Element" className="max-w-72">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* The id is shown on every option, not only on the chosen
+                      one: labels are not unique — a table's row checkboxes all
+                      read "Select row" — and the id is what the protocol
+                      actually addresses. */}
+                  {caps.map((cap) => (
+                    <SelectItem key={cap.id} value={cap.id}>
+                      <span className="flex items-baseline gap-2">
+                        <span>{`${cap.label ?? cap.id} — ${cap.kind}`}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {cap.id}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {target}
+              </span>
+              <div className="ml-auto flex gap-1.5">
+                {listElementsButton}
+                <button
+                  type="button"
+                  onClick={() => runDiscovery("ui_read", { target })}
+                  disabled={running}
+                  className={discoveryButtonClass}
+                >
+                  Read state
+                </button>
+              </div>
             </div>
-          </div>
+          </section>
 
           {eligibleTools.length > 0 ? (
-            <div className="space-y-2">
+            <section aria-label="Tool" className="space-y-2">
+              <BlockLabel>Tool</BlockLabel>
               <div className="flex flex-wrap gap-1.5">
                 {eligibleTools.map((tool) => (
                   <button
@@ -661,13 +816,18 @@ export function ToolRunner({
                     type="button"
                     onClick={() => setSelectedName(tool.name)}
                     className={
-                      "rounded border px-2 py-1 font-mono text-[11px] transition-colors " +
+                      "inline-flex items-center gap-1.5 rounded border px-2 py-1 font-mono text-[11px] transition-colors " +
                       (tool.name === selectedName
                         ? "border-border bg-muted text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground")
                     }
                   >
                     {tool.name}
+                    <span className="rounded-full border border-border px-1.5 py-px text-[10px] leading-none text-muted-foreground">
+                      {tool.annotations?.readOnlyHint === true
+                        ? "reads"
+                        : "writes"}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -676,11 +836,12 @@ export function ToolRunner({
                   {selectedTool.description}
                 </p>
               ) : null}
-            </div>
+            </section>
           ) : null}
 
           {selectedTool !== null ? (
-            <div className="space-y-3">
+            <section aria-label="Parameters" className="space-y-3">
+              <BlockLabel>Parameters</BlockLabel>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -743,43 +904,56 @@ export function ToolRunner({
               >
                 {running ? "Running…" : "Run tool"}
               </button>
-            </div>
+            </section>
           ) : null}
-        </div>
+        </>
       )}
 
-      {/* The output area is always present and reserves its height. Growing it
-          from nothing on the first run moved everything below it down in one
-          frame, which reads as the page flashing rather than as a result
-          arriving. */}
-      <div className="space-y-1.5">
-        <p className="font-mono text-[11px] text-muted-foreground">
-          {error !== null ? "error" : "result"}
-          {usedPath !== null ? (
-            // Full muted-foreground, not an opacity variant: at /70 this
-            // 11px hint measured 2.71:1 in light and 4.20:1 in dark, below
-            // the WCAG AA 4.5:1 required at this size.
-            <span className="ml-2 text-muted-foreground">
-              via {usedPath === "webmcp" ? "WebMCP" : "in-page execution"}
-            </span>
+      {caps.length > 0 || payload !== null ? (
+        <section aria-label="Result" className="space-y-2">
+          <BlockLabel>Result</BlockLabel>
+          {outcome !== null ? (
+            <p className="font-mono text-[11px] text-muted-foreground">
+              <span className={outcomeToneClass(outcome.kind)}>
+                {outcomeText(outcome)}
+              </span>
+              {elapsedMs !== null ? (
+                <span> · {Math.round(elapsedMs)} ms</span>
+              ) : null}
+              <span> · {webmcpAvailable ? "WebMCP" : "in-page"}</span>
+            </p>
           ) : null}
-        </p>
-        <pre
-          className={cn(
-            "min-h-28 overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed",
-            error !== null && "text-destructive",
+          {outcome?.kind === "refused" && !refusalExplained ? (
+            <p className="text-xs text-muted-foreground">
+              The tool refused this request by design — the page is unchanged.
+              Adjust the arguments and run again.
+            </p>
+          ) : null}
+          {/* The output area reserves its height even before the first result:
+              growing it from nothing on the first run moved everything below it
+              down in one frame, which reads as the page flashing rather than as
+              a result arriving. The placeholder matches JsonBlock's min-h-28,
+              and max-h-96 keeps a large ui_list payload scrolling internally
+              instead of pushing the page around. */}
+          {payload === null ? (
+            <div className="flex min-h-28 items-center rounded-lg border border-border bg-muted/40 px-4 text-sm text-muted-foreground">
+              Run a tool to see its result.
+            </div>
+          ) : (
+            <JsonBlock
+              payload={payload}
+              tone={
+                outcome?.kind === "refused"
+                  ? "refused"
+                  : outcome?.kind === "error"
+                    ? "error"
+                    : "default"
+              }
+              className="min-h-28 max-h-96"
+            />
           )}
-        >
-          <code>
-            {error ??
-              result ?? (
-                <span className="text-muted-foreground">
-                  Run a tool to see its result.
-                </span>
-              )}
-          </code>
-        </pre>
-      </div>
+        </section>
+      ) : null}
     </div>
   )
 }
