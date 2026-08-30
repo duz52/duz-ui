@@ -444,3 +444,32 @@ test("with no label the generated form is the last resort", async () => {
   assert.match(ids[0] ?? "", /^tabs_[A-Za-z0-9_.-]+$/)
   await tree.unmount()
 })
+
+test("AgentContent holds adjacent elements apart but keeps a phrase whole", async () => {
+  const registry = getCapabilityRegistry()
+  const tree = await mount(
+    React.createElement(
+      AgentContent,
+      { agent: { id: "inline" }, label: "Inline" },
+      // Two things layout holds apart: "Active127" is not a word.
+      React.createElement("span", null, "Active"),
+      React.createElement("span", null, "127"),
+    ),
+  )
+  assert.equal((registry.read("inline") as { text: string }).text, "Active 127")
+  await tree.unmount()
+
+  const phrase = await mount(
+    React.createElement(
+      AgentContent,
+      { agent: { id: "phrase" }, label: "Phrase" },
+      "Hello ",
+      React.createElement("b", null, "world"),
+      "!",
+    ),
+  )
+  // An element between text is one phrase; separating it would read as
+  // "Hello world !".
+  assert.equal((registry.read("phrase") as { text: string }).text, "Hello world!")
+  await phrase.unmount()
+})

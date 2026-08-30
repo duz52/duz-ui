@@ -46,7 +46,26 @@ function collectText(node: Node, into: string[]): void {
   if (node.nodeType !== ELEMENT_NODE) return
   const isBlock = BLOCK_TAGS.has((node as Element).tagName)
   if (isBlock) into.push(" ")
-  for (const child of node.childNodes) collectText(child, into)
+
+  // Two element siblings with nothing between them are two separate things a
+  // person sees held apart by layout: `<span>Active</span><span>127</span>`
+  // reads as "Active127" through textContent. An element sitting *between*
+  // text is the opposite case — the bold in "Hello <b>world</b>!" is one
+  // phrase — so the separator goes only between adjacent elements.
+  let previousWasElement = false
+  for (const child of node.childNodes) {
+    if (child.nodeType === ELEMENT_NODE) {
+      if (previousWasElement) into.push(" ")
+      previousWasElement = true
+    } else if (
+      child.nodeType === TEXT_NODE &&
+      (child.nodeValue ?? "").trim() !== ""
+    ) {
+      previousWasElement = false
+    }
+    collectText(child, into)
+  }
+
   if (isBlock) into.push(" ")
 }
 
