@@ -805,7 +805,7 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_list",
     description:
-      "List the agent-operable UI elements on the page. Call this first: it gives each element's id, its current state, and the tools that act on it — every tool named in tools takes that id as target. Pass target to list one element's children instead, the recovery when an element reports childrenOmitted. A cut listing reports window: offset, returned and total — walk by advancing offset by window.returned. A listed state is current; use ui_read for detail the digest leaves out.",
+      "List the agent-operable UI elements on the page. Call this first: it gives each element's id, its current state, and the tools that act on it — pass that id as target, except an action_<id> tool, which names its element. Pass target to list one element's children instead, the recovery when an element reports childrenOmitted. A cut listing reports window — walk by advancing offset by window.returned. A listed state is current; use ui_read for detail the digest leaves out.",
     scope: { on: "page" },
     inputSchema: {
       type: "object",
