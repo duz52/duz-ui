@@ -7,7 +7,7 @@ import {
   type CapabilityResult,
 } from "../src/lib/agent-ui/capability"
 import { getCapabilityRegistry } from "../src/lib/agent-ui/registry"
-import { createAgentTools, digest, type AgentTool } from "../src/lib/agent-ui/tools"
+import { createAgentTools, digest, KIND_TOOLS, type AgentTool } from "../src/lib/agent-ui/tools"
 
 /**
  * The adapter exposes a stable tool surface keyed by capability kind,
@@ -656,19 +656,21 @@ test("a page bug surfaces as a neutral message, never as internals", async () =>
   off()
 })
 
-test("every tool name fits the WebMCP charset and the 30 character budget", () => {
+test("every tool name and description fits the WebMCP budgets", () => {
+  // One stub per distinct kind in KIND_TOOLS, declaring every action that
+  // kind's tools take, plus one business action — the whole tool surface, so
+  // a kind added tomorrow is measured the day it is added and the budget
+  // cannot be passed by a fixture that fell behind the table.
+  const actionsByKind = new Map<string, string[]>()
+  for (const def of KIND_TOOLS) {
+    const actions = actionsByKind.get(def.kind)
+    if (actions === undefined) actionsByKind.set(def.kind, [def.action])
+    else actions.push(def.action)
+  }
+
   const off = [
-    registry.register(stub({ id: "a", kind: "tabs", actions: ["select"] })),
-    registry.register(stub({ id: "b", kind: "select", actions: ["choose", "clear"] })),
-    registry.register(stub({ id: "c", kind: "checkbox", actions: ["set"] })),
-    registry.register(stub({ id: "d", kind: "dialog", actions: ["open", "close"] })),
-    registry.register(stub({ id: "e", kind: "input", actions: ["set_value", "clear"] })),
-    registry.register(
-      stub({
-        id: "f",
-        kind: "data-table",
-        actions: ["filter", "sort", "select_rows", "set_page", "set_column_visibility"],
-      }),
+    ...[...actionsByKind].map(([kind, actions]) =>
+      registry.register(stub({ id: kind, kind, actions })),
     ),
     registry.register(
       stub({

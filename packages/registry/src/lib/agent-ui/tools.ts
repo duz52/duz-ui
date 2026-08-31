@@ -76,9 +76,11 @@ interface KindToolDef {
 /**
  * Declarative mapping from capability kinds to WebMCP tools. Every tool maps
  * 1:1 onto a capability action name. `target` is always required and added by
- * `buildInputSchema`; `ui_list` is how the agent learns valid ids.
+ * `buildInputSchema`; `ui_list` is how the agent learns valid ids. Exported so
+ * a test or harness can measure the whole declared surface by mounting one
+ * capability per kind, instead of maintaining a second list that rots.
  */
-const KIND_TOOLS: readonly KindToolDef[] = [
+export const KIND_TOOLS: readonly KindToolDef[] = [
   {
     kind: "tabs",
     name: "tabs_select",
@@ -346,7 +348,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
     name: "date_set",
     action: "set",
     description:
-      "Set the selected date or dates of a calendar element, replacing the previous selection. The value is an array of YYYY-MM-DD strings whose length depends on the calendar's mode: single mode takes zero or one date (an empty array clears the selection), multiple mode takes any number of dates, and range mode takes exactly two dates, start then end. A calendar that requires a selection refuses an empty array. Call ui_read on the target to see the current mode, whether it is required, its value and its bounds.",
+      "Set the selected date or dates of a calendar element, replacing the previous selection. Call ui_read on the target to see its mode, bounds and whether a selection is required.",
     inputSchema: {
       value: {
         type: "array",
