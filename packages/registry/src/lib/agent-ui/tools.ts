@@ -389,11 +389,12 @@ export function digest(state: CapabilityState): Record<string, unknown> {
 /**
  * Serialise a tool result for the agent. WebMCP requires string output.
  *
- * Every tool except `ui_list` returns its result as-is; one above the budget
- * is refused with a message that names the tool and asks the agent to narrow
- * its request. `ui_list` cannot refuse — a listing that lists nothing leaves
- * the agent with no way forward — so it reduces its document instead (see
- * `serialiseListDocument`).
+ * A result is serialised as-is; one above the budget is refused with a
+ * message that names the tool and asks the agent to narrow its request.
+ * State-carrying results are windowed to fit before they reach here (see
+ * `serialiseStateResult`); `ui_list` cannot refuse — a listing that lists
+ * nothing leaves the agent with no way forward — so it reduces its document
+ * instead (see `serialiseListDocument`).
  */
 function serialise(toolName: string, value: unknown): string {
   const json = JSON.stringify(value)
@@ -800,11 +801,25 @@ interface ReadWindow {
 }
 
 /**
- * Serialise a `ui_read` result, windowing the state's largest array field when
- * the whole state exceeds the output budget.
+ * A tool result that carries the state of the element it acted on or read.
+ * Every tool except `ui_list` returns one; `window` is added by
+ * `serialiseStateResult` when the state's largest list had to be cut.
+ */
+interface StateResult {
+  ok: true
+  target: string
+  action: string
+  state: CapabilityState
+  detail?: unknown
+  window?: ReadWindow
+}
+
+/**
+ * Serialise a result that carries a capability state, windowing the state's
+ * largest array field when the whole result exceeds the output budget.
  *
- * A read that answers a large table with nothing at all is the one answer that
- * cannot be acted on, so an oversized state is not refused outright: the
+ * A result that answers a large table with nothing at all is the one answer
+ * that cannot be acted on, so an oversized state is not refused outright: the
  * largest array field — measured by serialised length, the same measure as the
  * budget — is cut to the largest window that fits, and the window is reported
  * next to the state. `window.total` is the true total and `offset` walks the
@@ -812,13 +827,19 @@ interface ReadWindow {
  * to window cannot be reduced and is returned as-is, refusal still possible;
  * a state whose entries cannot fit even alone is genuinely unrepresentable
  * and is refused, naming the field.
+ *
+ * Only `ui_read` takes an offset or limit. Every other tool that carries a
+ * state — kind tools and business actions — is windowed from the start of
+ * the field: the action answers with what fits, and the agent walks the rest
+ * with `ui_read`.
  */
-function serialiseReadState(
-  target: string,
-  state: CapabilityState,
+function serialiseStateResult(
+  toolName: string,
+  result: StateResult,
   offset: number | undefined,
   limit: number | undefined,
 ): string {
+  const { state } = result
   let best: { field: string; array: unknown[]; size: number } | undefined
   for (const [key, value] of Object.entries(state)) {
     if (!Array.isArray(value)) continue
@@ -828,9 +849,9 @@ function serialiseReadState(
     }
   }
 
-  // No list to window: nothing can be reduced, so the state goes out as-is.
+  // No list to window: nothing can be reduced, so the result goes out as-is.
   if (best === undefined) {
-    return serialise("ui_read", { ok: true, target, action: "read", state })
+    return serialise(toolName, result)
   }
   const { field, array } = best
 
@@ -841,20 +862,18 @@ function serialiseReadState(
   const remaining = total - start
   const requested = limit !== undefined ? Math.min(limit, remaining) : remaining
 
-  const windowed = (count: number): Record<string, unknown> => ({
-    ok: true,
-    target,
-    action: "read",
+  const windowed = (count: number): StateResult => ({
+    ...result,
     state: { ...state, [field]: array.slice(start, start + count) },
     window: { field, offset: start, returned: count, total } satisfies ReadWindow,
   })
   const fits = (count: number): boolean =>
     JSON.stringify(windowed(count)).length <= MAX_OUTPUT
 
-  // Asked for the list from the start with no cap: the state can go out whole,
-  // with no window key, when it fits.
+  // Asked for the list from the start with no cap: the result can go out
+  // whole, with no window key, when it fits.
   if (start === 0 && requested === total) {
-    const json = JSON.stringify({ ok: true, target, action: "read", state })
+    const json = JSON.stringify(result)
     if (json.length <= MAX_OUTPUT) return json
   }
 
@@ -867,7 +886,7 @@ function serialiseReadState(
       ok: false,
       error: {
         code: "output_too_large",
-        message: `The state of "${target}" cannot be returned: even a single entry of its "${field}" list does not fit in this page's ${MAX_OUTPUT} character output budget.`,
+        message: `The state of "${result.target}" cannot be returned: even a single entry of its "${field}" list does not fit in this page's ${MAX_OUTPUT} character output budget.`,
       },
     })
   }
@@ -888,7 +907,7 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_read",
     description:
-      "Read the current semantic state of one UI element by id. Use ui_list first to discover valid ids. When the state's largest list is long, it comes back windowed: window reports the list field, the offset, how many entries returned, and the true total. window.returned is authoritative: the output budget can clamp a limit short. Walk by advancing offset by window.returned — never by the limit you asked for — until offset + returned reaches total.",
+      "Read the current semantic state of one UI element by id; use ui_list first for valid ids. Actions already return the element's post-change state, so this is for detail an action result windowed away and for elements you did not just act on. A long largest list comes back windowed: window reports the field, offset, returned count and true total; window.returned is authoritative when the budget clamps a limit. Walk by advancing offset by window.returned until offset + returned reaches total.",
     scope: { on: "any-capability" },
     inputSchema: {
       type: "object",
@@ -917,10 +936,25 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
       const limit = expectOptionalInteger(input, "limit", 1)
       // The registry owns target resolution and its rejection message.
       const state = registry.read(target)
-      return serialiseReadState(target, state, offset, limit)
+      return serialiseStateResult(
+        "ui_read",
+        { ok: true, target, action: "read", state },
+        offset,
+        limit,
+      )
     }),
   }
 }
+
+/**
+ * Appended to every mutating tool's description — kind tools and business
+ * actions alike. Every action already returns the canonical post-commit
+ * state, so reading the same element again repeats what the agent is
+ * holding; the only reasons left to read are detail the result's window cut
+ * away and elements the action did not touch.
+ */
+const ACTION_RESULT_SUFFIX =
+  " The result carries the element's full state after the change, so a follow-up ui_read on the same element is unnecessary; when the result reports window, walk the rest with ui_read by advancing offset by window.returned."
 
 function createKindTool(
   registry: CapabilityRegistry,
@@ -928,7 +962,7 @@ function createKindTool(
 ): AgentTool {
   return {
     name: def.name,
-    description: def.description,
+    description: def.description + ACTION_RESULT_SUFFIX,
     scope: { on: "kind", kind: def.kind, action: def.action },
     inputSchema: buildInputSchema(def.inputSchema),
     // Every kind tool mutates component state; reads go through ui_read.
@@ -936,13 +970,23 @@ function createKindTool(
       const target = expectString(input, "target")
       const actionInput = withoutTarget(input)
       const result = await registry.invoke(target, def.action, actionInput)
-      return serialise(def.name, {
-        ok: true,
-        target,
-        action: def.action,
-        state: result.state,
-        detail: result.detail,
-      })
+      // The post-commit state is the answer, not a courtesy: windowing it
+      // exactly as a read windows keeps an action on a large element inside
+      // the output budget instead of failing where a read would have
+      // succeeded. No offset or limit here; the agent walks the rest with
+      // ui_read.
+      return serialiseStateResult(
+        def.name,
+        {
+          ok: true,
+          target,
+          action: def.action,
+          state: result.state,
+          detail: result.detail,
+        },
+        undefined,
+        undefined,
+      )
     }),
   }
 }
@@ -996,7 +1040,7 @@ function createActionTool(
 
   return {
     name,
-    description: state.description,
+    description: state.description + ACTION_RESULT_SUFFIX,
     scope: { on: "capability", id: capability.id },
     inputSchema: {
       type: "object",
@@ -1007,13 +1051,19 @@ function createActionTool(
     // Business actions are never read-only.
     execute: makeExecutor(name, async (input) => {
       const result = await registry.invoke(capability.id, "run", input)
-      return serialise(name, {
-        ok: true,
-        target: capability.id,
-        action: "run",
-        state: result.state,
-        detail: result.detail,
-      })
+      // Windowed exactly as a kind tool's result is; see serialiseStateResult.
+      return serialiseStateResult(
+        name,
+        {
+          ok: true,
+          target: capability.id,
+          action: "run",
+          state: result.state,
+          detail: result.detail,
+        },
+        undefined,
+        undefined,
+      )
     }),
   }
 }

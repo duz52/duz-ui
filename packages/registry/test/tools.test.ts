@@ -874,6 +874,98 @@ test("a single entry that cannot fit even alone is refused, naming the field", a
   off()
 })
 
+// — windowing an action result: an action answers inside the same budget a read gets —
+
+test("an action result whose state carries an oversized array comes back windowed, under the budget", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  const raw = await tools
+    .get("table_filter")!
+    .execute({ target: "orders", column: "status", value: "pending" })
+  const parsed = JSON.parse(raw)
+
+  assert.ok(raw.length <= 8000, `result was ${raw.length} characters`)
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.action, "filter")
+  assert.ok(parsed.state.rows.length < 500, "the rows came back windowed")
+  assert.deepEqual(parsed.window, {
+    field: "rows",
+    offset: 0,
+    returned: parsed.state.rows.length,
+    total: 500,
+  })
+
+  off()
+})
+
+test("an action result that fits carries no window key", async () => {
+  const off = registry.register(rowTable("small-orders", 8))
+  const tools = byName(createAgentTools(registry))
+
+  const parsed = JSON.parse(
+    await tools
+      .get("table_filter")!
+      .execute({ target: "small-orders", column: "status", value: "pending" }),
+  )
+
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.state.rows.length, 8)
+  assert.equal("window" in parsed, false, "a whole state does not grow a window key")
+
+  off()
+})
+
+test("walking an action's windowed field with ui_read yields every entry exactly once", async () => {
+  const off = registry.register(rowTable("orders", 500))
+  const tools = byName(createAgentTools(registry))
+
+  // An action's result is windowed from the start of the field; the agent
+  // walks the rest with ui_read, advancing offset by window.returned — the
+  // same invariant a windowed read pins, now reachable from an action.
+  const first = JSON.parse(
+    await tools
+      .get("table_filter")!
+      .execute({ target: "orders", column: "status", value: "pending" }),
+  )
+  assert.equal(first.ok, true)
+  assert.deepEqual(first.window, {
+    field: "rows",
+    offset: 0,
+    returned: first.state.rows.length,
+    total: 500,
+  })
+
+  const seen: string[] = first.state.rows.map((row: { id: string }) => row.id)
+  let offset = first.window.returned
+  let calls = 0
+  for (;;) {
+    assert.ok(++calls < 20, "the walk must reach exhaustion in a handful of calls")
+    const parsed = JSON.parse(
+      await tools.get("ui_read")!.execute({ target: "orders", offset }),
+    )
+    assert.equal(parsed.ok, true)
+    assert.deepEqual(parsed.window, {
+      field: "rows",
+      offset,
+      returned: parsed.state.rows.length,
+      total: 500,
+    })
+    for (const row of parsed.state.rows) seen.push(row.id)
+    if (parsed.window.offset + parsed.window.returned >= parsed.window.total) break
+    offset = parsed.window.offset + parsed.window.returned
+  }
+
+  assert.ok(calls >= 2, "the walk crossed the output budget, clamping at least once")
+  assert.deepEqual(
+    seen,
+    Array.from({ length: 500 }, (_, index) => `ORD-${index}`),
+    "the action's window plus the ui_read walk is exactly the 500 distinct entries, in order",
+  )
+
+  off()
+})
+
 test("a business action gets its own tool, bound to one capability", async () => {
   const seen: unknown[] = []
   const off = registry.register(
@@ -892,7 +984,11 @@ test("a business action gets its own tool, bound to one capability", async () =>
   const tool = byName(createAgentTools(registry)).get("action_refresh-orders")
 
   assert.ok(tool, "the business action must produce its own tool")
-  assert.equal(tool.description, "Refresh the current order list.")
+  assert.ok(
+    tool.description.startsWith("Refresh the current order list."),
+    "the description is the action's own, plus the shared result suffix",
+  )
+  assert.match(tool.description, /full state after the change/)
   // The tool name already identifies the action, so there is no `target`.
   assert.deepEqual(Object.keys(tool.inputSchema.properties), ["scope"])
   assert.equal(tool.annotations, undefined)
