@@ -251,6 +251,54 @@ export function describe(capability: Capability): CapabilityDescriptor {
         type: "p",
         text: "The `select` action validates input, rejects unknown tab values, and calls `setValue`. The result is whatever React committed — if the component is controlled and the parent rejects the value, the result reflects that.",
       },
+      { type: "h2", text: "Identity in a component you write yourself" },
+      {
+        type: "p",
+        text: "`agent-identity.ts` ships in the runtime, so a component you write has the same naming machinery the built-in ones use. Two facts are kept apart there, and keeping them apart is the whole point: an id is addressing and must not move under an agent that is holding it, while a label is description and is expected to keep changing.",
+      },
+      {
+        type: "p",
+        text: "An id is decided in this order: an explicit `agent.id`, then the element's own `id` prop, then what the element knows itself to be. Pass `agent={{ id }}` whenever the application has a stable name for the instance — nothing derived can beat knowing.",
+      },
+      {
+        type: "p",
+        text: "With no explicit id, tell the binding how to read the element's own name. `defaultLabel` is the description and may change; `identitySource` is a resolver the binding runs when the capability registers, and the first name it returns is kept for the rest of the mount.",
+      },
+      {
+        type: "code",
+        lang: "tsx",
+        code: `const elementRef = React.useRef<HTMLButtonElement>(null)
+const label = useAccessibleName(elementRef, "Run")
+const identitySource = useAccessibleNameResolver(elementRef)
+
+useCapability<RunState, RunActions>({
+  agent,
+  kind: "button",
+  // Description: follows the element, "Run" then "Stop".
+  defaultLabel: label,
+  // Addressing: read once, at registration. The id stays button.run.
+  identitySource,
+  read: () => ({ label }),
+  actions: { press() { /* ... */ } },
+})`,
+      },
+      {
+        type: "p",
+        text: "Without `identitySource` the id would be re-derived from whatever the label currently says, so a button that reads \"Stop\" after being pressed would answer `unknown_target` at the id the agent was just given. The resolver exists because a name that lives in mounted text can only be read once the element is mounted, which is after render and before the label has travelled back through state.",
+      },
+      { type: "h2", text: "What counts as an element's own name" },
+      {
+        type: "p",
+        text: "The resolver walks the accessible-name precedence: `aria-label`, then `aria-labelledby`, then the associated `<label>`, then the element's own text — that last step only when the element's role is one the specification names from content. Roles decide it, not tags, so a `<div role=\"button\">` is named exactly as a `<button>` is.",
+      },
+      {
+        type: "p",
+        text: "A plain `<div>` is named by nothing, and that is deliberate: reading arbitrary descendant text as a name is how a select ends up called by its options. Give such an element an `aria-label`, or name it from the application with `agent={{ label }}`.",
+      },
+      {
+        type: "p",
+        text: "When the name lives in a child rather than on the element — a title, a trigger — take identity from the child that is always mounted. A dialog's title is inside content rendered through a portal and does not exist while the dialog is closed, so the built-in dialogs derive identity from their trigger and keep using the title for the label.",
+      },
     ],
   },
 
