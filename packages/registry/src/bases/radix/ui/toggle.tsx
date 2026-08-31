@@ -7,7 +7,7 @@ import { Toggle as TogglePrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -59,6 +59,7 @@ function Toggle({
   }) {
   const elementRef = React.useRef<HTMLButtonElement>(null)
   const label = useAccessibleName(elementRef, "Toggle")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   const [pressed, setPressed] = useControllableState<boolean>({
@@ -71,6 +72,7 @@ function Toggle({
     agent: agentWithElementId(agent, props.id),
     kind: "checkbox",
     defaultLabel: label,
+    identitySource,
     read: () => ({ checked: pressed, disabled }),
     actions: {
       set(input) {

@@ -83,7 +83,7 @@ function capLength(text: string): string {
  *    content. Other elements keep their own native mechanisms — a
  *    `<select>`'s name is never its options' text, a `<textarea>`'s never
  *    its default value — so their text content is not a name source.
- * 5. `fallback`.
+ * Nothing found returns undefined; the caller supplies what to show.
  *
  * Each source is normalised (trim, collapse whitespace) and an empty result
  * falls through to the next source. The final result is capped at
@@ -106,7 +106,7 @@ interface NamedElement {
   closest(selectors: string): { textContent: string | null } | null
 }
 
-function resolveAccessibleName(element: NamedElement, fallback: string): string {
+function resolveAccessibleName(element: NamedElement): string | undefined {
   // 1. aria-label
   const ariaLabel = normaliseText(element.getAttribute("aria-label"))
   if (ariaLabel !== null) return capLength(ariaLabel)
@@ -166,8 +166,8 @@ function resolveAccessibleName(element: NamedElement, fallback: string): string 
     if (label !== null) return capLength(label)
   }
 
-  // 5. fallback
-  return capLength(fallback)
+  // Nothing named it. The caller owns what to show instead.
+  return undefined
 }
 
 /**
@@ -194,11 +194,33 @@ export function useAccessibleName(
     const element = ref.current
     if (!element) return
 
-    const resolved = resolveAccessibleName(element, fallback)
+    const resolved = resolveAccessibleName(element) ?? fallback
     if (resolved !== name) {
       setName(resolved)
     }
   })
 
   return name
+}
+
+/**
+ * The same name, as a resolver the capability runs when it registers.
+ *
+ * `useAccessibleName` answers "what should this element be called right now",
+ * and its state is one commit behind the DOM on the first render — which is
+ * fine for description and wrong for identity, because an id derived from that
+ * first value would be derived from the fallback and then frozen. This reads
+ * the DOM at the moment the capability registers, when the element is mounted
+ * and its real name is already there.
+ *
+ * Returns undefined when nothing names the element, so identity falls back to
+ * the label rather than to a name the element does not have.
+ */
+export function useAccessibleNameResolver(
+  ref: React.RefObject<NamedElement | null>,
+): () => string | undefined {
+  return React.useCallback(() => {
+    const element = ref.current
+    return element ? resolveAccessibleName(element) : undefined
+  }, [ref])
 }

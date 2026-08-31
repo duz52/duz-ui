@@ -6,7 +6,7 @@ import { Slider as SliderPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectNumberArray, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -39,6 +39,7 @@ function Slider({
 }) {
   const elementRef = React.useRef<HTMLSpanElement>(null)
   const label = useAccessibleName(elementRef, "Slider")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   // The vendored source normalises value / defaultValue into one array to
@@ -55,6 +56,7 @@ function Slider({
     agent: agentWithElementId(agent, props.id),
     kind: "slider",
     defaultLabel: label,
+    identitySource,
     read: () => ({ value, min, max, step, disabled }),
     actions: {
       set(input) {

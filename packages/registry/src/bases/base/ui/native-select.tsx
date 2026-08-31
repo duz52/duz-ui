@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { ChevronDownIcon } from "lucide-react"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -95,6 +95,7 @@ function NativeSelect({
 }: NativeSelectProps) {
   const selectRef = React.useRef<HTMLSelectElement>(null)
   const label = useAccessibleName(selectRef, "Native select")
+  const identitySource = useAccessibleNameResolver(selectRef)
   const mergedRef = useMergedRef(ref, selectRef)
 
   const options = readOptions(children)
@@ -121,6 +122,7 @@ function NativeSelect({
     agent: agentWithElementId(agent, props.id),
     kind: "select",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       value: value === "" ? null : value,
       options: selectableOptions,

@@ -7,7 +7,7 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -42,6 +42,7 @@ function Checkbox({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Checkbox")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   const [checked, setChecked] = useControllableState<boolean>({
@@ -56,6 +57,7 @@ function Checkbox({
     agent: agentWithElementId(agent, props.id),
     kind: "checkbox",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       checked: indeterminate ? "indeterminate" : checked,
       disabled,

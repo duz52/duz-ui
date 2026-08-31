@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { toggleVariants } from "@/components/radix/ui/toggle"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, expectStringArray, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -166,6 +166,7 @@ function ToggleGroup({
 
   const groupRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(groupRef, "Toggle group")
+  const identitySource = useAccessibleNameResolver(groupRef)
   const mergedRef = useMergedRef(ref, groupRef)
 
   // A disabled group cannot be changed at all, so every option in it is
@@ -186,6 +187,7 @@ function ToggleGroup({
           agent: agentWithElementId(agent, props.id),
           kind: "multi-select",
           defaultLabel: label,
+          identitySource,
           read: (): ToggleGroupMultipleState => ({ value, options }),
           actions: {
             set(input: { values: string[] }) {
@@ -201,6 +203,7 @@ function ToggleGroup({
           agent: agentWithElementId(agent, props.id),
           kind: "select",
           defaultLabel: label,
+          identitySource,
           read: (): ToggleGroupSingleState => ({
             value: value[0] ?? null,
             options,

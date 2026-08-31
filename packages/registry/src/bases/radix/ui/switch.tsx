@@ -6,7 +6,7 @@ import { Switch as SwitchPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -33,6 +33,7 @@ function Switch({
 }) {
   const elementRef = React.useRef<HTMLButtonElement>(null)
   const label = useAccessibleName(elementRef, "Switch")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   const [checked, setChecked] = useControllableState<boolean>({
@@ -45,6 +46,7 @@ function Switch({
     agent: agentWithElementId(agent, props.id),
     kind: "checkbox",
     defaultLabel: label,
+    identitySource,
     read: () => ({ checked, disabled }),
     actions: {
       set(input) {

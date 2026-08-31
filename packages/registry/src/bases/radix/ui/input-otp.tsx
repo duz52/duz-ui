@@ -7,7 +7,7 @@ import { MinusIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -39,6 +39,7 @@ function InputOTP({
 }) {
   const elementRef = React.useRef<HTMLInputElement>(null)
   const label = useAccessibleName(elementRef, "One-time code")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   // The input-otp package is controlled through value / onChange, not through
@@ -54,6 +55,7 @@ function InputOTP({
     agent: agentWithElementId(agent, props.id),
     kind: "input",
     defaultLabel: label,
+    identitySource,
     read: () => ({ value, disabled, maxLength }),
     actions: {
       set_value(input) {

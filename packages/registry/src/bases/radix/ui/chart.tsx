@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import {
   agentWithElementId,
   useAccessibleName,
+  useAccessibleNameResolver,
 } from "@/lib/agent-ui/agent-identity"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
@@ -97,6 +98,7 @@ function ChartContainer({
   const rootRef = React.useRef<HTMLDivElement>(null)
   const mergedRef = useMergedRef(ref, rootRef)
   const label = useAccessibleName(rootRef, "Chart")
+  const identitySource = useAccessibleNameResolver(rootRef)
 
   // Reads are pull-based: they run only when an agent calls ui_list or
   // ui_read, never on render. Reporting a whole series is affordable exactly
@@ -105,6 +107,7 @@ function ChartContainer({
     agent: agentWithElementId(agent, id),
     kind: "content",
     defaultLabel: label,
+    identitySource,
     read: () => {
       const data = readChartData(children)
       return {

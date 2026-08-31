@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/base/ui/button"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectStringArray, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -185,6 +185,7 @@ function Calendar({
 
   const elementRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(elementRef, "Calendar")
+  const identitySource = useAccessibleNameResolver(elementRef)
 
   // DayPicker v10 makes `onSelect` the controlled/uncontrolled switch: with a
   // handler the application owns `selected`, without one the picker owns its
@@ -220,6 +221,7 @@ function Calendar({
     agent: mode ? agentWithElementId(agent, props.id) : false,
     kind: "date",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       // The cast is the registration condition two lines down, which the
       // type cannot see: the capability opts out when no mode is set, so

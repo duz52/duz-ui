@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { pressElement } from "@/lib/agent-ui/press"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { rejectState } from "@/lib/agent-ui/validate"
 
 const buttonVariants = cva(
@@ -69,12 +69,14 @@ function Button({
   }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Button")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   useCapability<ButtonState, ButtonActions>({
     agent: agentWithElementId(agent, props.id),
     kind: "button",
     defaultLabel: label,
+    identitySource,
     read: () => {
       const element = elementRef.current
       return {

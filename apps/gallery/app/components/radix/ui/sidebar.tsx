@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { Button } from "@/components/radix/ui/button"
 import { Input } from "@/components/radix/ui/input"
 import { Separator } from "@/components/radix/ui/separator"
@@ -137,11 +137,13 @@ function SidebarProvider({
   // this binding to Sidebar.
   const wrapperRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(wrapperRef, "Sidebar")
+  const identitySource = useAccessibleNameResolver(wrapperRef)
 
   useCapability<SidebarState, SidebarActions>({
     agent: agentWithElementId(agent, props.id),
     kind: "disclosure",
     defaultLabel: label,
+    identitySource,
     read: () => ({ open: isMobile ? openMobile : open, disabled: false }),
     actions: {
       open() {

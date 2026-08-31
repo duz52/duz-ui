@@ -8,7 +8,7 @@ import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -72,6 +72,7 @@ function RadioGroup({
 }: RadioGroupProps) {
   const groupRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(groupRef, "Radio group")
+  const identitySource = useAccessibleNameResolver(groupRef)
   const mergedRef = useMergedRef(ref, groupRef)
 
   // Base UI's empty sentinel is `null`, which is exactly what the agent reads.
@@ -116,6 +117,7 @@ function RadioGroup({
     agent: agentWithElementId(agent, props.id),
     kind: "select",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       value,
       options: options.map((o) => ({

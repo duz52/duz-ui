@@ -7,7 +7,7 @@ import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -60,6 +60,7 @@ function RadioGroup({
 }) {
   const groupRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(groupRef, "Radio group")
+  const identitySource = useAccessibleNameResolver(groupRef)
   const mergedRef = useMergedRef(ref, groupRef)
 
   const [value, setValue] = useControllableState<string>({
@@ -103,6 +104,7 @@ function RadioGroup({
     agent: agentWithElementId(agent, props.id),
     kind: "select",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       value: value === "" ? null : value,
       options: options.map((o) => ({

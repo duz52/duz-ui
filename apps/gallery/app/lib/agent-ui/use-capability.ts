@@ -44,6 +44,20 @@ export interface UseCapabilityOptions<
   kind: string
   /** Label used when the `agent` prop does not carry one. */
   defaultLabel?: string
+  /**
+   * What this element's id is derived from, resolved when the capability
+   * registers rather than during render — the same shape a container uses for
+   * `itemLabel`, and for the same reason: a name that lives in mounted text is
+   * only readable once the element is mounted.
+   *
+   * Undefined, or a resolver returning undefined, means the element does not
+   * know its own name; identity then falls back to the label, which is right
+   * for an element whose name is a constant and provisional for one still
+   * learning it. Kept apart from `defaultLabel` because the two answer
+   * different questions: the label is description and keeps changing, the id
+   * is addressing and must not move under an agent holding it.
+   */
+  identitySource?: () => string | undefined
   /** What this specific element is for, used when the `agent` prop does not carry one. */
   description?: string
   /** id of the containing capability, used when the `agent` prop does not carry one. */
@@ -116,7 +130,7 @@ export function useCapability<
   State extends CapabilityState,
   Actions extends Record<string, unknown>,
 >(options: UseCapabilityOptions<State, Actions>): CapabilityHandle {
-  const { agent, kind, defaultLabel, description, owner, summarise, read, actions } =
+  const { agent, kind, defaultLabel, identitySource: identityResolver, description, owner, summarise, read, actions } =
     options
 
   const config = resolveConfig(agent)
@@ -178,11 +192,24 @@ export function useCapability<
     const itemKey =
       typeof containerItemKey === "function" ? containerItemKey() : containerItemKey
     if (containerItemKey !== undefined && itemKey === undefined) return undefined
+    const own = identityResolver?.()
     if (itemKey !== undefined) {
-      return defaultLabel === undefined ? itemKey : `${itemKey} — ${defaultLabel}`
+      const self = own ?? defaultLabel
+      return self === undefined ? itemKey : `${itemKey} — ${self}`
     }
-    return resolveLabel()
-  }, [explicitLabel, containerItemKey, defaultLabel, resolveLabel])
+    return own ?? resolveLabel()
+  }, [explicitLabel, containerItemKey, defaultLabel, identityResolver, resolveLabel])
+
+  // The name this element knows itself by, captured the first time it knows
+  // one. A label is description and keeps changing — a button reading "Run"
+  // reads "Stop" once pressed — while an id is addressing and must not move
+  // under an agent that is holding it. What is captured is the source, not the
+  // id: the id still has to be re-derived while a mount settles, because a
+  // child's effect runs before its container's, so the first registration sees
+  // no owner and no container item key and only a later run can scope it
+  // right. An element with no name of its own captures nothing and keeps
+  // deriving from its label, which for it is a constant.
+  const identitySourceRef = React.useRef<string | undefined>(undefined)
 
   const actionKey = Object.keys(actions).sort().join(" ")
   const actionNames = React.useMemo(
@@ -247,8 +274,13 @@ export function useCapability<
     // Identity precedence: an explicit `agent.id` wins; otherwise the id is
     // derived from what the capability can say about itself, scoped by its
     // owner; with nothing to say, the generated form is the last resort.
+    if (explicitId === undefined && identitySourceRef.current === undefined) {
+      identitySourceRef.current = identityResolver?.()
+    }
     const identitySource =
-      explicitId === undefined ? resolveIdentitySource() : undefined
+      explicitId === undefined
+        ? (identitySourceRef.current ?? resolveIdentitySource())
+        : undefined
     const id =
       explicitId ??
       (identitySource !== undefined
@@ -299,6 +331,7 @@ export function useCapability<
     kind,
     resolveLabel,
     resolveIdentitySource,
+    identityResolver,
     resolvedDescription,
     resolvedOwner,
     actionNames,

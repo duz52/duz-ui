@@ -7,7 +7,7 @@ import { OTPField as OTPFieldPrimitive } from "@base-ui/react/otp-field"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -42,6 +42,7 @@ function InputOTP({
 }) {
   const elementRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(elementRef, "One-time code")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   // The OTP field is controlled through value / onValueChange, not through a
@@ -57,6 +58,7 @@ function InputOTP({
     agent: agentWithElementId(agent, props.id),
     kind: "input",
     defaultLabel: label,
+    identitySource,
     // The agent-facing field stays maxLength; Base UI names the prop length.
     read: () => ({ value, disabled, maxLength }),
     actions: {

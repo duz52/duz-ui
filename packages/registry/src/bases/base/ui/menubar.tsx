@@ -10,7 +10,7 @@ import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { pressElement } from "@/lib/agent-ui/press"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -412,6 +412,7 @@ function MenubarRadioGroup({
 }: MenubarRadioGroupProps) {
   const groupRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(groupRef, "Menu options")
+  const identitySource = useAccessibleNameResolver(groupRef)
   const mergedRef = useMergedRef(ref, groupRef)
 
   // Base UI's empty sentinel is `null`, which is exactly what the agent reads.
@@ -456,6 +457,7 @@ function MenubarRadioGroup({
     agent: agentWithElementId(agent, props.id),
     kind: "select",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       value,
       options: options.map((o) => ({
@@ -611,12 +613,14 @@ function MenubarItem({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Menu item")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   useCapability<MenubarItemState, MenubarItemActions>({
     agent: agentWithElementId(agent, props.id),
     kind: "button",
     defaultLabel: label,
+    identitySource,
     read: () => ({ label, disabled }),
     actions: {
       press() {
@@ -674,6 +678,7 @@ function MenubarCheckboxItem({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Menu checkbox")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   const [checked, setChecked] = useControllableState<boolean>({
@@ -686,6 +691,7 @@ function MenubarCheckboxItem({
     agent: agentWithElementId(agent, props.id),
     kind: "checkbox",
     defaultLabel: label,
+    identitySource,
     read: () => ({ checked, disabled }),
     actions: {
       set(input) {
@@ -844,6 +850,7 @@ function MenubarSubTrigger({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Menu item")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   // A sub-trigger opens a submenu rather than performing an action, but it is
@@ -854,6 +861,7 @@ function MenubarSubTrigger({
     agent: agentWithElementId(agent, props.id),
     kind: "button",
     defaultLabel: label,
+    identitySource,
     read: () => ({ label, disabled }),
     actions: {
       press() {

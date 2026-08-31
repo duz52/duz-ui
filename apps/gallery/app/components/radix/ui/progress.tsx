@@ -6,7 +6,7 @@ import { Progress as ProgressPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 
 type ProgressState = {
   value: number | null
@@ -33,12 +33,14 @@ function Progress({
 }) {
   const elementRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(elementRef, "Progress")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   useCapability<ProgressState, ProgressActions>({
     agent: agentWithElementId(agent, props.id),
     kind: "progress",
     defaultLabel: label,
+    identitySource,
     // An absent value and an explicit null are the same indeterminate state:
     // one representation, not two.
     read: () => ({ value: value ?? null, max }),

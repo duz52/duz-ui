@@ -9,7 +9,7 @@ import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { pressElement } from "@/lib/agent-ui/press"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectBoolean, expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
@@ -171,6 +171,7 @@ function ContextMenuRadioGroup({
 }: ContextMenuRadioGroupProps) {
   const groupRef = React.useRef<HTMLDivElement>(null)
   const label = useAccessibleName(groupRef, "Menu options")
+  const identitySource = useAccessibleNameResolver(groupRef)
   const mergedRef = useMergedRef(ref, groupRef)
 
   // Base UI's empty sentinel is `null`, which is exactly what the agent reads.
@@ -215,6 +216,7 @@ function ContextMenuRadioGroup({
     agent: agentWithElementId(agent, props.id),
     kind: "select",
     defaultLabel: label,
+    identitySource,
     read: () => ({
       value,
       options: options.map((o) => ({
@@ -288,6 +290,7 @@ function ContextMenuSubTrigger({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Menu item")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   // A sub-trigger opens a submenu rather than performing an action, but it is
@@ -298,6 +301,7 @@ function ContextMenuSubTrigger({
     agent: agentWithElementId(agent, props.id),
     kind: "button",
     defaultLabel: label,
+    identitySource,
     read: () => ({ label, disabled }),
     actions: {
       press() {
@@ -436,6 +440,7 @@ function ContextMenuItem({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Menu item")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   // A menu item is a thing you press. `kind: "button"` already exists and
@@ -445,6 +450,7 @@ function ContextMenuItem({
     agent: agentWithElementId(agent, props.id),
     kind: "button",
     defaultLabel: label,
+    identitySource,
     read: () => ({ label, disabled }),
     actions: {
       press() {
@@ -502,6 +508,7 @@ function ContextMenuCheckboxItem({
 }) {
   const elementRef = React.useRef<HTMLElement>(null)
   const label = useAccessibleName(elementRef, "Menu checkbox")
+  const identitySource = useAccessibleNameResolver(elementRef)
   const mergedRef = useMergedRef(ref, elementRef)
 
   const [checked, setChecked] = useControllableState<boolean>({
@@ -514,6 +521,7 @@ function ContextMenuCheckboxItem({
     agent: agentWithElementId(agent, props.id),
     kind: "checkbox",
     defaultLabel: label,
+    identitySource,
     read: () => ({ checked, disabled }),
     actions: {
       set(input) {

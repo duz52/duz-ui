@@ -30,6 +30,8 @@ Object.defineProperty(globalThis, "navigator", {
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
 let useCapability: typeof import("../src/lib/agent-ui/use-capability").useCapability
+let useAccessibleName: typeof import("../src/lib/agent-ui/agent-identity").useAccessibleName
+let useAccessibleNameResolver: typeof import("../src/lib/agent-ui/agent-identity").useAccessibleNameResolver
 let getCapabilityRegistry: typeof import("../src/lib/agent-ui/registry").getCapabilityRegistry
 let rejectState: typeof import("../src/lib/agent-ui/validate").rejectState
 let AgentContent: typeof import("../src/lib/agent-ui/agent-content").AgentContent
@@ -40,6 +42,9 @@ before(async () => {
   React = await import("react")
   ;({ createRoot } = await import("react-dom/client"))
   ;({ useCapability } = await import("../src/lib/agent-ui/use-capability"))
+  ;({ useAccessibleName, useAccessibleNameResolver } = await import(
+    "../src/lib/agent-ui/agent-identity"
+  ))
   ;({ getCapabilityRegistry } = await import("../src/lib/agent-ui/registry"))
   ;({ rejectState } = await import("../src/lib/agent-ui/validate"))
   ;({ AgentContent } = await import("../src/lib/agent-ui/agent-content"))
@@ -472,4 +477,53 @@ test("AgentContent holds adjacent elements apart but keeps a phrase whole", asyn
   // "Hello world !".
   assert.equal((registry.read("phrase") as { text: string }).text, "Hello world!")
   await phrase.unmount()
+})
+
+/**
+ * A button-shaped element: it knows its own name by reading the DOM, and what
+ * it says changes when it is pressed. The label is description and must follow
+ * the state; the id is addressing and must not.
+ */
+function SelfNaming({ initial }: { initial: string }) {
+  const elementRef = React.useRef<HTMLButtonElement>(null)
+  const [label, setLabel] = React.useState(initial)
+  const name = useAccessibleName(elementRef, "Button")
+  const identitySource = useAccessibleNameResolver(elementRef)
+  useCapability<{ label: string }, { press: Record<string, never> }>({
+    agent: {},
+    kind: "button",
+    defaultLabel: name,
+    identitySource,
+    read: () => ({ label: name }),
+    actions: {
+      press() {
+        setLabel((current) => (current === "Run" ? "Stop" : "Run"))
+      },
+    },
+  })
+  return React.createElement("button", { ref: elementRef }, label)
+}
+
+test("pressing a button does not rename the element the agent is holding", async () => {
+  const registry = getCapabilityRegistry()
+  const tree = await mount(React.createElement(SelfNaming, { initial: "Run" }))
+
+  const before = registry.describeAll().find((c) => c.kind === "button")
+  assert.ok(before, "the button must register")
+  assert.equal(before.id, "button.run", "the id comes from the name it reads, not the fallback")
+
+  await registry.invoke("button.run", "press", {})
+  // An action resolves on the commit; re-registration is a passive effect one
+  // tick later, which is where a rename would have shown up.
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  const after = registry.describeAll().find((c) => c.kind === "button")
+  assert.ok(after, "the button must still be registered")
+  // Addressing held: the id the agent was given still resolves.
+  assert.equal(after.id, "button.run")
+  assert.ok(registry.get("button.run"), "the id an agent is holding still resolves")
+  // Description followed: the listing reports what the button now says.
+  assert.equal(after.label, "Stop")
+
+  await tree.unmount()
 })

@@ -5,7 +5,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 
 // A native <textarea> changes its value through the same channel as <input>:
@@ -57,12 +57,14 @@ function Textarea({
 }) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const label = useAccessibleName(textareaRef, "Textarea")
+  const identitySource = useAccessibleNameResolver(textareaRef)
   const mergedRef = useMergedRef(ref, textareaRef)
 
   useCapability<TextareaState, TextareaActions>({
     agent: agentWithElementId(agent, props.id),
     kind: "input",
     defaultLabel: label,
+    identitySource,
     read: () => {
       const node = textareaRef.current
       if (!node) {

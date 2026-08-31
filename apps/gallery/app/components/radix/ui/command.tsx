@@ -37,7 +37,7 @@ import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
 import { pressElement } from "@/lib/agent-ui/press"
-import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { readText } from "@/lib/agent-ui/agent-content"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import {
@@ -233,6 +233,7 @@ function CommandInput({
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const label = useAccessibleName(inputRef, "Command input")
+  const identitySource = useAccessibleNameResolver(inputRef)
   const mergedRef = useMergedRef(ref, inputRef)
 
   // cmdk owns the search string, and the application may own it back through
@@ -249,6 +250,7 @@ function CommandInput({
     agent,
     kind: "input",
     defaultLabel: label,
+    identitySource,
     read: () => {
       const node = inputRef.current
       if (!node) {

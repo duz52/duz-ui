@@ -5,7 +5,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 
 // A native <input> has exactly one semantic channel for changing its value:
@@ -58,12 +58,14 @@ function Input({
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const label = useAccessibleName(inputRef, "Input")
+  const identitySource = useAccessibleNameResolver(inputRef)
   const mergedRef = useMergedRef(ref, inputRef)
 
   useCapability<InputState, InputActions>({
     agent: agentWithElementId(agent, props.id),
     kind: "input",
     defaultLabel: label,
+    identitySource,
     read: () => {
       const node = inputRef.current
       if (!node) {
