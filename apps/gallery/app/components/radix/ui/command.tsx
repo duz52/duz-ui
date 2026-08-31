@@ -82,48 +82,6 @@ type InputActions = {
 /** Cap for the empty-state text a palette read reports. */
 const EMPTY_MAX_LENGTH = 200
 
-/** Cap for a command item's resolved name, matching the shared resolver. */
-const ITEM_NAME_MAX_LENGTH = 100
-
-/**
- * Resolves a command item's accessible name. The item's element is
- * `role="option"`, which the accessible-name specification takes its name
- * from content — but the shared resolver's content-named list stops at the
- * menu-item roles, so the item walks the same precedence here: an explicit
- * `aria-label` or `aria-labelledby` wins, otherwise the item's own text is
- * its name.
- */
-function useCommandItemName(
-  ref: React.RefObject<HTMLElement | null>,
-  fallback: string,
-): string {
-  const [name, setName] = React.useState(fallback)
-
-  React.useLayoutEffect(() => {
-    const element = ref.current
-    if (!element) return
-
-    const labelledBy = element.getAttribute("aria-labelledby")
-    const resolved =
-      element.getAttribute("aria-label")?.trim() ||
-      (labelledBy
-        ? labelledBy
-            .split(/\s+/)
-            .filter(Boolean)
-            .map((id) => document.getElementById(id)?.textContent ?? "")
-            .join(" ")
-            .trim()
-        : "") ||
-      readText(element, ITEM_NAME_MAX_LENGTH) ||
-      fallback
-    if (resolved !== name) {
-      setName(resolved)
-    }
-  })
-
-  return name
-}
-
 type CommandContentState = {
   search: string
   itemCount: number
@@ -361,7 +319,10 @@ function CommandItem({
   agent?: AgentProp
 }) {
   const itemRef = React.useRef<HTMLDivElement>(null)
-  const label = useCommandItemName(itemRef, "Command item")
+  // The item's element carries role="option", which the shared resolver names
+  // from content like any other such role.
+  const label = useAccessibleName(itemRef, "Command item")
+  const identitySource = useAccessibleNameResolver(itemRef)
   const mergedRef = useMergedRef(ref, itemRef)
 
   // cmdk filters by unmounting the item's element, and this wrapper stays
@@ -386,6 +347,7 @@ function CommandItem({
     agent: rendered ? agent : false,
     kind: "button",
     defaultLabel: label,
+    identitySource,
     read: () => ({ label, disabled }),
     actions: {
       press() {

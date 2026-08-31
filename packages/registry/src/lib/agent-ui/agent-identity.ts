@@ -77,12 +77,11 @@ function capLength(text: string): string {
  *    one (real form controls do); otherwise, when the element has an `id`,
  *    the first `label[for="<id>"]` in the document; otherwise
  *    `element.closest("label")`. Take its `textContent`.
- * 4. The element's own subtree text, for elements whose native accessible
- *    name IS that text: `<button>`, `<a>`, and the menu-item roles, which
- *    the accessible-name specification names as taking their name from
- *    content. Other elements keep their own native mechanisms — a
- *    `<select>`'s name is never its options' text, a `<textarea>`'s never
- *    its default value — so their text content is not a name source.
+ * 4. The element's own subtree text, when its role is one the accessible-name
+ *    specification names from content — see NAME_FROM_CONTENT_ROLES. Other
+ *    elements keep their own native mechanisms — a `<select>`'s name is never
+ *    its options' text, a `<textarea>`'s never its default value — because
+ *    their roles are not in that set.
  * Nothing found returns undefined; the caller supplies what to show.
  *
  * Each source is normalised (trim, collapse whitespace) and an empty result
@@ -104,6 +103,70 @@ interface NamedElement {
   textContent: string | null
   getAttribute(name: string): string | null
   closest(selectors: string): { textContent: string | null } | null
+}
+
+/**
+ * Roles whose accessible name may come from the element's own content — ARIA's
+ * "name from: author and content". Every other role is named by its author
+ * alone, which is why a `<select>` is never named by its options and a
+ * `<textarea>` never by its value: their roles are not in this set.
+ */
+const NAME_FROM_CONTENT_ROLES = new Set([
+  "button",
+  "cell",
+  "checkbox",
+  "columnheader",
+  "gridcell",
+  "heading",
+  "link",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "radio",
+  "row",
+  "rowheader",
+  "switch",
+  "tab",
+  "tooltip",
+  "treeitem",
+])
+
+/**
+ * The role an element carries with none written on it. Only tags that map to a
+ * name-from-content role are listed; anything absent falls through to "not
+ * named from content", which is the safe answer.
+ */
+const IMPLICIT_ROLES = new Map([
+  ["BUTTON", "button"],
+  ["SUMMARY", "button"],
+  ["OPTION", "option"],
+  ["TD", "cell"],
+  ["TH", "columnheader"],
+  ["TR", "row"],
+  ["H1", "heading"],
+  ["H2", "heading"],
+  ["H3", "heading"],
+  ["H4", "heading"],
+  ["H5", "heading"],
+  ["H6", "heading"],
+])
+
+/**
+ * Whether this element's text is its name.
+ *
+ * Decided by role rather than by tag, so a custom `<div role="button">` is
+ * named exactly as a `<button>` is — the common way to write an interactive
+ * element that is not a native control, and previously invisible here. A
+ * written role wins over the implicit one, as it does everywhere in ARIA, and
+ * an `<a>` is a link only when it has an href.
+ */
+function namesFromContent(element: NamedElement): boolean {
+  const written = element.getAttribute("role")?.trim().split(/\s+/)[0]
+  if (written) return NAME_FROM_CONTENT_ROLES.has(written)
+  if (element.tagName === "A") return element.getAttribute("href") !== null
+  const implicit = IMPLICIT_ROLES.get(element.tagName)
+  return implicit !== undefined && NAME_FROM_CONTENT_ROLES.has(implicit)
 }
 
 function resolveAccessibleName(element: NamedElement): string | undefined {
@@ -152,16 +215,8 @@ function resolveAccessibleName(element: NamedElement): string | undefined {
     if (label !== null) return capLength(label)
   }
 
-  // 4. The element's own subtree text — a button or link's visible text, or
-  // a menu item's, whose role takes its name from content.
-  const role = element.getAttribute("role")
-  if (
-    element.tagName === "BUTTON" ||
-    element.tagName === "A" ||
-    role === "menuitem" ||
-    role === "menuitemcheckbox" ||
-    role === "menuitemradio"
-  ) {
+  // 4. The element's own subtree text, when its role is named from content.
+  if (namesFromContent(element)) {
     const label = normaliseText(element.textContent)
     if (label !== null) return capLength(label)
   }

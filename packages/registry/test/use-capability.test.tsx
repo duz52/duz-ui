@@ -527,3 +527,86 @@ test("pressing a button does not rename the element the agent is holding", async
 
   await tree.unmount()
 })
+
+/**
+ * An element named by its own text, with the tag and role the component author
+ * chose. `element` is the tag, `role` what is written on it.
+ */
+function NamedByContent({
+  tag,
+  role,
+  text,
+  href,
+}: {
+  tag: string
+  role?: string
+  text: string
+  href?: string
+}) {
+  const elementRef = React.useRef<HTMLElement>(null)
+  const name = useAccessibleName(elementRef, "Fallback")
+  const identitySource = useAccessibleNameResolver(elementRef)
+  useCapability<{ name: string }, Record<string, never>>({
+    agent: {},
+    kind: "button",
+    defaultLabel: name,
+    identitySource,
+    read: () => ({ name }),
+    actions: {},
+  })
+  return React.createElement(tag, { ref: elementRef, role, href }, text)
+}
+
+test("a role names an element from its content, whatever tag carries it", async () => {
+  const registry = getCapabilityRegistry()
+
+  // The common way to write an interactive element that is not a native
+  // control. Before roles decided this, a div was unnameable.
+  const custom = await mount(
+    React.createElement(NamedByContent, { tag: "div", role: "button", text: "Deploy" }),
+  )
+  assert.equal(registry.describeAll().find((c) => c.kind === "button")?.id, "button.deploy")
+  await custom.unmount()
+
+  // A listbox option, which is what a command palette item is.
+  const option = await mount(
+    React.createElement(NamedByContent, { tag: "div", role: "option", text: "Open Settings" }),
+  )
+  assert.equal(
+    registry.describeAll().find((c) => c.kind === "button")?.id,
+    "button.open-settings",
+  )
+  await option.unmount()
+
+  // A native button still works, now through its implicit role.
+  const native = await mount(React.createElement(NamedByContent, { tag: "button", text: "Save" }))
+  assert.equal(registry.describeAll().find((c) => c.kind === "button")?.id, "button.save")
+  await native.unmount()
+})
+
+test("an element whose role is not named from content keeps the fallback", async () => {
+  const registry = getCapabilityRegistry()
+
+  // A plain div names nothing: its role is generic, and reading arbitrary
+  // descendant text as a name is what the role list exists to prevent.
+  const plain = await mount(React.createElement(NamedByContent, { tag: "div", text: "Some text" }))
+  const capability = registry.describeAll().find((c) => c.kind === "button")
+  assert.ok(capability, "the element must still register")
+  assert.equal(capability.label, "Fallback")
+  assert.equal(capability.id, "button.fallback")
+  await plain.unmount()
+
+  // An anchor is a link only when it has an href; without one its role is
+  // generic, exactly as the specification says.
+  const anchor = await mount(
+    React.createElement(NamedByContent, { tag: "a", text: "Not a link" }),
+  )
+  assert.equal(registry.describeAll().find((c) => c.kind === "button")?.label, "Fallback")
+  await anchor.unmount()
+
+  const link = await mount(
+    React.createElement(NamedByContent, { tag: "a", href: "/x", text: "Docs" }),
+  )
+  assert.equal(registry.describeAll().find((c) => c.kind === "button")?.id, "button.docs")
+  await link.unmount()
+})
