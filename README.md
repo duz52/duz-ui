@@ -57,7 +57,7 @@ gallery owns presentation and documentation.
 
 No layer may independently reconstruct another layer's truth.
 
-The full specification is `docs/specs/mvp.spec`.
+The full specification is `internal/specs/mvp.spec`.
 
 ## Repository layout
 

@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // so a test that reads anything else is testing a copy that can silently
 // drift from the source the fingerprints were computed against. The stock
 // sources are vendored per primitive base.
-const fixturesDir = join(__dirname, "../../../docs/internal/reference/shadcn")
+const fixturesDir = join(__dirname, "../../../internal/reference/shadcn")
 
 /**
  * The primitive bases the stock fixtures are vendored for, and the

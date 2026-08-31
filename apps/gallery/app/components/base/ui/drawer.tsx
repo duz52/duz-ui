@@ -125,7 +125,7 @@ function DrawerOverlay({
 
 /* A part Base UI's drawer genuinely provides and vaul's does not, so this
    export exists only on this base (see the base-to-base divergence table in
-   docs/internal/reference/base-ui.md). */
+   internal/reference/base-ui.md). */
 function DrawerSwipeHandle({
   className,
   ...props

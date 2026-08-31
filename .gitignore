@@ -7,9 +7,15 @@ build
 .DS_Store
 .env
 .env.*
-docs/*
-scripts/*
-.agents/*
-.claude/*
+
+# Everything that is ours alone: the spec, the working docs, the vendored
+# shadcn sources the codemods are fingerprinted against, the blind-operator
+# harnesses, and the pi extension `.pi/extensions` symlinks to.
+internal/
+.pi/
+
+# Per-agent instructions and skills, which belong to whoever is driving.
+.agents/
+.claude/
 AGENTS.md
 CLAUDE.md

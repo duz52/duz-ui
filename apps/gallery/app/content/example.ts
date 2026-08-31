@@ -17,7 +17,7 @@ import type * as React from "react"
  * - `app/content/examples/overrides/<base>/<name>.tsx` — hand-written
  *   replacements for components whose *usage*, not just internals, differs
  *   between bases, or that only one base carries. The divergence table in
- *   docs/internal/reference/base-ui.md is the list.
+ *   internal/reference/base-ui.md is the list.
  * - `app/content/examples.<base>.generated.ts` — the generated lazy-loader
  *   map per base. The generator resolves the override-or-shared choice into
  *   it, so consumers never merge anything.

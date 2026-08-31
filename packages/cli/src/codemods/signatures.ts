@@ -4,7 +4,7 @@
  * Each signature describes a stock shadcn/ui implementation that
  * `agent-ui migrate` can safely replace with the Agent UI version from the
  * registry. Lists are derived from the vendored stock sources in
- * `docs/internal/reference/shadcn/<base>/*.tsx`. Do not edit them by hand
+ * `internal/reference/shadcn/<base>/*.tsx`. Do not edit them by hand
  * unless the stock source changes.
  */
 

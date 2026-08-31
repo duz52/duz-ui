@@ -28,7 +28,7 @@ const registry = join(repoRoot, "apps/gallery/public/r")
 const BASES = {
   radix: {
     style: "new-york",
-    fixtures: join(repoRoot, "docs/internal/reference/shadcn/radix"),
+    fixtures: join(repoRoot, "internal/reference/shadcn/radix"),
     // A class string in this base's stock checkbox; changing it introduces
     // drift without altering the structure or the public exports.
     checkboxDrift: ["transition-shadow outline-none", "transition-shadow outline-none bg-red-500"],
@@ -36,7 +36,7 @@ const BASES = {
   },
   base: {
     style: "base-nova",
-    fixtures: join(repoRoot, "docs/internal/reference/shadcn/base"),
+    fixtures: join(repoRoot, "internal/reference/shadcn/base"),
     checkboxDrift: ["transition-colors outline-none", "transition-colors outline-none bg-red-500"],
     tabsDrift: ["group/tabs flex gap-2 ", "group/tabs flex gap-2 bg-red-500 "],
   },
