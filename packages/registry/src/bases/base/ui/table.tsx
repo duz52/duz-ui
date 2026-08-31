@@ -25,15 +25,11 @@ const ROW_LABEL_MAX_LENGTH = 80
  * work proportional to the number of rows; only an agent-invoked read does.
  */
 
-/** How many rows a read reports before it becomes a window with rowsOmitted. */
-const TABLE_MAX_ROWS = 50
-
 type TableContentState = {
   columns: string[]
   rows: Record<string, string>[]
   renderedRowCount: number
   totalRowCount: number | null
-  rowsOmitted?: number
 }
 
 /**
@@ -75,8 +71,11 @@ function Table({
       const columns = Array.from(root.querySelectorAll("thead th")).map((th) =>
         readText(th, CELL_MAX_LENGTH),
       )
+      // Every rendered row: what the table has is the answer, and the tools
+      // layer — not this component — cuts the result to the output budget and
+      // reports the window the agent walks.
       const rowElements = Array.from(root.querySelectorAll("tbody tr"))
-      const rows = rowElements.slice(0, TABLE_MAX_ROWS).map((row) => {
+      const rows = rowElements.map((row) => {
         const cells: Record<string, string> = {}
         Array.from(row.querySelectorAll("td")).forEach((cell, index) => {
           const header = columns[index]
@@ -93,9 +92,6 @@ function Table({
         // pagination controls or anything else: an inferred total that is
         // wrong is worse than an absent one.
         totalRowCount: parseTotalRowCount(root),
-        ...(rowElements.length > TABLE_MAX_ROWS
-          ? { rowsOmitted: rowElements.length - TABLE_MAX_ROWS }
-          : {}),
       }
     },
     actions: {},

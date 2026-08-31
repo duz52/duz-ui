@@ -2154,7 +2154,7 @@ for (const base of BASES) {
     await tree.unmount()
   })
 
-  test(`[${base}] table: a read is a window of 50 rows with the true renderedRowCount`, async () => {
+  test(`[${base}] table: a read reports every rendered row, bounded only by the tools layer`, async () => {
     const mod = modules.get(`${base}/table`)
     assert.ok(mod, `the ${base} table module must load`)
     const id = `${base}-table-window`
@@ -2190,14 +2190,16 @@ for (const base of BASES) {
       rows: Record<string, string>[]
       renderedRowCount: number
       totalRowCount: number | null
-      rowsOmitted?: number
     }
-    assert.equal(state.rows.length, 50)
+    // The component reports what the table has; cutting it to the output
+    // budget, and saying how to walk the rest, belongs to the tools layer —
+    // one windowing mechanism, not two.
+    assert.equal(state.rows.length, 60)
     assert.equal(state.renderedRowCount, 60)
     assert.equal(state.totalRowCount, null)
-    assert.equal(state.rowsOmitted, 10)
     assert.deepEqual(state.columns, ["Item"])
     assert.deepEqual(state.rows[0], { Item: "cell 0" })
+    assert.deepEqual(state.rows[59], { Item: "cell 59" })
 
     await tree.unmount()
   })
@@ -4255,6 +4257,146 @@ for (const base of BASES) {
       revenues[1].id,
       "two cards titled the same must not collide on one id",
     )
+
+    await tree.unmount()
+  })
+}
+
+/**
+ * A data table's rows are data, not a view of them: pagination is how the
+ * page shows rows to a person, so `read()` reports every row of the filtered
+ * and sorted model — not just the ten the paginator renders — in that
+ * model's order, and the tools layer, not the component, bounds the output.
+ * The reads and tool calls below sit outside `act`, exactly like every tool
+ * call in this file.
+ */
+interface ScoreRow {
+  id: string
+  name: string
+  score: number
+  tier: string
+  secret: string
+}
+
+const SCORE_ROWS: ScoreRow[] = Array.from({ length: 40 }, (_, index) => ({
+  id: `p-${String(index + 1).padStart(2, "0")}`,
+  name: `Person ${index + 1}`,
+  score: 40 - index,
+  tier: index % 4 === 0 ? "gold" : "standard",
+  secret: `ss-${index}`,
+}))
+
+const scoreColumns = [
+  { id: "name", header: "Name", accessor: (row: ScoreRow) => row.name },
+  { id: "score", header: "Score", accessor: (row: ScoreRow) => row.score },
+  { id: "tier", header: "Tier", accessor: (row: ScoreRow) => row.tier },
+  // Rendered but not semantic: reading across pages must not reveal it.
+  {
+    id: "secret",
+    header: "Secret",
+    accessor: (row: ScoreRow) => row.secret,
+    agentHidden: true,
+  },
+]
+
+function mountScoreTable(base: (typeof BASES)[number], id: string) {
+  const mod = modules.get(`${base}/data-table`)
+  assert.ok(mod, `the ${base} data-table module must load`)
+  return mount(
+    React.createElement(mod.DataTable, {
+      agent: { id, label: "Scores" },
+      data: SCORE_ROWS,
+      columns: scoreColumns,
+      getRowId: (row: ScoreRow) => row.id,
+      pageSize: 10,
+    }),
+  )
+}
+
+for (const base of BASES) {
+  test(`[${base}] data-table: a read reports every row of the model, not just the rendered page`, async () => {
+    const id = `${base}-data-table-read-all-rows`
+    const tree = await mountScoreTable(base, id)
+
+    const state = registry.read(id) as {
+      rows: { id: string; cells: Record<string, unknown> }[]
+      page: number
+      pageSize: number
+      pageCount: number
+      rowCount: number
+      totalRowCount: number
+    }
+
+    assert.equal(state.rows.length, 40, "all 40 rows, not the 10 the page renders")
+    assert.deepEqual(
+      state.rows.map((row) => row.id),
+      SCORE_ROWS.map((row) => row.id),
+      "the rows come back in the model's order",
+    )
+    // Paging stays in the state: it is what says what the person is looking at.
+    assert.equal(state.page, 1)
+    assert.equal(state.pageSize, 10)
+    assert.equal(state.pageCount, 4)
+    assert.equal(state.rowCount, 40)
+    assert.equal(state.totalRowCount, 40)
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] data-table: filtering narrows rows and rowCount across pages`, async () => {
+    const id = `${base}-data-table-filter-across-pages`
+    const tree = await mountScoreTable(base, id)
+
+    const output = JSON.parse(
+      await tool("table_filter").execute({ target: id, column: "tier", value: "gold" }),
+    )
+
+    assert.equal(output.ok, true)
+    const gold = SCORE_ROWS.filter((row) => row.tier === "gold")
+    assert.equal(output.state.rowCount, gold.length)
+    assert.equal(output.state.page, 1)
+    assert.deepEqual(
+      output.state.rows.map((row: { id: string }) => row.id),
+      gold.map((row) => row.id),
+      "every match is reported, including the ones the paginator would have hidden on later pages",
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] data-table: rows come back in the sorted model's order`, async () => {
+    const id = `${base}-data-table-sorted-order`
+    const tree = await mountScoreTable(base, id)
+
+    const output = JSON.parse(
+      await tool("table_sort").execute({ target: id, column: "score", direction: "asc" }),
+    )
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(output.state.sort, [{ column: "score", direction: "asc" }])
+    assert.deepEqual(
+      output.state.rows.map((row: { cells: { score: number } }) => row.cells.score),
+      SCORE_ROWS.map((row) => row.score).sort((a, b) => a - b),
+    )
+
+    await tree.unmount()
+  })
+
+  test(`[${base}] data-table: an agentHidden column is absent from every row the read reports`, async () => {
+    const id = `${base}-data-table-agent-hidden`
+    const tree = await mountScoreTable(base, id)
+
+    const state = registry.read(id) as {
+      rows: { cells: Record<string, unknown> }[]
+    }
+    assert.equal(state.rows.length, 40)
+    for (const row of state.rows) {
+      assert.equal(
+        "secret" in row.cells,
+        false,
+        "reading across pages is not a licence to cross the agentHidden boundary",
+      )
+    }
 
     await tree.unmount()
   })

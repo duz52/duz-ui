@@ -293,10 +293,12 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
       .filter(([, selected]) => selected)
       .map(([id]) => id)
 
-    // Tool-output budget: cap rows and truncate cells to stay within the
-    // WebMCP output limit. This does not affect what the user sees.
-    const pageRows = table.getRowModel().rows.slice(0, 25)
-    const rows = pageRows.map((row) => {
+    // Every row of the filtered and sorted model, in that model's order:
+    // pagination is how the page shows rows to a person, not a property of
+    // the data, so a read is not bounded by it. The tools layer, not this
+    // component, windows the result to the output budget. Long cell text is
+    // still cut to a preview.
+    const rows = table.getSortedRowModel().rows.map((row) => {
       const cells: Record<string, CellValue> = {}
       for (const col of visibleAgentCols) {
         const value = col.accessor(row.original)
