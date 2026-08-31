@@ -13,7 +13,7 @@
 
 import { Project, SyntaxKind, type SourceFile } from "ts-morph"
 import { writeFileSync } from "node:fs"
-import { SIGNATURES, type ComponentSignature } from "./signatures.js"
+import { findSignature, type ComponentSignature } from "./signatures.js"
 import { fingerprintSource } from "./fingerprint.js"
 import { STOCK_FINGERPRINTS } from "./stock-fingerprints.js"
 import type { ProjectConfig } from "../project/config.js"
@@ -50,10 +50,6 @@ export interface MigrateFileInput {
    * still matches its stock fingerprint.
    */
   config: ProjectConfig
-}
-
-function findSignature(name: string): ComponentSignature | undefined {
-  return SIGNATURES.find((s) => s.name === name)
 }
 
 /**

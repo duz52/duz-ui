@@ -519,3 +519,11 @@ export const SIGNATURES: ComponentSignature[] = [
     internalDeclarations: [],
   },
 ]
+
+/**
+ * The signature for `name`, or `undefined` when the component is not one we
+ * recognise.
+ */
+export function findSignature(name: string): ComponentSignature | undefined {
+  return SIGNATURES.find((s) => s.name === name)
+}

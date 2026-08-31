@@ -12,19 +12,23 @@
  *    aliases, and run `planMigration` to decide whether the file is stock
  *    (→ replace), already migrated (→ skip), or locally modified (→ refuse).
  *    Planning is all reads.
- * 3. If no outcome is `migrated`, print the report and return. Nothing has
+ * 3. Refuse any planned migration whose replacement would strand a project
+ *    file that value-imports directly from a primitive package the replaced
+ *    file uses: the swap moves the primitive's React context to a new module
+ *    instance while the file's direct import keeps the old one. All reads.
+ * 4. If no outcome is `migrated`, print the report and return. Nothing has
  *    been written.
- * 4. Resolve the runtime (capability kernel + WebMCP adapter + utils) and the
+ * 5. Resolve the runtime (capability kernel + WebMCP adapter + utils) and the
  *    `registryDependencies` of every migrated item. Resolution is all reads.
- * 5. Install the runtime; migrated components import from it and would not
+ * 6. Install the runtime; migrated components import from it and would not
  *    compile without it.
- * 6. Install the resolved registry dependencies with `installItems` (no
+ * 7. Install the resolved registry dependencies with `installItems` (no
  *    overwrite) so a missing dependency is created before the migrated file
  *    needs it. This runs before `applyMigration` so a failure to obtain a
  *    dependency stops the migration rather than leaving it half-applied.
- * 7. Apply every `migrated` outcome unless `--dry-run`.
- * 8. Install the union of migrated items' npm dependencies.
- * 9. Print the report.
+ * 8. Apply every `migrated` outcome unless `--dry-run`.
+ * 9. Install the union of migrated items' npm dependencies.
+ * 10. Print the report.
  *
  * The phases read: plan everything, resolve everything, then write. Every
  * failure that can be seen without touching the project should be found
@@ -45,6 +49,7 @@ import {
   planMigration,
   type MigrationOutcome,
 } from "../codemods/index.js"
+import { refuseBreakingMigrations } from "../codemods/mixing.js"
 import { loadProject, type ProjectConfig } from "../project/config.js"
 import { ensureDependencies } from "../project/deps.js"
 import { createRegistryClient, defaultRegistrySource } from "../registry/client.js"
@@ -67,10 +72,16 @@ interface FileResult {
 
 /**
  * Padded line for skipped / refused components, matching the spec layout:
- * `- card        presentation-only`
+ * `- card        presentation-only`. A description may span lines; its
+ * continuation lines align under the description column.
  */
 function line(name: string, description: string, columnWidth: number): string {
-  return `- ${name.padEnd(columnWidth)}${description}`
+  const prefix = `- ${name.padEnd(columnWidth)}`
+  const indent = " ".repeat(prefix.length)
+  return description
+    .split("\n")
+    .map((l, i) => (i === 0 ? prefix + l : indent + l))
+    .join("\n")
 }
 
 function printReport(
@@ -231,7 +242,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
 
   // Classify, fetch replacement, and plan migration for each file.
   const results: FileResult[] = []
-  const migratedItems: RegistryItem[] = []
+  let migratedItems: RegistryItem[] = []
 
   for (const fileName of componentFiles) {
     const component = fileName.replace(/\.(tsx|jsx)$/, "")
@@ -298,6 +309,14 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
       migratedItems.push(item)
     }
   }
+
+  // A replacement that stops importing the primitive package the replaced
+  // file used would strand the project's own files that mix a direct import
+  // from that package with the ui module: the primitive's React context
+  // moves to a new module instance and the file's direct import keeps the
+  // old one. Such a component is refused, not migrated.
+  const refused = refuseBreakingMigrations(results, config)
+  migratedItems = migratedItems.filter((item) => !refused.has(item.name))
 
   // If nothing will be migrated, report and return without writing anything.
   if (migratedItems.length === 0) {

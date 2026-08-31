@@ -31,24 +31,38 @@ export function detectPackageManager(cwd: string): PackageManager {
 }
 
 /**
+ * The dependency names the project's package.json declares, across
+ * `dependencies` and `devDependencies`.
+ */
+function declaredDependencies(packageJsonPath: string): Set<string> {
+  const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+  }
+  return new Set([
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.devDependencies ?? {}),
+  ])
+}
+
+/**
  * Returns the subset of `deps` not already in the project's `dependencies`
  * or `devDependencies`, installs them with the detected package manager, and
  * returns the list that was installed. A no-op (returns `[]`, spawns nothing)
  * when nothing is missing.
+ *
+ * Whether the install happened is read from package.json after the package
+ * manager exits, never from its exit status: pnpm exits non-zero for
+ * ERR_PNPM_IGNORED_BUILDS — build scripts awaiting approval — after
+ * successfully writing the dependencies. A dependency is installed iff it is
+ * now declared; the ones still missing make the command fail.
  */
 export async function ensureDependencies(
   config: ProjectConfig,
   deps: string[],
 ): Promise<string[]> {
-  const pkg = JSON.parse(readFileSync(config.packageJsonPath, "utf8")) as {
-    dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
-  }
-  const existing = new Set([
-    ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.devDependencies ?? {}),
-  ])
-  const missing = deps.filter((d) => !existing.has(d))
+  const declared = declaredDependencies(config.packageJsonPath)
+  const missing = deps.filter((d) => !declared.has(d))
   if (missing.length === 0) return []
 
   const { command, args } = installCommand(detectPackageManager(config.cwd))
@@ -56,10 +70,13 @@ export async function ensureDependencies(
     stdio: "inherit",
     cwd: config.cwd,
   })
-  if (result.status !== 0) {
-    // Reporting these as installed would be a lie the next build would expose.
+
+  const installed = declaredDependencies(config.packageJsonPath)
+  const stillMissing = missing.filter((d) => !installed.has(d))
+  if (stillMissing.length > 0) {
+    const detail = result.error ? result.error.message : `exit status ${result.status}`
     throw new Error(
-      `Could not install dependencies. Install them with: ${command} ${args.join(" ")} ${missing.join(" ")}`,
+      `Could not install dependencies (${detail}). Install them with: ${command} ${args.join(" ")} ${stillMissing.join(" ")}`,
     )
   }
   return missing

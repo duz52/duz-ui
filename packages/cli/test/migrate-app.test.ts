@@ -16,8 +16,15 @@
 
 import { describe, it } from "node:test"
 import * as assert from "node:assert/strict"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs"
+import { delimiter, dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
@@ -26,7 +33,9 @@ import {
   type MigrationOutcome,
 } from "../src/codemods/index.js"
 import { classify } from "../src/codemods/classify.js"
+import { refuseBreakingMigrations } from "../src/codemods/mixing.js"
 import { loadProject } from "../src/project/config.js"
+import { ensureDependencies } from "../src/project/deps.js"
 import { createRegistryClient } from "../src/registry/client.js"
 import { installItems, rewriteAliases } from "../src/registry/install.js"
 import { withTempProject } from "./helpers.js"
@@ -61,6 +70,66 @@ function readFixtureFiles(): Record<string, string> {
   }
   return files
 }
+
+/**
+ * The project's own file that would break: it value-imports the trigger
+ * directly from the primitive package the stock tabs implementation used,
+ * alongside the project's own ui module. One module instance, one React
+ * context — until migration replaces the ui module with an implementation
+ * importing from the unified `radix-ui` package.
+ */
+const MIXING_VIEW_OPTIONS = [
+  'import { TabsTrigger } from "@radix-ui/react-tabs"',
+  'import { Tabs, TabsList, TabsContent } from "@/components/ui/tabs"',
+  "",
+  "export function ViewOptions() {",
+  "  return (",
+  '    <Tabs defaultValue="columns">',
+  "      <TabsList>",
+  '        <TabsTrigger value="columns">Columns</TabsTrigger>',
+  "      </TabsList>",
+  '      <TabsContent value="columns">Table</TabsContent>',
+  "    </Tabs>",
+  "  )",
+  "}",
+  "",
+].join("\n")
+
+/**
+ * Self-consistent: the primitive is imported directly and the project's own
+ * ui module for that component is never touched, so no context is shared and
+ * nothing the replacement does can strand the file.
+ */
+const RAW_PRIMITIVE_ONLY = [
+  'import { Checkbox as CheckboxPrimitive } from "@radix-ui/react-checkbox"',
+  "",
+  "export function ConfigDrawer() {",
+  "  return <CheckboxPrimitive defaultChecked />",
+  "}",
+  "",
+].join("\n")
+
+/**
+ * Type-only primitive imports are erased at compile time: they bind no module
+ * instance, so the ui module's implementation stays the only one.
+ */
+const TYPE_ONLY_PRIMITIVE = [
+  'import type { TabsProps } from "@radix-ui/react-tabs"',
+  'import { type TabsContentProps } from "@radix-ui/react-tabs"',
+  'import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"',
+  "",
+  "export function LearnMore(props: TabsProps) {",
+  "  return (",
+  '    <Tabs defaultValue="learn">',
+  "      <TabsList>",
+  '        <TabsTrigger value="learn">Learn more</TabsTrigger>',
+  "      </TabsList>",
+  '      <TabsContent value="learn">{props.activationMode}</TabsContent>',
+  "    </Tabs>",
+  "  )",
+  "}",
+  "",
+].join("\n")
 
 interface MigrationResult {
   outcomes: Map<string, MigrationOutcome>
@@ -137,6 +206,11 @@ async function runMigration(dir: string, overwrite: boolean = false): Promise<Mi
     results.push({ outcome, replacement })
   }
 
+  // The same refusal pass `agent-ui migrate` runs between planning and
+  // writing: a replacement that would strand files mixing the project's own
+  // ui module with a direct primitive import is reported unsupported.
+  refuseBreakingMigrations(results, config)
+
   for (const { outcome, replacement } of results) {
     applyMigration(outcome, replacement)
   }
@@ -163,6 +237,44 @@ function snapshotSrc(dir: string): Map<string, string> {
   }
   walk(srcDir)
   return snapshot
+}
+
+/** Asserts the outcome is `unsupported` and returns its reason. */
+function refusedReason(outcome: MigrationOutcome | undefined): string {
+  if (outcome?.status !== "unsupported") {
+    assert.fail(`expected an unsupported outcome, got ${outcome?.status ?? "no outcome"}`)
+  }
+  return outcome.reason
+}
+
+/**
+ * A fake `pnpm`: an executable script plus the lockfile that makes
+ * `detectPackageManager` resolve to pnpm. Returns the bin directory to
+ * prepend to the PATH.
+ */
+function writeFakePnpm(dir: string, script: string[]): string {
+  const binDir = join(dir, "fake-bin")
+  mkdirSync(binDir)
+  const pnpm = join(binDir, "pnpm")
+  writeFileSync(pnpm, [...script, ""].join("\n"))
+  chmodSync(pnpm, 0o755)
+  writeFileSync(join(dir, "pnpm-lock.yaml"), "")
+  return binDir
+}
+
+/**
+ * Prepends `binDir` to the PATH for the duration of `fn`, so the fake package
+ * manager is the one `ensureDependencies` spawns. Restores the PATH even when
+ * `fn` throws.
+ */
+async function withPathPrefix<T>(binDir: string, fn: () => Promise<T>): Promise<T> {
+  const originalPath = process.env.PATH
+  process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`
+  try {
+    return await fn()
+  } finally {
+    process.env.PATH = originalPath
+  }
 }
 
 describe("migrate against a legacy shadcn app", () => {
@@ -238,6 +350,98 @@ describe("migrate against a legacy shadcn app", () => {
           `file ${rel} must be byte-identical after the second pass`,
         )
       }
+    })
+  })
+})
+
+describe("migration refuses components whose replacement would break primitive mixing", () => {
+  it("refuses to migrate a component whose replacement would break a file that mixes the primitive with the ui module", async () => {
+    await withTempProject(
+      { ...readFixtureFiles(), "src/components/data-table/view-options.tsx": MIXING_VIEW_OPTIONS },
+      async (dir) => {
+        const tabsBefore = readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8")
+
+        const result = await runMigration(dir, true)
+
+        const reason = refusedReason(result.outcomes.get("tabs"))
+        assert.match(
+          reason,
+          /would break src\/components\/data-table\/view-options\.tsx,\nwhich imports TabsTrigger from @radix-ui\/react-tabs/,
+        )
+
+        // Refusing is per component: the mixing file only touches tabs.
+        assert.equal(result.outcomes.get("checkbox")?.status, "migrated")
+        assert.equal(result.outcomes.get("select")?.status, "migrated")
+
+        // The refused component's file is left byte-identical.
+        assert.equal(readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8"), tabsBefore)
+      },
+    )
+  })
+
+  it("migrates a component whose primitive is imported directly but never alongside the ui module", async () => {
+    await withTempProject(
+      { ...readFixtureFiles(), "src/components/settings/config-drawer.tsx": RAW_PRIMITIVE_ONLY },
+      async (dir) => {
+        const result = await runMigration(dir, true)
+
+        // Self-consistent: the file uses the primitive directly and never
+        // touches the project's own ui module for it.
+        assert.equal(result.outcomes.get("checkbox")?.status, "migrated")
+      },
+    )
+  })
+
+  it("migrates when the project file's primitive imports are type-only", async () => {
+    await withTempProject(
+      { ...readFixtureFiles(), "src/components/learn-more.tsx": TYPE_ONLY_PRIMITIVE },
+      async (dir) => {
+        const result = await runMigration(dir, true)
+
+        // Type-only imports bind no module instance, so the ui module's
+        // implementation stays the only one.
+        assert.equal(result.outcomes.get("tabs")?.status, "migrated")
+      },
+    )
+  })
+})
+
+describe("dependency installation during migration", () => {
+  it("treats a dependency as installed when package.json declares it, even though the package manager exited non-zero", async () => {
+    await withTempProject({}, async (dir) => {
+      // Reproduces ERR_PNPM_IGNORED_BUILDS: the dependencies are written to
+      // package.json, then the package manager exits non-zero because build
+      // scripts await approval — not because the install failed.
+      const binDir = writeFakePnpm(dir, [
+        "#!/bin/sh",
+        "node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.dependencies['radix-ui'] = '^1.0.0'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2))\"",
+        "exit 1",
+      ])
+
+      const config = await loadProject(dir)
+      const installed = await withPathPrefix(binDir, () =>
+        ensureDependencies(config, ["radix-ui"]),
+      )
+
+      assert.deepEqual(installed, ["radix-ui"])
+      const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
+        dependencies: Record<string, string>
+      }
+      assert.equal(pkg.dependencies["radix-ui"], "^1.0.0")
+    })
+  })
+
+  it("throws, naming the exit status, when the dependency is genuinely still missing", async () => {
+    await withTempProject({}, async (dir) => {
+      const binDir = writeFakePnpm(dir, ["#!/bin/sh", "exit 1"])
+
+      const config = await loadProject(dir)
+      await withPathPrefix(binDir, () =>
+        assert.rejects(
+          ensureDependencies(config, ["radix-ui"]),
+          /Could not install dependencies \(exit status 1\)/,
+        ),
+      )
     })
   })
 })
