@@ -1094,16 +1094,22 @@ function createFillTool(registry: CapabilityRegistry): AgentTool {
           const result = await registry.invoke(id, action, { [argument]: value })
           applied.push({ target: id, state: digest(result.state) })
         } catch (error) {
-          if (!(error instanceof CapabilityError)) throw error
+          // A CapabilityError is a refusal written for the agent to read and
+          // correct; any other throw is a bug in the page — logged in full
+          // here, reported neutrally. Either way the fields set before the
+          // failure are still set, and the result says which.
+          const refusal = error instanceof CapabilityError
+          if (!refusal) console.error("[agent-ui]", error)
           const done = applied.map((entry) => entry.target).join(", ")
+          const reason = refusal ? error.message : "The page hit an unexpected error."
           return serialise("ui_fill", {
             ok: false,
             error: {
-              code: error.code,
+              code: refusal ? error.code : "internal",
               message:
                 applied.length === 0
-                  ? `Filling "${id}" failed and nothing was changed. ${error.message}`
-                  : `Filling "${id}" failed. ${error.message} These were set before it and are still set: ${done}.`,
+                  ? `Filling "${id}" failed and nothing was changed. ${reason}`
+                  : `Filling "${id}" failed. ${reason} These were set before it and are still set: ${done}.`,
             },
             applied,
           })

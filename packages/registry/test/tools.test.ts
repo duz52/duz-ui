@@ -1169,6 +1169,46 @@ test("a fill that fails part-way says which elements are already set", async () 
   for (const off of dispose) off()
 })
 
+test("a page bug part-way through a fill still reports what is already set", async () => {
+  const dispose: (() => void)[] = []
+  const errors = console.error
+  console.error = () => {}
+  try {
+    dispose.push(registry.register(stub({ id: "email", kind: "input", actions: ["set_value"] })))
+    dispose.push(
+      registry.register(
+        stub({
+          id: "role",
+          kind: "select",
+          actions: ["choose"],
+          onInvoke: () => {
+            throw new Error("boom: select exploded")
+          },
+        }),
+      ),
+    )
+
+    const parsed = JSON.parse(
+      await byName(createAgentTools(registry))
+        .get("ui_fill")!
+        .execute({ values: { email: "ada@lovelace.dev", role: "manager" } }),
+    )
+
+    assert.equal(parsed.ok, false)
+    assert.equal(parsed.error.code, "internal")
+    assert.doesNotMatch(parsed.error.message, /boom|select exploded/)
+    assert.match(parsed.error.message, /still set: email/)
+    assert.deepEqual(
+      parsed.applied.map((entry: { target: string }) => entry.target),
+      ["email"],
+      "what was written is reported even when the call as a whole failed",
+    )
+  } finally {
+    console.error = errors
+    for (const off of dispose) off()
+  }
+})
+
 test("ui_fill exists only while the page holds something that can be filled", async () => {
   const off = registry.register(stub({ id: "send", kind: "button", actions: ["press"] }))
   assert.equal(
