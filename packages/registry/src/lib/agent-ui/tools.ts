@@ -408,13 +408,23 @@ function serialise(toolName: string, value: unknown): string {
   })
 }
 
+/**
+ * The tool that performs one (kind, action) pair, built from the same table
+ * that creates the tools. A listing therefore cannot name a tool that does not
+ * exist, or miss one that does.
+ */
+const KIND_TOOL_NAMES = new Map(
+  KIND_TOOLS.map((def) => [`${def.kind}\u0000${def.action}`, def.name] as const),
+)
+
 /** One element of the `ui_list` document. */
 interface ListElement {
   id: string
   kind: string
   label?: string
   description?: string
-  actions?: string[]
+  /** The tools that act on this element, by the name an agent calls. */
+  tools?: string[]
   /** The component's own summary when it provides one, else the state digest. */
   state?: string | Record<string, unknown>
   children?: ListElement[]
@@ -497,13 +507,25 @@ function buildListDocument(
   const nodes = new Map<string, ListElement>()
   for (const capability of capabilities) {
     if (capability.kind === "page") continue
-    const actions = [...capability.actions]
+    // The tools that act on this element, not the internal action names. The
+    // mapping is not derivable: a "data-table" is acted on by `table_filter`,
+    // and a business action's only action, "run", names no tool at all. An
+    // action with no tool cannot be called, so it is not listed.
+    const tools =
+      capability.kind === "action"
+        ? readActionState(capability)
+          ? [actionToolName(capability.id)]
+          : []
+        : [...capability.actions].flatMap((action) => {
+            const name = KIND_TOOL_NAMES.get(`${capability.kind}\u0000${action}`)
+            return name === undefined ? [] : [name]
+          })
     nodes.set(capability.id, {
       id: capability.id,
       kind: capability.kind,
       label: capability.label,
       description: capability.description,
-      actions: actions.length > 0 ? actions : undefined,
+      tools: tools.length > 0 ? tools : undefined,
       state: capability.summarise?.() ?? digest(capability.read()),
       children: [],
     })
@@ -730,7 +752,7 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_list",
     description:
-      "List the agent-operable UI elements on the page: the page title, and for each element its id, kind, label, description, actions, current state, and nested children. Call this first to discover valid target ids. Pass target to list one element's children instead — the recovery when an element reports childrenOmitted. A cut listing reports window: offset, returned and total — walk by advancing offset by window.returned. A listed state is current; use ui_read for detail the digest leaves out.",
+      "List the agent-operable UI elements on the page. Call this first: it gives each element's id, its current state, and the tools that act on it — every tool named in tools takes that id as target. Pass target to list one element's children instead, the recovery when an element reports childrenOmitted. A cut listing reports window: offset, returned and total — walk by advancing offset by window.returned. A listed state is current; use ui_read for detail the digest leaves out.",
     scope: { on: "page" },
     inputSchema: {
       type: "object",

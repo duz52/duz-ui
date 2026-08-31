@@ -168,13 +168,60 @@ test("ui_list returns the page document with every element's current state", asy
       id: "orders",
       kind: "data-table",
       label: "Orders",
-      actions: ["filter", "sort", "select_rows", "set_page"],
+      tools: ["table_filter", "table_sort", "table_select_rows", "table_set_page"],
       state: { page: 2, filtered: false },
     },
   ])
   assert.equal("page" in output, false, "no page header without a page capability")
 
   off()
+})
+
+test("a listing names the tool that acts on each element, and never one that does not exist", async () => {
+  const dispose = [
+    registry.register(
+      stub({ id: "orders", kind: "data-table", label: "Orders", actions: ["filter", "sort"] }),
+    ),
+    registry.register(
+      stub({
+        id: "refresh",
+        kind: "action",
+        actions: ["run"],
+        state: { description: "Refresh the current order list." },
+      }),
+    ),
+    // A kind no tool serves. It is still listed — an agent must know it is
+    // there — but it names no tool, because none can be called.
+    registry.register(stub({ id: "gauge", kind: "progress", actions: [] })),
+  ]
+
+  const tools = createAgentTools(registry)
+  const registered = new Set(tools.map((tool) => tool.name))
+  const output = JSON.parse(await byName(tools).get("ui_list")!.execute({}))
+  const listed = new Map<string, string[] | undefined>(
+    output.elements.map((element: { id: string; tools?: string[] }) => [
+      element.id,
+      element.tools,
+    ]),
+  )
+
+  assert.deepEqual(listed.get("orders"), ["table_filter", "table_sort"])
+  assert.deepEqual(
+    listed.get("refresh"),
+    ["action_refresh"],
+    'a business action names its own tool, never its internal "run"',
+  )
+  assert.equal(listed.get("gauge"), undefined, "an element with no callable tool names none")
+
+  // The invariant the mapping exists to hold: a listing and the tool surface
+  // are built from one table, so they cannot drift apart.
+  for (const [id, named] of listed) {
+    for (const name of named ?? []) {
+      assert.ok(registered.has(name), `${id} named ${name}, which is not a registered tool`)
+    }
+  }
+
+  for (const off of dispose) off()
 })
 
 test("ui_list nests an element under the capability its owner names, and a dangling owner still appears as a root", async () => {
@@ -200,14 +247,14 @@ test("ui_list nests an element under the capability its owner names, and a dangl
       id: "panel",
       kind: "tabs",
       label: "Panel",
-      actions: ["select"],
+      tools: ["tabs_select"],
       state: { value: "a" },
       children: [
         {
           id: "rows",
           kind: "data-table",
           label: "Rows",
-          actions: ["filter"],
+          tools: ["table_filter"],
           state: { value: "a" },
         },
       ],
@@ -216,7 +263,7 @@ test("ui_list nests an element under the capability its owner names, and a dangl
       id: "ghosted",
       kind: "input",
       label: "Ghosted",
-      actions: ["set_value"],
+      tools: ["input_set_value"],
       state: { value: "a" },
     },
   ])
@@ -303,8 +350,8 @@ test("a targeted listing returns the target's children and not the target itself
   assert.equal(output.action, "list")
   assert.equal(output.target, "table")
   assert.deepEqual(output.elements, [
-    { id: "row-1", kind: "input", label: "Row 1", actions: ["set_value"], state: { value: "a" } },
-    { id: "row-2", kind: "input", label: "Row 2", actions: ["set_value"], state: { value: "a" } },
+    { id: "row-1", kind: "input", label: "Row 1", tools: ["input_set_value"], state: { value: "a" } },
+    { id: "row-2", kind: "input", label: "Row 2", tools: ["input_set_value"], state: { value: "a" } },
   ])
 
   for (const off of dispose) off()
