@@ -48,6 +48,13 @@ function useMenubarMenuRegistry(): MenubarMenuContextValue {
  */
 interface MenubarTriggerContextValue {
   describeTrigger: (label: string | undefined, disabled: boolean) => void
+  /**
+   * The trigger attaches itself here. The menu's own name lives in the
+   * trigger's text, and the trigger is the part that stays mounted, so this
+   * is what the menu's id is derived from — read at registration, before the
+   * reported label has made its way back through state.
+   */
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const MenubarTriggerContext = React.createContext<MenubarTriggerContextValue | null>(null)
@@ -230,6 +237,9 @@ function MenubarMenu({
     [],
   )
 
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
+
   // A menu without a `value` cannot be addressed by an agent, so it is not an
   // option: it is left out of the root's options rather than given an
   // invented value the application never chose. (Radix generates an internal
@@ -245,7 +255,7 @@ function MenubarMenu({
   }, [describeMenu, menuValue, trigger.label, trigger.disabled])
 
   const contextValue = React.useMemo<MenubarTriggerContextValue>(
-    () => ({ describeTrigger }),
+    () => ({ describeTrigger, nameRef }),
     [describeTrigger],
   )
 
@@ -259,6 +269,7 @@ function MenubarMenu({
     agent: menuValue === undefined ? false : agent,
     kind: "disclosure",
     defaultLabel: trigger.label ?? "Menu",
+    identitySource,
     read: () => ({ open: openValue === menuValue, disabled: false }),
     actions: {
       // The actions only run for a menu the menubar can name; a valueless
@@ -440,10 +451,10 @@ function MenubarTrigger({
   ref,
   ...props
 }: React.ComponentProps<typeof MenubarPrimitive.Trigger>) {
-  const { describeTrigger } = useMenubarTriggerRegistry()
+  const { describeTrigger, nameRef } = useMenubarTriggerRegistry()
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const label = useAccessibleName(triggerRef, "")
-  const mergedRef = useMergedRef(ref, triggerRef)
+  const mergedRef = useMergedRef(ref, triggerRef, nameRef)
 
   // The menu's label is its trigger's text; no trigger text means no label.
   React.useEffect(() => {

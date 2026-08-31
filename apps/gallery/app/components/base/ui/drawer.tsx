@@ -5,15 +5,22 @@ import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer"
 
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 /**
  * The title reports itself so the capability can carry a human-meaningful
  * label. Open state stays with the drawer primitive, so nothing is duplicated
- * here.
+ * here. The trigger attaches itself through nameRef: the title lives in
+ * content that a Portal renders and is unmounted while the drawer is closed,
+ * so the always-mounted trigger is the part the root's id is derived from —
+ * read at registration, before the reported title has made its way back
+ * through state.
  */
 interface DrawerContextValue {
   setTitle: React.Dispatch<React.SetStateAction<string | null>>
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const DrawerContext = React.createContext<DrawerContextValue | null>(null)
@@ -21,7 +28,7 @@ const DrawerContext = React.createContext<DrawerContextValue | null>(null)
 function useDrawerContext(): DrawerContextValue {
   const ctx = React.useContext(DrawerContext)
   if (!ctx) {
-    throw new Error("DrawerTitle must be rendered inside <Drawer>.")
+    throw new Error("DrawerTrigger and DrawerTitle must be rendered inside <Drawer>.")
   }
   return ctx
 }
@@ -54,11 +61,14 @@ function Drawer({
   })
 
   const [title, setTitle] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   useCapability<DrawerState, DrawerActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Drawer",
+    identitySource,
     read: () => ({ open, title }),
     actions: {
       open() {
@@ -71,7 +81,7 @@ function Drawer({
   })
 
   const contextValue = React.useMemo<DrawerContextValue>(
-    () => ({ setTitle }),
+    () => ({ setTitle, nameRef }),
     [open, setOpen],
   )
 
@@ -88,9 +98,24 @@ function Drawer({
 }
 
 function DrawerTrigger({
+  ref,
   ...props
-}: DrawerPrimitive.Trigger.Props) {
-  return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />
+}: Omit<DrawerPrimitive.Trigger.Props, "ref"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
+}) {
+  const { nameRef } = useDrawerContext()
+  // The trigger reports nothing: the title still owns the label. It only
+  // attaches itself, so the root's id comes from the part that is always
+  // mounted.
+  const mergedRef = useMergedRef(ref, nameRef)
+  return (
+    <DrawerPrimitive.Trigger
+      data-slot="drawer-trigger"
+      ref={mergedRef}
+      {...props}
+    />
+  )
 }
 
 function DrawerPortal({

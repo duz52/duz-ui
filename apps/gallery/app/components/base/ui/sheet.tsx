@@ -7,15 +7,22 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 /**
  * The title reports itself so the capability can carry a human-meaningful
  * label. Open state is owned by the Sheet wrapper, so nothing is duplicated
- * into this context.
+ * into this context. The trigger attaches itself through nameRef: the title
+ * lives in content that a Portal renders and is unmounted while the sheet
+ * is closed, so the always-mounted trigger is the part the root's id is
+ * derived from — read at registration, before the reported title has made
+ * its way back through state.
  */
 interface SheetContextValue {
   setTitle: React.Dispatch<React.SetStateAction<string | null>>
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const SheetContext = React.createContext<SheetContextValue | null>(null)
@@ -23,7 +30,7 @@ const SheetContext = React.createContext<SheetContextValue | null>(null)
 function useSheetContext(): SheetContextValue {
   const ctx = React.useContext(SheetContext)
   if (!ctx) {
-    throw new Error("SheetTitle must be rendered inside <Sheet>.")
+    throw new Error("SheetTrigger and SheetTitle must be rendered inside <Sheet>.")
   }
   return ctx
 }
@@ -56,11 +63,14 @@ function Sheet({
   })
 
   const [title, setTitle] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   const { id } = useCapability<SheetState, SheetActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Sheet",
+    identitySource,
     read: () => ({ open, title }),
     actions: {
       open() {
@@ -73,7 +83,7 @@ function Sheet({
   })
 
   const contextValue = React.useMemo<SheetContextValue>(
-    () => ({ setTitle }),
+    () => ({ setTitle, nameRef }),
     [open, setOpen],
   )
 
@@ -96,9 +106,24 @@ function Sheet({
 }
 
 function SheetTrigger({
+  ref,
   ...props
-}: SheetPrimitive.Trigger.Props) {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
+}: Omit<SheetPrimitive.Trigger.Props, "ref"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
+}) {
+  const { nameRef } = useSheetContext()
+  // The trigger reports nothing: the title still owns the label. It only
+  // attaches itself, so the root's id comes from the part that is always
+  // mounted.
+  const mergedRef = useMergedRef(ref, nameRef)
+  return (
+    <SheetPrimitive.Trigger
+      data-slot="sheet-trigger"
+      ref={mergedRef}
+      {...props}
+    />
+  )
 }
 
 function SheetClose({

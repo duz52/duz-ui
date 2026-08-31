@@ -187,18 +187,26 @@ export function useCapability<
   // — a table row whose every cell is empty — leaves no stable identity to
   // derive, and the capability falls to the generated form rather than
   // carrying a position in its id.
-  const resolveIdentitySource = React.useCallback((): string | undefined => {
-    if (explicitLabel !== undefined) return explicitLabel
-    const itemKey =
-      typeof containerItemKey === "function" ? containerItemKey() : containerItemKey
-    if (containerItemKey !== undefined && itemKey === undefined) return undefined
-    const own = identityResolver?.()
-    if (itemKey !== undefined) {
-      const self = own ?? defaultLabel
-      return self === undefined ? itemKey : `${itemKey} — ${self}`
-    }
-    return own ?? resolveLabel()
-  }, [explicitLabel, containerItemKey, defaultLabel, identityResolver, resolveLabel])
+  // `own` is the name the element knows itself by, already captured by the
+  // caller. It enters here rather than ahead of this function so that one
+  // precedence governs identity: an explicit label is the application naming
+  // the element and outranks everything, a container's item key still scopes
+  // what follows it, and only then does the element's own name stand in for
+  // the label.
+  const resolveIdentitySource = React.useCallback(
+    (own: string | undefined): string | undefined => {
+      if (explicitLabel !== undefined) return explicitLabel
+      const itemKey =
+        typeof containerItemKey === "function" ? containerItemKey() : containerItemKey
+      if (containerItemKey !== undefined && itemKey === undefined) return undefined
+      if (itemKey !== undefined) {
+        const self = own ?? defaultLabel
+        return self === undefined ? itemKey : `${itemKey} — ${self}`
+      }
+      return own ?? resolveLabel()
+    },
+    [explicitLabel, containerItemKey, defaultLabel, resolveLabel],
+  )
 
   // The name this element knows itself by, captured the first time it knows
   // one. A label is description and keeps changing — a button reading "Run"
@@ -274,12 +282,19 @@ export function useCapability<
     // Identity precedence: an explicit `agent.id` wins; otherwise the id is
     // derived from what the capability can say about itself, scoped by its
     // owner; with nothing to say, the generated form is the last resort.
-    if (explicitId === undefined && identitySourceRef.current === undefined) {
+    // An explicit label already decides identity, so nothing is captured for
+    // it; capturing would only give a resolver a way to outrank the
+    // application's own naming.
+    if (
+      explicitId === undefined &&
+      explicitLabel === undefined &&
+      identitySourceRef.current === undefined
+    ) {
       identitySourceRef.current = identityResolver?.()
     }
     const identitySource =
       explicitId === undefined
-        ? (identitySourceRef.current ?? resolveIdentitySource())
+        ? resolveIdentitySource(identitySourceRef.current)
         : undefined
     const id =
       explicitId ??

@@ -33,16 +33,23 @@ type DropdownMenuActions = {
  */
 interface DropdownMenuTriggerContextValue {
   setTriggerLabel: (label: string | null) => void
+  /**
+   * The trigger attaches itself here. The root's own name lives in the
+   * trigger's text, and the trigger is the part that stays mounted, so this
+   * is what the root's id is derived from — read at registration, before the
+   * reported label has made its way back through state.
+   */
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const DropdownMenuTriggerContext = React.createContext<DropdownMenuTriggerContextValue | null>(null)
 
-function useDropdownMenuTriggerLabelSetter(): (label: string | null) => void {
+function useDropdownMenuTriggerContext(): DropdownMenuTriggerContextValue {
   const ctx = React.useContext(DropdownMenuTriggerContext)
   if (!ctx) {
     throw new Error("DropdownMenuTrigger must be rendered inside <DropdownMenu>.")
   }
-  return ctx.setTriggerLabel
+  return ctx
 }
 
 function DropdownMenu({
@@ -61,6 +68,8 @@ function DropdownMenu({
   })
 
   const [triggerLabel, setTriggerLabel] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   // Ignore a label the root already holds, so a repeated report cannot loop.
   const reportTriggerLabel = React.useCallback((label: string | null) => {
@@ -71,6 +80,7 @@ function DropdownMenu({
     agent,
     kind: "disclosure",
     defaultLabel: triggerLabel ?? "Dropdown menu",
+    identitySource,
     read: () => ({ open, disabled: false }),
     actions: {
       open() {
@@ -86,7 +96,7 @@ function DropdownMenu({
   })
 
   const contextValue = React.useMemo<DropdownMenuTriggerContextValue>(
-    () => ({ setTriggerLabel: reportTriggerLabel }),
+    () => ({ setTriggerLabel: reportTriggerLabel, nameRef }),
     [reportTriggerLabel],
   )
 
@@ -119,12 +129,12 @@ function DropdownMenuTrigger({
   ref,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
-  const setTriggerLabel = useDropdownMenuTriggerLabelSetter()
+  const { setTriggerLabel, nameRef } = useDropdownMenuTriggerContext()
   const elementRef = React.useRef<HTMLButtonElement>(null)
   // An empty resolution means the trigger carries no name; reporting null
   // lets the root keep its generic default.
   const label = useAccessibleName(elementRef, "")
-  const mergedRef = useMergedRef(ref, elementRef)
+  const mergedRef = useMergedRef(ref, elementRef, nameRef)
 
   // Reported in an effect: the name exists only once the element is mounted.
   React.useEffect(() => {

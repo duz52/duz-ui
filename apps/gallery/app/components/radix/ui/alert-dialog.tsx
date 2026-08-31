@@ -7,14 +7,22 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/radix/ui/button"
 import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 /**
  * The title reports itself so the capability can carry a human-meaningful
- * label. Open state stays with Radix, so nothing is duplicated here.
+ * label. Open state stays with Radix, so nothing is duplicated here. The
+ * trigger attaches itself through nameRef: the title lives in content that a
+ * Portal renders and is unmounted while the alert dialog is closed, so the
+ * always-mounted trigger is the part the root's id is derived from — read at
+ * registration, before the reported title has made its way back through
+ * state.
  */
 interface AlertDialogContextValue {
   setTitle: React.Dispatch<React.SetStateAction<string | null>>
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const AlertDialogContext = React.createContext<AlertDialogContextValue | null>(
@@ -24,7 +32,9 @@ const AlertDialogContext = React.createContext<AlertDialogContextValue | null>(
 function useAlertDialogContext(): AlertDialogContextValue {
   const ctx = React.useContext(AlertDialogContext)
   if (!ctx) {
-    throw new Error("AlertDialogTitle must be rendered inside <AlertDialog>.")
+    throw new Error(
+      "AlertDialogTrigger and AlertDialogTitle must be rendered inside <AlertDialog>.",
+    )
   }
   return ctx
 }
@@ -55,11 +65,14 @@ function AlertDialog({
   })
 
   const [title, setTitle] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   const { id } = useCapability<AlertDialogState, AlertDialogActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Alert dialog",
+    identitySource,
     read: () => ({ open, title }),
     actions: {
       open() {
@@ -72,7 +85,7 @@ function AlertDialog({
   })
 
   const contextValue = React.useMemo<AlertDialogContextValue>(
-    () => ({ setTitle }),
+    () => ({ setTitle, nameRef }),
     [open, setOpen],
   )
 
@@ -95,10 +108,20 @@ function AlertDialog({
 }
 
 function AlertDialogTrigger({
+  ref,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
+  const { nameRef } = useAlertDialogContext()
+  // The trigger reports nothing: the title still owns the label. It only
+  // attaches itself, so the root's id comes from the part that is always
+  // mounted.
+  const mergedRef = useMergedRef(ref, nameRef)
   return (
-    <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
+    <AlertDialogPrimitive.Trigger
+      data-slot="alert-dialog-trigger"
+      ref={mergedRef}
+      {...props}
+    />
   )
 }
 

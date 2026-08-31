@@ -37,16 +37,23 @@ const CARD_TITLE_MAX_LENGTH = 100
  */
 interface CardTitleContextValue {
   setCardTitle: (label: string | null) => void
+  /**
+   * CardTitle attaches itself here. The root's own name lives in the
+   * title's text, and the title is the part that stays mounted, so this is
+   * what the root's id is derived from — read at registration, before the
+   * reported label has made its way back through state.
+   */
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const CardTitleContext = React.createContext<CardTitleContextValue | null>(null)
 
-function useCardTitleSetter(): (label: string | null) => void {
+function useCardTitleContext(): CardTitleContextValue {
   const ctx = React.useContext(CardTitleContext)
   if (!ctx) {
     throw new Error("CardTitle must be rendered inside <Card>.")
   }
-  return ctx.setCardTitle
+  return ctx
 }
 
 function Card({
@@ -67,6 +74,14 @@ function Card({
   // the root holds it in state and ignores an unchanged report, so a
   // repeated report cannot loop.
   const [cardTitle, setCardTitle] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  // A title's text is not an accessible name the way a button's is, so the
+  // card reads it with the same readText that reports it, at registration
+  // time; an absent or empty title leaves identity to the label.
+  const identitySource = React.useCallback((): string | undefined => {
+    const title = nameRef.current
+    return title ? readText(title, CARD_TITLE_MAX_LENGTH) || undefined : undefined
+  }, [nameRef])
 
   const reportCardTitle = React.useCallback((label: string | null) => {
     setCardTitle((prev) => (prev === label ? prev : label))
@@ -78,6 +93,7 @@ function Card({
     agent,
     kind: "content",
     defaultLabel: cardTitle ?? "Card",
+    identitySource,
     read: () => {
       const root = rootRef.current
       return {
@@ -91,7 +107,7 @@ function Card({
   })
 
   const contextValue = React.useMemo<CardTitleContextValue>(
-    () => ({ setCardTitle: reportCardTitle }),
+    () => ({ setCardTitle: reportCardTitle, nameRef }),
     [reportCardTitle],
   )
 
@@ -134,9 +150,9 @@ function CardTitle({
   ref,
   ...props
 }: React.ComponentProps<"div">) {
-  const setCardTitle = useCardTitleSetter()
+  const { setCardTitle, nameRef } = useCardTitleContext()
   const elementRef = React.useRef<HTMLDivElement>(null)
-  const mergedRef = useMergedRef(ref, elementRef)
+  const mergedRef = useMergedRef(ref, elementRef, nameRef)
 
   // The title is resolved in a layout effect on every commit, so a title
   // whose text changes follows; the root ignores a report equal to what it

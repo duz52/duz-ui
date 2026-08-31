@@ -6,7 +6,7 @@ import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
 import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 import { rejectState } from "@/lib/agent-ui/validate"
 
@@ -30,16 +30,23 @@ type CollapsibleActions = {
  */
 interface CollapsibleTriggerContextValue {
   setTriggerLabel: (label: string | null) => void
+  /**
+   * The trigger attaches itself here. The root's own name lives in the
+   * trigger's text, and the trigger is the part that stays mounted, so this is
+   * what the root's id is derived from — read at registration, before the
+   * reported label has made its way back through state.
+   */
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const CollapsibleTriggerContext = React.createContext<CollapsibleTriggerContextValue | null>(null)
 
-function useCollapsibleTriggerLabelSetter(): (label: string | null) => void {
+function useCollapsibleTriggerContext(): CollapsibleTriggerContextValue {
   const ctx = React.useContext(CollapsibleTriggerContext)
   if (!ctx) {
     throw new Error("CollapsibleTrigger must be rendered inside <Collapsible>.")
   }
-  return ctx.setTriggerLabel
+  return ctx
 }
 
 function Collapsible({
@@ -61,6 +68,8 @@ function Collapsible({
   })
 
   const [triggerLabel, setTriggerLabel] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   // Ignore a label the root already holds, so a repeated report cannot loop.
   const reportTriggerLabel = React.useCallback((label: string | null) => {
@@ -71,6 +80,7 @@ function Collapsible({
     agent,
     kind: "disclosure",
     defaultLabel: triggerLabel ?? "Collapsible",
+    identitySource,
     read: () => ({ open, disabled }),
     actions: {
       open() {
@@ -95,7 +105,7 @@ function Collapsible({
   })
 
   const contextValue = React.useMemo<CollapsibleTriggerContextValue>(
-    () => ({ setTriggerLabel: reportTriggerLabel }),
+    () => ({ setTriggerLabel: reportTriggerLabel, nameRef }),
     [reportTriggerLabel],
   )
 
@@ -122,12 +132,12 @@ function CollapsibleTrigger({
   ref,
   ...props
 }: React.ComponentProps<typeof CollapsiblePrimitive.Trigger>) {
-  const setTriggerLabel = useCollapsibleTriggerLabelSetter()
+  const { setTriggerLabel, nameRef } = useCollapsibleTriggerContext()
   const elementRef = React.useRef<HTMLButtonElement>(null)
   // An empty resolution means the trigger carries no name; reporting null
   // lets the root keep its generic default.
   const label = useAccessibleName(elementRef, "")
-  const mergedRef = useMergedRef(ref, elementRef)
+  const mergedRef = useMergedRef(ref, elementRef, nameRef)
 
   // Reported in an effect: the name exists only once the element is mounted.
   React.useEffect(() => {

@@ -8,15 +8,22 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/base/ui/button"
 import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 /**
  * The title reports itself so the capability can carry a human-meaningful
  * label. Open state is owned by the Dialog wrapper, so nothing is duplicated
- * into this context.
+ * into this context. The trigger attaches itself through nameRef: the title
+ * lives in content that a Portal renders and is unmounted while the dialog
+ * is closed, so the always-mounted trigger is the part the root's id is
+ * derived from — read at registration, before the reported title has made
+ * its way back through state.
  */
 interface DialogContextValue {
   setTitle: React.Dispatch<React.SetStateAction<string | null>>
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const DialogContext = React.createContext<DialogContextValue | null>(null)
@@ -24,7 +31,7 @@ const DialogContext = React.createContext<DialogContextValue | null>(null)
 function useDialogContext(): DialogContextValue {
   const ctx = React.useContext(DialogContext)
   if (!ctx) {
-    throw new Error("DialogTitle must be rendered inside <Dialog>.")
+    throw new Error("DialogTrigger and DialogTitle must be rendered inside <Dialog>.")
   }
   return ctx
 }
@@ -57,11 +64,14 @@ function Dialog({
   })
 
   const [title, setTitle] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   const { id } = useCapability<DialogState, DialogActions>({
     agent,
     kind: "dialog",
     defaultLabel: title ?? "Dialog",
+    identitySource,
     read: () => ({ open, title }),
     actions: {
       open() {
@@ -74,7 +84,7 @@ function Dialog({
   })
 
   const contextValue = React.useMemo<DialogContextValue>(
-    () => ({ setTitle }),
+    () => ({ setTitle, nameRef }),
     [open, setOpen],
   )
 
@@ -97,9 +107,24 @@ function Dialog({
 }
 
 function DialogTrigger({
+  ref,
   ...props
-}: DialogPrimitive.Trigger.Props) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}: Omit<DialogPrimitive.Trigger.Props, "ref"> & {
+  /** Matches the ref type the library publishes on the component itself. */
+  ref?: React.Ref<HTMLElement>
+}) {
+  const { nameRef } = useDialogContext()
+  // The trigger reports nothing: the title still owns the label. It only
+  // attaches itself, so the root's id comes from the part that is always
+  // mounted.
+  const mergedRef = useMergedRef(ref, nameRef)
+  return (
+    <DialogPrimitive.Trigger
+      data-slot="dialog-trigger"
+      ref={mergedRef}
+      {...props}
+    />
+  )
 }
 
 function DialogPortal({

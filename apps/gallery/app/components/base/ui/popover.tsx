@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 /**
@@ -39,16 +39,23 @@ function usePopoverAnchorSetter(): (element: HTMLDivElement | null) => void {
  */
 interface PopoverTriggerContextValue {
   setTriggerLabel: (label: string | null) => void
+  /**
+   * The trigger attaches itself here. The root's own name lives in the
+   * trigger's text, and the trigger is the part that stays mounted, so this
+   * is what the root's id is derived from — read at registration, before the
+   * reported label has made its way back through state.
+   */
+  nameRef: React.RefObject<HTMLElement | null>
 }
 
 const PopoverTriggerContext = React.createContext<PopoverTriggerContextValue | null>(null)
 
-function usePopoverTriggerLabelSetter(): (label: string | null) => void {
+function usePopoverTriggerContext(): PopoverTriggerContextValue {
   const ctx = React.useContext(PopoverTriggerContext)
   if (!ctx) {
     throw new Error("PopoverTrigger must be rendered inside <Popover>.")
   }
-  return ctx.setTriggerLabel
+  return ctx
 }
 
 type PopoverState = {
@@ -75,6 +82,8 @@ function Popover({
 }) {
   const [anchor, setAnchor] = React.useState<HTMLDivElement | null>(null)
   const [triggerLabel, setTriggerLabel] = React.useState<string | null>(null)
+  const nameRef = React.useRef<HTMLElement | null>(null)
+  const identitySource = useAccessibleNameResolver(nameRef)
 
   // Ignore a label the root already holds, so a repeated report cannot loop.
   const reportTriggerLabel = React.useCallback((label: string | null) => {
@@ -91,6 +100,7 @@ function Popover({
     agent,
     kind: "disclosure",
     defaultLabel: triggerLabel ?? "Popover",
+    identitySource,
     read: () => ({ open, disabled: false }),
     actions: {
       open() {
@@ -111,7 +121,7 @@ function Popover({
   )
 
   const triggerContextValue = React.useMemo<PopoverTriggerContextValue>(
-    () => ({ setTriggerLabel: reportTriggerLabel }),
+    () => ({ setTriggerLabel: reportTriggerLabel, nameRef }),
     [reportTriggerLabel],
   )
 
@@ -142,12 +152,12 @@ function PopoverTrigger({
   /** Matches the ref type the library publishes on the component itself. */
   ref?: React.Ref<HTMLElement>
 }) {
-  const setTriggerLabel = usePopoverTriggerLabelSetter()
+  const { setTriggerLabel, nameRef } = usePopoverTriggerContext()
   const elementRef = React.useRef<HTMLElement>(null)
   // An empty resolution means the trigger carries no name; reporting null
   // lets the root keep its generic default.
   const label = useAccessibleName(elementRef, "")
-  const mergedRef = useMergedRef(ref, elementRef)
+  const mergedRef = useMergedRef(ref, elementRef, nameRef)
 
   // Reported in an effect: the name exists only once the element is mounted.
   React.useEffect(() => {
