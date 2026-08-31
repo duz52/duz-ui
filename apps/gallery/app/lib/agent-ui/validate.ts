@@ -32,6 +32,14 @@ export function expectOptionalString(input: unknown, field: string): string | un
   return value
 }
 
+export function expectRecord(input: unknown, field: string): Record<string, unknown> {
+  const value = expectObject(input)[field]
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    rejectState(`"${field}" must be an object.`)
+  }
+  return value as Record<string, unknown>
+}
+
 export function expectBoolean(input: unknown, field: string): boolean {
   const value = expectObject(input)[field]
   if (typeof value !== "boolean") reject(`"${field}" must be true or false.`)

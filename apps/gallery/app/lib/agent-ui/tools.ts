@@ -16,7 +16,12 @@ import {
   type CapabilityState,
 } from "./capability"
 import type { CapabilityRegistry } from "./registry"
-import { expectOptionalString, expectString } from "./validate"
+import {
+  expectOptionalString,
+  expectRecord,
+  expectString,
+  rejectState,
+} from "./validate"
 
 /**
  * What a tool acts on. Declared rather than inferred: a host that wants to
@@ -60,6 +65,12 @@ interface KindToolDef {
   description: string
   /** Action-specific JSON Schema properties; `target` is added uniformly. */
   inputSchema: Record<string, unknown>
+  /**
+   * Set on the one tool per kind that writes the element's value, whose
+   * schema is therefore exactly one property. `ui_fill` is built from these,
+   * so a kind becomes fillable by being marked here and nowhere else.
+   */
+  sets?: true
 }
 
 /**
@@ -80,6 +91,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
           "The tab value to activate. Call ui_read on the target to see available values.",
       },
     },
+    sets: true,
   },
   {
     kind: "select",
@@ -93,6 +105,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
           "The value to choose. Call ui_read on the target to see available values.",
       },
     },
+    sets: true,
   },
   {
     kind: "select",
@@ -115,6 +128,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
           "The values to select, replacing any previous selection. Pass an empty array to clear the selection. Call ui_read on the target to see available options.",
       },
     },
+    sets: true,
   },
   {
     kind: "checkbox",
@@ -127,6 +141,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
         description: "Whether the checkbox should be checked.",
       },
     },
+    sets: true,
   },
   {
     kind: "button",
@@ -182,6 +197,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
         description: "The new value for the input.",
       },
     },
+    sets: true,
   },
   {
     kind: "input",
@@ -323,6 +339,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
           "The new values for each thumb. There is one number per thumb; most sliders have exactly one. Call ui_read on the target to see the current value, min, max and step.",
       },
     },
+    sets: true,
   },
   {
     kind: "date",
@@ -338,6 +355,7 @@ const KIND_TOOLS: readonly KindToolDef[] = [
           "Dates as YYYY-MM-DD strings, replacing the selection. Length must match the mode: single 0-1, multiple any, range exactly 2 (start, end). A calendar whose read state has required=true refuses an empty array.",
       },
     },
+    sets: true,
   },
 ]
 
@@ -428,6 +446,26 @@ function serialise(toolName: string, value: unknown): string {
  */
 const KIND_TOOL_NAMES = new Map(
   KIND_TOOLS.map((def) => [`${def.kind}\u0000${def.action}`, def.name] as const),
+)
+
+/**
+ * How to write one kind's value: the action, and the single input property
+ * that carries the value. Derived from the `sets` flag on the tool table, so
+ * a kind cannot be fillable in one place and not the other, and the property
+ * name can never drift from the tool an agent would otherwise call.
+ */
+const VALUE_SETTERS = new Map<string, { action: string; argument: string }>(
+  KIND_TOOLS.filter((def) => def.sets).map((def) => {
+    const [argument, ...rest] = Object.keys(def.inputSchema)
+    if (argument === undefined || rest.length > 0) {
+      throw new Error(
+        `Agent UI: "${def.name}" is marked as setting a value but takes ${
+          rest.length + (argument === undefined ? 0 : 1)
+        } arguments; a value setter takes exactly one.`,
+      )
+    }
+    return [def.kind, { action: def.action, argument }]
+  }),
 )
 
 /** One element of the `ui_list` document. */
@@ -991,6 +1029,92 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
 const ACTION_RESULT_SUFFIX =
   " The result carries the element's full state after the change, so a follow-up ui_read on the same element is unnecessary; when the result reports window, walk the rest with ui_read by advancing offset by window.returned."
 
+/**
+ * Fill several elements in one call.
+ *
+ * A person types into a form one field at a time; an agent that must do the
+ * same pays a round trip per field, and a form is where an admin page spends
+ * most of its interaction. Each value here still travels through that
+ * element's own action — the same path its own tool takes, and the same path
+ * a person's typing takes — so every field visibly fills and the application
+ * sees each change exactly as it always did. What is saved is the round
+ * trips, not the visibility.
+ *
+ * Every id is resolved and checked before anything is written: an unknown id,
+ * or one whose kind holds no value, refuses the whole call and changes
+ * nothing. A failure part-way through is a different matter — the fields
+ * before it are already set, and the result says which.
+ */
+function createFillTool(registry: CapabilityRegistry): AgentTool {
+  const fillable = [...VALUE_SETTERS.keys()].join(", ")
+  return {
+    name: "ui_fill",
+    description:
+      `Fill several elements in one call — a form's fields, say. values maps an element id to its new value: a string for an input, select or tabs, a boolean for a checkbox, an array for a multi-select. Fillable kinds: ${fillable}. Each value travels through that element's own action, so the page reacts as it does to that tool. Every id is checked first, so one bad id changes nothing. Submitting is a separate press.`,
+    scope: { on: "any-capability" },
+    inputSchema: {
+      type: "object",
+      properties: {
+        values: {
+          type: "object",
+          description:
+            "An object mapping element ids to their new values. Call ui_list for valid ids and kinds.",
+          additionalProperties: true,
+        },
+      },
+      required: ["values"],
+      additionalProperties: false,
+    },
+    execute: makeExecutor("ui_fill", async (input) => {
+      const values = expectRecord(input, "values")
+      const entries = Object.entries(values)
+      if (entries.length === 0) {
+        rejectState('"values" must name at least one element to fill.')
+      }
+
+      // Resolve everything first. Half a form filled from a call that could
+      // never have completed is worse than a call that did nothing.
+      const plan = entries.map(([id, value]) => {
+        // The registry owns target resolution and its rejection message.
+        const capability = registry.require(id)
+        const setter = VALUE_SETTERS.get(capability.kind)
+        if (setter === undefined) {
+          rejectState(
+            `"${id}" is a ${capability.kind} and holds no value to fill. ui_fill accepts: ${fillable}. Use that element's own tool instead.`,
+          )
+        }
+        return { id, value, ...setter }
+      })
+
+      const applied: { target: string; state: Record<string, unknown> }[] = []
+      for (const { id, action, argument, value } of plan) {
+        try {
+          const result = await registry.invoke(id, action, { [argument]: value })
+          applied.push({ target: id, state: digest(result.state) })
+        } catch (error) {
+          if (!(error instanceof CapabilityError)) throw error
+          const done = applied.map((entry) => entry.target).join(", ")
+          return serialise("ui_fill", {
+            ok: false,
+            error: {
+              code: error.code,
+              message:
+                applied.length === 0
+                  ? `Filling "${id}" failed and nothing was changed. ${error.message}`
+                  : `Filling "${id}" failed. ${error.message} These were set before it and are still set: ${done}.`,
+            },
+            applied,
+          })
+        }
+      }
+
+      // Digests, not full states: a fill touches many elements, and the one
+      // an agent wants in detail is a `ui_read` away.
+      return serialise("ui_fill", { ok: true, action: "fill", applied })
+    }),
+  }
+}
+
 function createKindTool(
   registry: CapabilityRegistry,
   def: KindToolDef,
@@ -1108,6 +1232,11 @@ export function createAgentTools(registry: CapabilityRegistry): AgentTool[] {
   const tools: AgentTool[] = [createListTool(registry), createReadTool(registry)]
 
   const mountedKinds = new Set(registry.listKinds())
+  // Only worth its place in the tool list when the page holds something that
+  // can be filled.
+  if ([...VALUE_SETTERS.keys()].some((kind) => mountedKinds.has(kind))) {
+    tools.push(createFillTool(registry))
+  }
   for (const def of KIND_TOOLS) {
     if (mountedKinds.has(def.kind)) {
       tools.push(createKindTool(registry, def))

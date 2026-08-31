@@ -276,6 +276,7 @@ export function describe(capability: Capability): CapabilityDescriptor {
         code: `Discovery (read-only)
   ui_list          — list every agent-operable element on the page
   ui_read          — read one element's current semantic state
+  ui_fill          — set several elements' values in one call
 
 tabs
   tabs_select

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import type { Capability, CapabilityResult } from "../src/lib/agent-ui/capability"
+import {
+  CapabilityError,
+  type Capability,
+  type CapabilityResult,
+} from "../src/lib/agent-ui/capability"
 import { getCapabilityRegistry } from "../src/lib/agent-ui/registry"
 import { createAgentTools, digest, type AgentTool } from "../src/lib/agent-ui/tools"
 
@@ -1011,6 +1015,170 @@ test("walking an action's windowed field with ui_read yields every entry exactly
   )
 
   off()
+})
+
+// — ui_fill: a form is filled in one call, through each element's own action —
+
+test("ui_fill sets every named element through its own action and reports each one", async () => {
+  const seen: { action: string; input: unknown }[] = []
+  const record = (action: string, input: unknown) => {
+    seen.push({ action, input })
+  }
+  const dispose = [
+    registry.register(
+      stub({ id: "email", kind: "input", actions: ["set_value", "clear"], onInvoke: record }),
+    ),
+    registry.register(
+      stub({ id: "role", kind: "select", actions: ["choose", "clear"], onInvoke: record }),
+    ),
+    registry.register(stub({ id: "notify", kind: "checkbox", actions: ["set"], onInvoke: record })),
+  ]
+
+  const parsed = JSON.parse(
+    await byName(createAgentTools(registry))
+      .get("ui_fill")!
+      .execute({ values: { email: "ada@lovelace.dev", role: "manager", notify: true } }),
+  )
+
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.action, "fill")
+  // Each value reaches the element through the action its own tool would use,
+  // under the property name that tool takes — not through some second path.
+  assert.deepEqual(seen, [
+    { action: "set_value", input: { value: "ada@lovelace.dev" } },
+    { action: "choose", input: { value: "manager" } },
+    { action: "set", input: { checked: true } },
+  ])
+  assert.deepEqual(
+    parsed.applied.map((entry: { target: string }) => entry.target),
+    ["email", "role", "notify"],
+  )
+  assert.equal(parsed.applied[0].state.lastAction, "set_value", "each result carries the new state")
+
+  for (const off of dispose) off()
+})
+
+test("ui_fill leaves a state a run of the elements' own tools also leaves", async () => {
+  const dispose = [
+    registry.register(stub({ id: "a-email", kind: "input", actions: ["set_value"] })),
+    registry.register(stub({ id: "a-role", kind: "select", actions: ["choose"] })),
+    registry.register(stub({ id: "b-email", kind: "input", actions: ["set_value"] })),
+    registry.register(stub({ id: "b-role", kind: "select", actions: ["choose"] })),
+  ]
+  const tools = byName(createAgentTools(registry))
+
+  await tools.get("ui_fill")!.execute({
+    values: { "a-email": "ada@lovelace.dev", "a-role": "manager" },
+  })
+  await tools
+    .get("input_set_value")!
+    .execute({ target: "b-email", value: "ada@lovelace.dev" })
+  await tools.get("select_choose")!.execute({ target: "b-role", value: "manager" })
+
+  assert.deepEqual(registry.read("a-email"), registry.read("b-email"))
+  assert.deepEqual(registry.read("a-role"), registry.read("b-role"))
+
+  for (const off of dispose) off()
+})
+
+test("ui_fill refuses an unknown id before writing anything", async () => {
+  const seen: string[] = []
+  const dispose = [
+    registry.register(
+      stub({
+        id: "email",
+        kind: "input",
+        actions: ["set_value"],
+        onInvoke: (action) => seen.push(action),
+      }),
+    ),
+  ]
+
+  const parsed = JSON.parse(
+    await byName(createAgentTools(registry))
+      .get("ui_fill")!
+      .execute({ values: { email: "ada@lovelace.dev", nope: "x" } }),
+  )
+
+  assert.equal(parsed.ok, false)
+  assert.equal(parsed.error.code, "unknown_target")
+  assert.deepEqual(seen, [], "half a form filled by a call that could never finish is worse than none")
+
+  for (const off of dispose) off()
+})
+
+test("ui_fill refuses an element whose kind holds no value, naming the kind", async () => {
+  const seen: string[] = []
+  const dispose = [
+    registry.register(
+      stub({
+        id: "email",
+        kind: "input",
+        actions: ["set_value"],
+        onInvoke: (action) => seen.push(action),
+      }),
+    ),
+    registry.register(stub({ id: "send", kind: "button", actions: ["press"] })),
+  ]
+
+  const parsed = JSON.parse(
+    await byName(createAgentTools(registry))
+      .get("ui_fill")!
+      .execute({ values: { email: "ada@lovelace.dev", send: "go" } }),
+  )
+
+  assert.equal(parsed.ok, false)
+  assert.match(parsed.error.message, /"send" is a button and holds no value to fill/)
+  assert.deepEqual(seen, [])
+
+  for (const off of dispose) off()
+})
+
+test("a fill that fails part-way says which elements are already set", async () => {
+  const dispose = [
+    registry.register(stub({ id: "email", kind: "input", actions: ["set_value"] })),
+    registry.register(
+      stub({
+        id: "role",
+        kind: "select",
+        actions: ["choose"],
+        onInvoke: () => {
+          throw new CapabilityError("rejected", 'Choose one of: "admin", "manager".')
+        },
+      }),
+    ),
+  ]
+
+  const parsed = JSON.parse(
+    await byName(createAgentTools(registry))
+      .get("ui_fill")!
+      .execute({ values: { email: "ada@lovelace.dev", role: "wizard" } }),
+  )
+
+  assert.equal(parsed.ok, false)
+  assert.match(parsed.error.message, /Filling "role" failed/)
+  assert.match(parsed.error.message, /still set: email/)
+  assert.deepEqual(
+    parsed.applied.map((entry: { target: string }) => entry.target),
+    ["email"],
+    "what was written is reported even when the call as a whole failed",
+  )
+
+  for (const off of dispose) off()
+})
+
+test("ui_fill exists only while the page holds something that can be filled", async () => {
+  const off = registry.register(stub({ id: "send", kind: "button", actions: ["press"] }))
+  assert.equal(
+    byName(createAgentTools(registry)).has("ui_fill"),
+    false,
+    "a page of buttons has nothing to fill",
+  )
+  off()
+
+  const on = registry.register(stub({ id: "email", kind: "input", actions: ["set_value"] }))
+  assert.equal(byName(createAgentTools(registry)).has("ui_fill"), true)
+  on()
 })
 
 test("a business action gets its own tool, bound to one capability", async () => {
