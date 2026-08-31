@@ -109,6 +109,7 @@ type DataTableActions = {
   filter: { column: string; value: string }
   sort: { column: string; direction: "asc" | "desc" }
   select_rows: { rowIds: string[] }
+  select_all_rows: { selected: boolean }
   set_page: { page: number }
   set_column_visibility: { column: string; visible: boolean }
 }
@@ -399,6 +400,19 @@ export function DataTable<Row>(props: DataTableProps<Row>): React.JSX.Element {
       const next: RowSelectionState = {}
       for (const id of rowIds) next[id] = true
       table.setRowSelection(next)
+    },
+    select_all_rows: (input: { selected: boolean }) => {
+      const selected = expectBoolean(input, "selected")
+
+      if (!enableRowSelection) {
+        rejectState("Row selection is disabled for this table.")
+      }
+
+      // The header checkbox's own handler. Selecting every row by id would
+      // cost the agent a read of all of them and an input that grows with the
+      // table; this is the gesture a person makes, so it is the gesture the
+      // agent makes, and the resulting state is the same one either way.
+      table.toggleAllRowsSelected(selected)
     },
     set_page: (input: { page: number }) => {
       const page = expectInteger(input, "page", 1)

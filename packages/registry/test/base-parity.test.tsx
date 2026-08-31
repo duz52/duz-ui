@@ -4401,3 +4401,56 @@ for (const base of BASES) {
     await tree.unmount()
   })
 }
+
+/**
+ * Selecting every row must be one gesture, not one id per row: the agent
+ * would otherwise have to read all of them first and send an input that grows
+ * with the table. The gesture is only legitimate if it leaves the page in the
+ * state a person's own gesture leaves it in, so that is what is asserted —
+ * the tool's result against a real press of the header checkbox.
+ */
+for (const base of BASES) {
+  test(`[${base}] data-table: select-all through the tool leaves the same state as pressing the header checkbox`, async () => {
+    const { pressElement } = (await import("../src/lib/agent-ui/press")) as {
+      pressElement: (element: HTMLElement) => void
+    }
+
+    const humanId = `${base}-data-table-select-all-by-hand`
+    const byHand = await mountScoreTable(base, humanId)
+    const header = byHand.container.querySelector('[aria-label="Select all rows"]')
+    assert.ok(header, "the table must render a select-all checkbox")
+    await withAct(async () => {
+      pressElement(header as HTMLElement)
+    })
+    const { selectedRowIds: byHuman } = registry.read(humanId) as {
+      selectedRowIds: string[]
+    }
+    await byHand.unmount()
+
+    assert.equal(
+      byHuman.length,
+      SCORE_ROWS.length,
+      "precondition: the header checkbox selects the whole filtered model, not the rendered page",
+    )
+
+    const agentId = `${base}-data-table-select-all-by-tool`
+    const byTool = await mountScoreTable(base, agentId)
+    const output = JSON.parse(
+      await tool("table_select_all_rows").execute({ target: agentId, selected: true }),
+    )
+
+    assert.equal(output.ok, true)
+    assert.deepEqual(
+      output.state.selectedRowIds,
+      byHuman,
+      "the agent's gesture and the person's gesture are the same gesture",
+    )
+
+    const cleared = JSON.parse(
+      await tool("table_select_all_rows").execute({ target: agentId, selected: false }),
+    )
+    assert.deepEqual(cleared.state.selectedRowIds, [])
+
+    await byTool.unmount()
+  })
+}

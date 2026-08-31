@@ -299,6 +299,7 @@ data-table
   table_filter
   table_sort
   table_select_rows
+  table_select_all_rows
   table_set_page
   table_set_column_visibility
 
@@ -307,7 +308,7 @@ action (AgentAction)
       },
       {
         type: "p",
-        text: "Every kind tool takes a `target` parameter identifying the capability id, plus the action-specific arguments. `ui_list` is how the agent learns valid ids; `ui_read` is how it inspects state before acting.",
+        text: "Every kind tool takes a `target` parameter identifying the capability id, plus the action-specific arguments. `ui_list` is how the agent learns valid ids and which of these tools acts on each of them; `ui_read` is how it inspects detail an action's own result left out.",
       },
       { type: "h2", text: "Tool count scales with kinds, not instances" },
       {

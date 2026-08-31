@@ -242,6 +242,19 @@ const KIND_TOOLS: readonly KindToolDef[] = [
   },
   {
     kind: "data-table",
+    name: "table_select_all_rows",
+    action: "select_all_rows",
+    description:
+      "Select or deselect every row the table's current filter matches — the same gesture as pressing the table's select-all checkbox, and it leaves rows the filter excludes untouched. Use it instead of listing every id: filter first, then select all of what is left.",
+    inputSchema: {
+      selected: {
+        type: "boolean",
+        description: "true selects every matching row, false deselects them.",
+      },
+    },
+  },
+  {
+    kind: "data-table",
     name: "table_set_page",
     action: "set_page",
     description: "Navigate a paginated data table to a page number.",
