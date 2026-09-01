@@ -22,6 +22,12 @@ export interface ProjectConfig {
   aliases: { components: string; ui: string; lib: string; utils: string; hooks: string }
   resolved: { ui: string; lib: string; utils: string; hooks: string }
   packageJsonPath: string
+  /**
+   * The project's global stylesheet, when `components.json` states one and it
+   * exists. Components style themselves through what it imports, so `doctor`
+   * reads it; nothing else in the CLI does.
+   */
+  cssPath: string | undefined
 }
 
 /** The part of shadcn's `components.json` the project config reads. */
@@ -29,6 +35,7 @@ interface ComponentsJson {
   style?: string
   tsx?: boolean
   aliases?: Record<string, string>
+  tailwind?: { css?: string }
 }
 
 /**
@@ -95,6 +102,14 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
     hooks: componentsJson.aliases?.hooks ?? "@/hooks",
   }
 
+  // The project states its global stylesheet in `components.json`, the same
+  // place shadcn's own CLI reads it from. Resolved only when the file is
+  // really there: a stated path that does not exist tells us nothing.
+  const statedCss = componentsJson.tailwind?.css
+  const cssCandidate = statedCss === undefined ? undefined : join(cwd, statedCss)
+  const cssPath =
+    cssCandidate !== undefined && existsSync(cssCandidate) ? cssCandidate : undefined
+
   const paths = readPaths(cwd)
 
   const libDir = resolveAliasPath(aliases.lib, paths, cwd)
@@ -110,6 +125,7 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
     aliases,
     resolved: { ui: uiDir, lib: libDir, utils: utilsFile, hooks: hooksDir },
     packageJsonPath,
+    cssPath,
   }
 }
 

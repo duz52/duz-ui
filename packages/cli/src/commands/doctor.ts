@@ -117,6 +117,36 @@ function unwrappedLibraries(
     .sort((a, b) => a.component.localeCompare(b.component))
 }
 
+/**
+ * What a stylesheet must provide for shadcn's components to style themselves,
+ * and how to tell whether it does.
+ *
+ * A shadcn project imports three stylesheets — tailwindcss, tw-animate-css and
+ * `shadcn/tailwind.css` — and the third is not decoration. It defines the nine
+ * state variants every component is written against, each matching both
+ * spellings the primitives use (`data-state="open"` and `data-open`), and the
+ * accordion keyframes whose height chain includes Base UI's variable. Without
+ * it Tailwind compiles `data-open:` to a bare `[data-open]`, which Radix never
+ * emits, and `data-vertical:` to `[data-vertical]`, which neither primitive
+ * emits: the classes are still generated, still shipped, and never match.
+ *
+ * `shadcn eject` inlines the file rather than importing it, so a project that
+ * ejected is equally well served. Each piece is therefore looked for twice —
+ * once as the import, once as the definition it would have brought.
+ */
+const STYLESHEET_PARTS: { label: string; inlined: RegExp }[] = [
+  { label: "state variants", inlined: /@custom-variant\s+data-open\b/ },
+  { label: "accordion keyframes", inlined: /--accordion-panel-height\b/ },
+]
+
+const SHADCN_STYLESHEET_IMPORT = /@import\s+["']shadcn\/tailwind\.css["']/
+
+/** The parts of shadcn's stylesheet a project's CSS neither imports nor states. */
+function missingStylesheetParts(css: string): string[] {
+  if (SHADCN_STYLESHEET_IMPORT.test(css)) return []
+  return STYLESHEET_PARTS.filter((part) => !part.inlined.test(css)).map((p) => p.label)
+}
+
 export async function doctorCommand(options: DoctorOptions = {}): Promise<void> {
   const { cwd = process.cwd(), registry } = options
   const config = await loadProject(cwd)
@@ -190,6 +220,22 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
     for (const { packageName, component, file } of unwrapped) {
       warn(`✗ ${packageName.padEnd(26)}${file}`)
       info(`  ${"".padEnd(26)}an agent cannot read it; add ${component}`)
+    }
+  }
+
+  blank()
+  info("Stylesheet")
+  if (config.cssPath === undefined) {
+    step("components.json states no tailwind.css, so none was read")
+  } else {
+    const shown = displayPath(config.cssPath, config.cwd)
+    const missing = missingStylesheetParts(readFileSync(config.cssPath, "utf8"))
+    if (missing.length === 0) {
+      success(`✓ ${shown.padEnd(26)}shadcn/tailwind.css is in effect`)
+    } else {
+      warn(`✗ ${shown.padEnd(26)}no ${missing.join(", no ")}`)
+      info(`  ${"".padEnd(26)}components style themselves through it —`)
+      info(`  ${"".padEnd(26)}add \`@import "shadcn/tailwind.css";\``)
     }
   }
 

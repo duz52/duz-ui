@@ -81,6 +81,7 @@ function createProject(components: string[], base: BaseName = "radix"): string {
       {
         tsx: true,
         style,
+        tailwind: { css: "src/index.css" },
         aliases: {
           components: "@/components",
           ui: "@/components/ui",
@@ -92,6 +93,15 @@ function createProject(components: string[], base: BaseName = "radix"): string {
       2,
     ),
   )
+  // The global stylesheet a shadcn project has, at the point it has not yet
+  // been given shadcn's own. `components.json` states where it is, which is
+  // where doctor looks.
+  mkdirSync(join(dir, "src"), { recursive: true })
+  writeFileSync(
+    join(dir, "src/index.css"),
+    '@import "tailwindcss";\n@import "tw-animate-css";\n',
+  )
+
   const uiDir = join(dir, "src/components/ui")
   mkdirSync(uiDir, { recursive: true })
   for (const name of components) {
@@ -603,6 +613,65 @@ test("doctor says nothing about a library whose component is installed", () => {
     )
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("doctor names what a stylesheet without shadcn's own is missing", () => {
+  const dir = createProject(["tabs", "button"])
+  try {
+    const result = run(dir, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+
+    // Both halves, because a project can have inlined one and not the other:
+    // the state variants every component's `data-open:` needs, and the
+    // accordion keyframes whose height chain names Base UI's variable.
+    assert.match(result.output, /src\/index\.css/)
+    assert.match(result.output, /no state variants/)
+    assert.match(result.output, /no accordion keyframes/)
+    assert.match(result.output, /shadcn\/tailwind\.css/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("doctor accepts a stylesheet that imports shadcn's, and one that inlined it", () => {
+  const imported = createProject(["tabs"])
+  try {
+    writeFileSync(
+      join(imported, "src/index.css"),
+      '@import "tailwindcss";\n@import "shadcn/tailwind.css";\n',
+    )
+    const result = run(imported, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+    assert.match(result.output, /shadcn\/tailwind\.css is in effect/)
+  } finally {
+    rmSync(imported, { recursive: true, force: true })
+  }
+
+  // `shadcn eject` inlines the file instead of importing it, so the
+  // definitions themselves count.
+  const ejected = createProject(["tabs"])
+  try {
+    writeFileSync(
+      join(ejected, "src/index.css"),
+      [
+        '@import "tailwindcss";',
+        "@custom-variant data-open {",
+        '  &:where([data-state="open"]) { @slot; }',
+        "}",
+        "@theme inline {",
+        "  @keyframes accordion-down {",
+        "    to { height: var(--radix-accordion-content-height, var(--accordion-panel-height, auto)); }",
+        "  }",
+        "}",
+        "",
+      ].join("\n"),
+    )
+    const result = run(ejected, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+    assert.match(result.output, /shadcn\/tailwind\.css is in effect/)
+  } finally {
+    rmSync(ejected, { recursive: true, force: true })
   }
 })
 
