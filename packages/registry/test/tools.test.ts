@@ -440,7 +440,7 @@ test("walking a targeted listing of 50 children by offset yields all 50 exactly 
   for (const off of dispose) off()
 })
 
-test("a complete listing carries no window key", async () => {
+test("a listing nobody windowed carries no window key", async () => {
   const dispose = [
     registry.register(
       stub({ id: "table", kind: "data-table", label: "Orders", actions: ["filter"] }),
@@ -455,9 +455,12 @@ test("a complete listing carries no window key", async () => {
   const targeted = JSON.parse(await tools.get("ui_list")!.execute({ target: "table" }))
   assert.equal("window" in targeted, false, "a complete targeted listing carries no window")
 
-  // A limit beyond the list cuts nothing: the listing is still complete.
+  // A limit beyond the list cuts nothing, but passing one is still a question
+  // about the window, and it is answered: "returned equals total" is the only
+  // way to say "that is all of them". Reporting nothing here made a limit
+  // larger than the list indistinguishable from passing no limit at all.
   const over = JSON.parse(await tools.get("ui_list")!.execute({ target: "table", limit: 100 }))
-  assert.equal("window" in over, false)
+  assert.deepEqual(over.window, { offset: 0, returned: 1, total: 1 })
 
   for (const off of dispose) off()
 })
@@ -735,6 +738,16 @@ test("a state that is bulky but within budget is returned whole", async () => {
   )
   assert.equal(parsed.state.rows.length, 8)
   assert.equal("window" in parsed, false, "a whole state does not grow a window key")
+
+  // Asking for more rows than the element holds is still asking about the
+  // window. Without this the reply was identical to one that asked nothing,
+  // and a benchmark operator that requested forty rows of a paginated table
+  // read the ten it received as all forty.
+  const asked = JSON.parse(
+    await tools.get("ui_read")!.execute({ target: "small-table", limit: 50 }),
+  )
+  assert.equal(asked.state.rows.length, 8)
+  assert.deepEqual(asked.window, { field: "rows", offset: 0, returned: 8, total: 8 })
 
   off()
 })

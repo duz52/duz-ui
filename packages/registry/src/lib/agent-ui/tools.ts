@@ -667,11 +667,11 @@ function omitChildren(element: ListElement): void {
  * `ui_list` never returns an empty listing while capabilities exist.
  *
  * The caller's `offset` and `limit` window the elements the call returns —
- * the roots, or a target's children — before any shedding. Whenever those
- * elements were cut, by that window or by the final shedding step, the
- * response reports `window` — offset, returned, total — as `ui_read` does
- * over its list field, so one walk covers both tools; a complete listing
- * carries no window key.
+ * the roots, or a target's children — before any shedding. The response
+ * reports `window` — offset, returned, total — as `ui_read` does over its
+ * list field, so one walk covers both tools, whenever the elements were cut
+ * or the caller asked about the window at all. Only a listing nobody
+ * windowed and nothing shed carries no window key.
  */
 function serialiseListDocument(
   doc: ListDocument,
@@ -684,7 +684,7 @@ function serialiseListDocument(
   const start = Math.min(offset ?? 0, total)
   const count = limit !== undefined ? Math.min(limit, total - start) : total - start
   doc.elements = doc.elements.slice(start, start + count)
-  if (start !== 0 || count !== total) {
+  if (offset !== undefined || limit !== undefined || count !== total) {
     doc.window = { offset: start, returned: count, total }
   }
 
@@ -805,7 +805,7 @@ function createListTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_list",
     description:
-      "List the agent-operable UI elements on the page. Call this first: it gives each element's id, its current state, and the tools that act on it — pass that id as target, except an action_<id> tool, which names its element. Pass target to list one element's children instead, the recovery when an element reports childrenOmitted. A cut listing reports window — walk by advancing offset by window.returned. A listed state is current; use ui_read for detail the digest leaves out.",
+      "List the agent-operable UI elements on the page. Call it first: it gives each element's id, state, and the tools that act on it — pass that id as target, except an action_<id> tool, which names its element. Pass target to list an element's children — the recovery when one reports childrenOmitted. A cut listing, or any you window with offset or limit, reports window — walk by advancing offset by window.returned. A listed state is current; ui_read gives detail the digest omits.",
     scope: { on: "page" },
     inputSchema: {
       type: "object",
@@ -903,6 +903,13 @@ interface StateResult {
  * a state whose entries cannot fit even alone is genuinely unrepresentable
  * and is refused, naming the field.
  *
+ * A caller who passes an offset or a limit is asking a question about the
+ * window, and is answered even when nothing was cut. Reporting the window
+ * only on a cut made "your limit was larger than the list" and "you passed no
+ * limit" the same reply: a benchmark operator asked forty rows of a paginated
+ * table, received the ten that were mounted with no window, and read the
+ * absence as "that is all of them". `returned === total` states it instead.
+ *
  * Only `ui_read` takes an offset or limit. Every other tool that carries a
  * state — kind tools and business actions — is windowed from the start of
  * the field: the action answers with what fits, and the agent walks the rest
@@ -945,9 +952,10 @@ function serialiseStateResult(
   const fits = (count: number): boolean =>
     JSON.stringify(windowed(count)).length <= MAX_OUTPUT
 
-  // Asked for the list from the start with no cap: the result can go out
-  // whole, with no window key, when it fits.
-  if (start === 0 && requested === total) {
+  // Nobody asked about the window: the result goes out whole, with no window
+  // key, when it fits. A caller who did pass one is always answered, below,
+  // even when nothing was cut — see the note on this function.
+  if (offset === undefined && limit === undefined) {
     const json = JSON.stringify(result)
     if (json.length <= MAX_OUTPUT) return json
   }
@@ -982,7 +990,7 @@ function createReadTool(registry: CapabilityRegistry): AgentTool {
   return {
     name: "ui_read",
     description:
-      "Read the current semantic state of one UI element by id; use ui_list first for valid ids. Actions already return the element's post-change state, so this is for detail an action result windowed away and for elements you did not just act on. A long largest list comes back windowed: window reports the field, offset, returned count and true total; window.returned is authoritative when the budget clamps a limit. Walk by advancing offset by window.returned until offset + returned reaches total.",
+      "Read the current semantic state of one UI element by id; use ui_list first for valid ids. Actions already return the element's post-change state, so this is for detail an action result windowed away and for elements you did not just act on. Pass offset or limit and the reply always reports window — field, offset, returned, true total — so returned equal to total means that is every entry the element holds. The budget windows a long list unasked. Walk by advancing offset by window.returned.",
     scope: { on: "any-capability" },
     inputSchema: {
       type: "object",
