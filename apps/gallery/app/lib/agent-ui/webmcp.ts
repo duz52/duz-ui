@@ -24,18 +24,47 @@ function getModelContext(): WebMCP.ModelContext | undefined {
  * specification puts on `ModelContext`. Narrowing it here keeps the gap in the
  * one file allowed to know about the protocol.
  *
- * The specification types the second argument as an `object` and serialises it
- * itself, but Chrome's shipping implementation takes the already-serialised
- * JSON string and rejects anything else with "Failed to parse input arguments".
- * This declares what the browser actually accepts.
+ * Both argument forms are declared because both are real. The specification
+ * takes an object and serialises it itself:
+ *
+ *     Promise<DOMString> executeTool(RegisteredTool tool,
+ *                                    optional object inputObject = {}, ...)
+ *
+ * Chrome 151 takes the already-serialised JSON string instead, rejects an
+ * object with "Failed to parse input arguments", and requires the argument the
+ * specification makes optional. Declaring only one of the two, as this did,
+ * states a browser's dialect as the protocol.
+ * https://github.com/webmachinelearning/webmcp/blob/main/index.bs
  * https://developer.chrome.com/docs/ai/webmcp/imperative-api
  */
 interface ModelContextWithExecute extends WebMCP.ModelContext {
   executeTool(
     tool: WebMCP.RegisteredTool,
-    inputArguments?: string,
+    inputArguments?: object | string,
   ): Promise<string>
 }
+
+/**
+ * Which argument form this browser's `executeTool` accepts, learned once and
+ * reused for the rest of the page's life.
+ *
+ * No single value satisfies both shipping implementations: Chrome rejects the
+ * object, and an implementation that follows the specification rejects the
+ * string. So the form cannot be assumed, and it is not guessed from a user
+ * agent either — it is learned from what the browser does with a call.
+ *
+ * The specification's form is sent first, so the standard is the default and
+ * Chrome's dialect is the exception that gets discovered; when Chrome
+ * conforms, this stops firing on its own with nothing to remove.
+ *
+ * Retrying is safe here, which is not a general licence. A tool of ours does
+ * not throw to report a refusal — it answers with `{ ok: false }` as data, the
+ * whole point of the refusal design — so an exception out of `executeTool` is
+ * the browser rejecting the call, not a tool that ran and failed. And a
+ * rejection on the way in means nothing ran: an implementation that cannot
+ * read its input has not reached the tool.
+ */
+let wireFormat: "object" | "string" | undefined
 
 /**
  * Runs a registered tool the way an agent would: through the browser's own
@@ -59,7 +88,22 @@ export async function executeViaWebMCP(
   if (!tool) {
     throw new Error(`The "${name}" tool is not registered with the browser yet.`)
   }
-  return modelContext.executeTool(tool, JSON.stringify(input))
+  if (wireFormat === "string") {
+    return modelContext.executeTool(tool, JSON.stringify(input))
+  }
+
+  try {
+    const result = await modelContext.executeTool(tool, input)
+    wireFormat = "object"
+    return result
+  } catch (error) {
+    // Already known to take objects: this is the tool's own failure, not a
+    // dialect to work around.
+    if (wireFormat === "object") throw error
+    const result = await modelContext.executeTool(tool, JSON.stringify(input))
+    wireFormat = "string"
+    return result
+  }
 }
 
 function toWebMCPTool(tool: AgentTool): WebMCP.ModelContextTool {

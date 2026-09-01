@@ -62,9 +62,14 @@ if (!dom.window.matchMedia) {
 }
 
 /**
- * A fake `document.modelContext` that stands in for Chrome's WebMCP
- * implementation. Backed by a Map, honouring the `signal` option by
- * unregistering on abort. It is test scaffolding, not a shipped shim.
+ * A fake `document.modelContext`. Backed by a Map, honouring the `signal`
+ * option by unregistering on abort. It is test scaffolding, not a shipped shim.
+ *
+ * It accepts either argument form for `executeTool`, because the shipping
+ * implementations disagree about which one it is and this file is not the
+ * place that decides. Taking only the string, as it did, made every test here
+ * agree with Chrome's dialect and blind to the browsers that reject it; the
+ * dialects themselves are pinned in webmcp-wire.test.ts.
  *
  * Installed on the jsdom document before any Agent UI module is imported, so
  * the runtime's composition root (`getAgentUIRuntime` → `connectWebMCP`) sees
@@ -110,15 +115,16 @@ class FakeModelContext extends EventTarget {
    */
   async executeTool(
     tool: WebMCP.RegisteredTool,
-    inputArguments?: string,
+    inputArguments?: object | string,
   ): Promise<string> {
     const definition = this.tools.get(tool.name)
     if (!definition) {
       throw new Error(`The "${tool.name}" tool is not registered.`)
     }
-    const input: Record<string, unknown> = inputArguments
-      ? JSON.parse(inputArguments)
-      : {}
+    const input: Record<string, unknown> =
+      typeof inputArguments === "string"
+        ? (JSON.parse(inputArguments) as Record<string, unknown>)
+        : ((inputArguments ?? {}) as Record<string, unknown>)
     const result = await definition.execute(input, {
       signal: new AbortController().signal,
     })
