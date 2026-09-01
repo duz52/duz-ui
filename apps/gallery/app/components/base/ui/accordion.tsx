@@ -257,29 +257,9 @@ function AccordionTrigger({
   )
 }
 
-/**
- * Republishes the panel's measured height under the name the shared accordion
- * keyframes read.
- *
- * Those keyframes animate to a height taken from a chain of library-specific
- * variables — Radix's, Bits', Reka's, Kobalte's, NGP's — written before Base
- * UI existed and never extended to it. With no name in the chain matching, it
- * fell through to `auto`, and `height: 0` to `auto` does not animate at all:
- * the base accordion snapped open and shut while the Radix one animated. Base
- * UI measures the panel and publishes the result as `--accordion-panel-height`,
- * so the panel says the same number under the name the keyframes look for.
- */
-function animatedHeight(style: React.CSSProperties | undefined): React.CSSProperties {
-  return {
-    "--radix-accordion-content-height": "var(--accordion-panel-height)",
-    ...style,
-  } as React.CSSProperties
-}
-
 function AccordionContent({
   className,
   children,
-  style,
   ...props
 }: AccordionPrimitive.Panel.Props) {
   return (
@@ -287,11 +267,26 @@ function AccordionContent({
       data-slot="accordion-content"
       className="overflow-hidden text-sm data-closed:animate-accordion-up data-open:animate-accordion-down"
       {...props}
-      style={(state) =>
-        animatedHeight(typeof style === "function" ? style(state) : style)
-      }
     >
-      <div className={cn("pt-0 pb-4", className)}>{children}</div>
+      {/*
+        The height is what animates, and it belongs on this element, not on the
+        panel. Base UI measures the panel and publishes the result as
+        `--accordion-panel-height`; `data-starting-style` and
+        `data-ending-style` hold that height at zero on the way in and out, and
+        the panel's keyframes carry it between the two. The port had dropped
+        all three, leaving the panel's animation with nothing to animate — the
+        base accordion snapped open and shut while the Radix one animated. This
+        is stock shadcn's own mechanism for this primitive, kept as it writes
+        it.
+      */}
+      <div
+        className={cn(
+          "h-(--accordion-panel-height) pt-0 pb-4 data-ending-style:h-0 data-starting-style:h-0",
+          className,
+        )}
+      >
+        {children}
+      </div>
     </AccordionPrimitive.Panel>
   )
 }

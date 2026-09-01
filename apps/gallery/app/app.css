@@ -1,6 +1,47 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+ * The accordion keyframes, as shadcn defines them in `shadcn/tailwind.css`.
+ *
+ * A shadcn project imports three stylesheets — tailwindcss, tw-animate-css and
+ * shadcn/tailwind.css — and the third is where the accordion animation lives.
+ * This gallery is not a shadcn CLI project and imports only the first two, so
+ * it was running tw-animate-css's version, whose height is read from a chain
+ * of library-specific variables — Radix's, Bits', Reka's, Kobalte's, NGP's —
+ * that does not name Base UI's. With nothing matching, the chain fell through
+ * to `auto`, and `height: 0` to `auto` does not interpolate: the Base UI
+ * accordion snapped open and shut while the Radix one animated over 200ms.
+ *
+ * shadcn's chain is the two names that matter, which is why their Base UI
+ * accordion animates with the same component source ours ships.
+ */
+@theme inline {
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(
+        --radix-accordion-content-height,
+        var(--accordion-panel-height, auto)
+      );
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(
+        --radix-accordion-content-height,
+        var(--accordion-panel-height, auto)
+      );
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
