@@ -8,13 +8,20 @@ import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/naviga
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
 import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useAccessibleName } from "@/lib/agent-ui/agent-identity"
+import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 interface OptionEntry {
   value: string
-  label?: string
+  /**
+   * Resolved when an agent reads, not when the trigger renders. The name
+   * lived two components below the root and reached it through two pieces of
+   * state, so an option was published before its label existed and changed
+   * under anything that had already read it. Reads are pull-based: by the
+   * time this runs the trigger is mounted and its name is simply there.
+   */
+  readLabel: () => string | undefined
   disabled: boolean
 }
 
@@ -24,8 +31,8 @@ interface OptionEntry {
  */
 interface NavigationMenuItemContextValue {
   /** Mount and unmount only. Presentation never affects registration order. */
-  registerItem: (value: string) => () => void
-  describeItem: (value: string, label: string | undefined, disabled: boolean) => void
+  registerItem: (value: string, readLabel: () => string | undefined) => () => void
+  describeItem: (value: string, disabled: boolean) => void
 }
 
 const NavigationMenuItemContext = React.createContext<NavigationMenuItemContextValue | null>(null)
@@ -43,7 +50,9 @@ function useNavigationMenuItemRegistry(): NavigationMenuItemContextValue {
  * its item and the item folds that into what it announces to the root.
  */
 interface NavigationMenuTriggerContextValue {
-  describeTrigger: (label: string | undefined, disabled: boolean) => void
+  /** Filled by the trigger, read by the item's name resolver. */
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+  describeTrigger: (disabled: boolean) => void
 }
 
 const NavigationMenuTriggerContext = React.createContext<NavigationMenuTriggerContextValue | null>(null)
@@ -101,31 +110,31 @@ function NavigationMenu({
   // Registration owns order, so it depends on the item's value alone. Label
   // and disabled state are updated in place; removing and re-appending on a
   // `disabled` toggle would reorder what the agent reads.
-  const registerItem = React.useCallback((value: string): (() => void) => {
-    setOptions((prev) =>
-      prev.some((option) => option.value === value)
-        ? prev
-        : [...prev, { value, disabled: false }],
-    )
-    return () => {
-      setOptions((prev) => prev.filter((option) => option.value !== value))
-    }
-  }, [])
-
-  const describeItem = React.useCallback(
-    (value: string, label: string | undefined, disabled: boolean) => {
-      setOptions((prev) => {
-        const index = prev.findIndex((option) => option.value === value)
-        const current = prev[index]
-        if (!current) return prev
-        if (current.label === label && current.disabled === disabled) return prev
-        const next = [...prev]
-        next[index] = { value, label, disabled }
-        return next
-      })
+  const registerItem = React.useCallback(
+    (value: string, readLabel: () => string | undefined): (() => void) => {
+      setOptions((prev) =>
+        prev.some((option) => option.value === value)
+          ? prev
+          : [...prev, { value, readLabel, disabled: false }],
+      )
+      return () => {
+        setOptions((prev) => prev.filter((option) => option.value !== value))
+      }
     },
     [],
   )
+
+  const describeItem = React.useCallback((value: string, disabled: boolean) => {
+    setOptions((prev) => {
+      const index = prev.findIndex((option) => option.value === value)
+      const current = prev[index]
+      if (!current) return prev
+      if (current.disabled === disabled) return prev
+      const next = [...prev]
+      next[index] = { ...current, disabled }
+      return next
+    })
+  }, [])
 
   // Bound as one `select`, not a disclosure per item. Base UI derives every
   // item's open state from this root's single value (`value` is the item that
@@ -142,7 +151,7 @@ function NavigationMenu({
       value,
       options: options.map((o) => ({
         value: o.value,
-        label: o.label,
+        label: o.readLabel(),
         disabled: o.disabled,
       })),
     }),
@@ -216,21 +225,13 @@ function NavigationMenuItem({
   value?: string
 }) {
   const { registerItem, describeItem } = useNavigationMenuItemRegistry()
-  const [trigger, setTrigger] = React.useState<{
-    label: string | undefined
-    disabled: boolean
-  }>({ label: undefined, disabled: false })
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
+  const readLabel = useAccessibleNameResolver(triggerRef)
+  const [triggerDisabled, setTriggerDisabled] = React.useState(false)
 
-  const describeTrigger = React.useCallback(
-    (label: string | undefined, disabled: boolean) => {
-      setTrigger((prev) =>
-        prev.label === label && prev.disabled === disabled
-          ? prev
-          : { label, disabled },
-      )
-    },
-    [],
-  )
+  const describeTrigger = React.useCallback((disabled: boolean) => {
+    setTriggerDisabled((prev) => (prev === disabled ? prev : disabled))
+  }, [])
 
   // An item without a `value` cannot be addressed by an agent, so it is not
   // an option: it is left out of the root's options rather than given an
@@ -239,16 +240,16 @@ function NavigationMenuItem({
   // its own open state, exactly as it would outside a navigation menu.
   React.useEffect(() => {
     if (value === undefined) return
-    return registerItem(value)
-  }, [registerItem, value])
+    return registerItem(value, readLabel)
+  }, [registerItem, value, readLabel])
 
   React.useEffect(() => {
     if (value === undefined) return
-    describeItem(value, trigger.label, trigger.disabled)
-  }, [describeItem, value, trigger.label, trigger.disabled])
+    describeItem(value, triggerDisabled)
+  }, [describeItem, value, triggerDisabled])
 
   const contextValue = React.useMemo<NavigationMenuTriggerContextValue>(
-    () => ({ describeTrigger }),
+    () => ({ triggerRef, describeTrigger }),
     [describeTrigger],
   )
 
@@ -276,15 +277,14 @@ function NavigationMenuTrigger({
 }: Omit<NavigationMenuPrimitive.Trigger.Props, "className"> & {
   className?: string
 }) {
-  const { describeTrigger } = useNavigationMenuTriggerRegistry()
-  const triggerRef = React.useRef<HTMLButtonElement>(null)
-  const label = useAccessibleName(triggerRef, "")
+  const { triggerRef, describeTrigger } = useNavigationMenuTriggerRegistry()
   const mergedRef = useMergedRef(ref, triggerRef)
 
-  // The item's label is its trigger's text; no trigger text means no label.
+  // The item resolves the label off this element; only `disabled` is a fact
+  // the item cannot see for itself.
   React.useEffect(() => {
-    describeTrigger(label === "" ? undefined : label, disabled)
-  }, [describeTrigger, label, disabled])
+    describeTrigger(disabled)
+  }, [describeTrigger, disabled])
 
   return (
     <NavigationMenuPrimitive.Trigger

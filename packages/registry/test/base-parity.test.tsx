@@ -4471,3 +4471,130 @@ for (const base of BASES) {
     await byTool.unmount()
   })
 }
+
+
+/**
+ * An option list must not change under the agent reading it.
+ *
+ * A component that appends its options in one commit and describes them in
+ * another publishes an option with no label, then the same option with one.
+ * Anything that reads in between — an agent listing on a tool-change
+ * notification, the gallery's runner filling an argument control — shows the
+ * raw value where the name belongs and swaps it on the next read. The
+ * accordion did exactly that: its label lives in the trigger and reached the
+ * root through the item's state, one whole commit behind the registration.
+ *
+ * `CommitProbe` renders after the component, so its own effect runs once the
+ * subtree's effects have run: it records the capability's state at the end of
+ * every commit, which is precisely what a reader can observe.
+ */
+const OPTION_KEYS = ["items", "options", "tabs"] as const
+
+function CommitProbe({
+  id,
+  record,
+}: {
+  id: string
+  record: (state: Record<string, unknown>) => void
+}): null {
+  // Re-rendering itself is what makes the sampling work. A sibling's effect
+  // runs once and then never again — a state update inside the component
+  // under test re-renders that subtree alone — so the probe would only ever
+  // see the mounting commit, which is before any option has been appended.
+  // Bumping its own state schedules another commit, and `act` keeps flushing
+  // until the tree is quiescent, so the probe reads the state at the end of
+  // every commit the component makes. The bound is what keeps a component
+  // that never settles from spinning here forever.
+  const [sample, setSample] = React.useState(0)
+  React.useEffect(() => {
+    const capability = registry.get(id)
+    if (capability) record(capability.read() as Record<string, unknown>)
+    if (sample < 8) setSample(sample + 1)
+  })
+  return null
+}
+
+/** Every `value -> label` an option list published, in the order seen. */
+function optionLabels(state: Record<string, unknown>): Map<string, unknown>[] {
+  const perKey: Map<string, unknown>[] = []
+  for (const key of OPTION_KEYS) {
+    const list = state[key]
+    if (!Array.isArray(list)) continue
+    const labels = new Map<string, unknown>()
+    for (const entry of list) {
+      if (typeof entry !== "object" || entry === null) continue
+      const record = entry as Record<string, unknown>
+      if (typeof record.value !== "string") continue
+      labels.set(record.value, record.label)
+    }
+    perKey.push(labels)
+  }
+  return perKey
+}
+
+for (const base of BASES) {
+  test(`[${base}] an option's label never changes after the option appears`, async () => {
+    const checked: string[] = []
+    const violations: string[] = []
+
+    for (const def of casesFor(base)) {
+      const mod = modules.get(`${base}/${def.component}`)
+      assert.ok(mod, `the ${base} ${def.component} module must load`)
+
+      const id = `${base}-${def.component}-option-stability`
+      const commits: Record<string, unknown>[] = []
+      const element = def.mount(mod, {
+        agent: { id },
+        ...def.baseProps?.(base),
+        ...(def.defaultProp === undefined ? {} : { [def.defaultProp]: def.initialValue }),
+      })
+      const tree = await mount(
+        React.createElement(
+          React.Fragment,
+          null,
+          element,
+          React.createElement(CommitProbe, {
+            id,
+            record: (state) => commits.push(state),
+          }),
+        ),
+      )
+
+      const seen = new Map<string, unknown>()
+      let hasOptions = false
+      for (const state of commits) {
+        for (const labels of optionLabels(state)) {
+          for (const [value, label] of labels) {
+            hasOptions = true
+            if (!seen.has(value)) {
+              seen.set(value, label)
+              continue
+            }
+            if (label !== seen.get(value)) {
+              violations.push(
+                `${def.component}: option "${value}" was published as ${JSON.stringify(
+                  seen.get(value),
+                )} and then as ${JSON.stringify(label)}`,
+              )
+              seen.set(value, label)
+            }
+          }
+        }
+      }
+      if (hasOptions) checked.push(def.component)
+
+      await tree.unmount()
+    }
+
+    // Every offender at once: fixing them one failure at a time hides how
+    // many components share the defect.
+    assert.deepEqual(violations, [], violations.join("\n"))
+
+    // A silent pass would follow from mounting nothing that has options, so
+    // the components actually covered are named.
+    assert.ok(
+      checked.length >= 6,
+      `too few components exposed an option list to check: ${checked.join(", ")}`,
+    )
+  })
+}

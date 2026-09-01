@@ -13,9 +13,28 @@ import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from
 import { expectBoolean, expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
-interface OptionEntry {
+/**
+ * A radio option inside a menu. Unlike a menu, its label is captured by the
+ * same component that registers it, so both reach the root in one commit and
+ * there is no window in which the option exists without its name.
+ */
+interface RadioOptionEntry {
   value: string
   label?: string
+  disabled: boolean
+}
+
+interface OptionEntry {
+  value: string
+  /**
+   * Resolved when an agent reads, not when the trigger renders. The name
+   * lived on the trigger and reached the root through two pieces of state, so
+   * a menu was published before its label existed and changed under anything
+   * that had already read it. Reads are pull-based: by the time this runs the
+   * trigger is mounted and its name is simply there. It is the same resolver
+   * the menu's identity uses, over the same element.
+   */
+  readLabel: () => string | undefined
   disabled: boolean
 }
 
@@ -25,8 +44,8 @@ interface OptionEntry {
  */
 interface MenubarMenuContextValue {
   /** Mount and unmount only. Presentation never affects registration order. */
-  registerMenu: (value: string) => () => void
-  describeMenu: (value: string, label: string | undefined, disabled: boolean) => void
+  registerMenu: (value: string, readLabel: () => string | undefined) => () => void
+  describeMenu: (value: string, disabled: boolean) => void
   /** The value of the currently open menu, or `null` when none is open. */
   openValue: string | null
   changeOpen: (value: string, open: boolean) => void
@@ -47,7 +66,7 @@ function useMenubarMenuRegistry(): MenubarMenuContextValue {
  * its menu and the menu folds that into what it announces to the root.
  */
 interface MenubarTriggerContextValue {
-  describeTrigger: (label: string | undefined, disabled: boolean) => void
+  describeTrigger: (disabled: boolean) => void
   /**
    * The trigger attaches itself here. The menu's own name lives in the
    * trigger's text, and the trigger is the part that stays mounted, so this
@@ -98,31 +117,31 @@ function Menubar({
   // Registration owns order, so it depends on the menu's value alone. Label
   // and disabled state are updated in place; removing and re-appending on a
   // `disabled` toggle would reorder what the agent reads.
-  const registerMenu = React.useCallback((value: string): (() => void) => {
-    setOptions((prev) =>
-      prev.some((option) => option.value === value)
-        ? prev
-        : [...prev, { value, disabled: false }],
-    )
-    return () => {
-      setOptions((prev) => prev.filter((option) => option.value !== value))
-    }
-  }, [])
-
-  const describeMenu = React.useCallback(
-    (value: string, label: string | undefined, disabled: boolean) => {
-      setOptions((prev) => {
-        const index = prev.findIndex((option) => option.value === value)
-        const current = prev[index]
-        if (!current) return prev
-        if (current.label === label && current.disabled === disabled) return prev
-        const next = [...prev]
-        next[index] = { value, label, disabled }
-        return next
-      })
+  const registerMenu = React.useCallback(
+    (value: string, readLabel: () => string | undefined): (() => void) => {
+      setOptions((prev) =>
+        prev.some((option) => option.value === value)
+          ? prev
+          : [...prev, { value, readLabel, disabled: false }],
+      )
+      return () => {
+        setOptions((prev) => prev.filter((option) => option.value !== value))
+      }
     },
     [],
   )
+
+  const describeMenu = React.useCallback((value: string, disabled: boolean) => {
+    setOptions((prev) => {
+      const index = prev.findIndex((option) => option.value === value)
+      const current = prev[index]
+      if (!current) return prev
+      if (current.disabled === disabled) return prev
+      const next = [...prev]
+      next[index] = { ...current, disabled }
+      return next
+    })
+  }, [])
 
   // Radix derives every menu's open state from this root's single value, so
   // opening a named menu is one write into it. Closing a menu that is not the
@@ -151,7 +170,7 @@ function Menubar({
       value: value === "" ? null : value,
       options: options.map((o) => ({
         value: o.value,
-        label: o.label,
+        label: o.readLabel(),
         disabled: o.disabled,
       })),
     }),
@@ -221,24 +240,17 @@ function MenubarMenu({
   agent?: AgentProp
 }) {
   const { registerMenu, describeMenu, openValue, changeOpen } = useMenubarMenuRegistry()
-  const [trigger, setTrigger] = React.useState<{
-    label: string | undefined
-    disabled: boolean
-  }>({ label: undefined, disabled: false })
+  const [triggerDisabled, setTriggerDisabled] = React.useState(false)
 
-  const describeTrigger = React.useCallback(
-    (label: string | undefined, disabled: boolean) => {
-      setTrigger((prev) =>
-        prev.label === label && prev.disabled === disabled
-          ? prev
-          : { label, disabled },
-      )
-    },
-    [],
-  )
+  const describeTrigger = React.useCallback((disabled: boolean) => {
+    setTriggerDisabled((prev) => (prev === disabled ? prev : disabled))
+  }, [])
 
   const nameRef = React.useRef<HTMLElement | null>(null)
   const identitySource = useAccessibleNameResolver(nameRef)
+  // The menu's own label stays live, as every capability label does; only its
+  // identity is frozen at registration. Both read the trigger.
+  const menuLabel = useAccessibleName(nameRef, "Menu")
 
   // A menu without a `value` cannot be addressed by an agent, so it is not an
   // option: it is left out of the root's options rather than given an
@@ -246,13 +258,13 @@ function MenubarMenu({
   // id for such menus; that id is not a name.)
   React.useEffect(() => {
     if (menuValue === undefined) return
-    return registerMenu(menuValue)
-  }, [registerMenu, menuValue])
+    return registerMenu(menuValue, identitySource)
+  }, [registerMenu, menuValue, identitySource])
 
   React.useEffect(() => {
     if (menuValue === undefined) return
-    describeMenu(menuValue, trigger.label, trigger.disabled)
-  }, [describeMenu, menuValue, trigger.label, trigger.disabled])
+    describeMenu(menuValue, triggerDisabled)
+  }, [describeMenu, menuValue, triggerDisabled])
 
   const contextValue = React.useMemo<MenubarTriggerContextValue>(
     () => ({ describeTrigger, nameRef }),
@@ -268,7 +280,7 @@ function MenubarMenu({
   const { id } = useCapability<MenubarMenuState, MenubarMenuActions>({
     agent: menuValue === undefined ? false : agent,
     kind: "disclosure",
-    defaultLabel: trigger.label ?? "Menu",
+    defaultLabel: menuLabel,
     identitySource,
     read: () => ({ open: openValue === menuValue, disabled: false }),
     actions: {
@@ -362,7 +374,7 @@ function MenubarRadioGroup({
     onChange: onValueChange,
   })
 
-  const [options, setOptions] = React.useState<OptionEntry[]>([])
+  const [options, setOptions] = React.useState<RadioOptionEntry[]>([])
 
   // Registration owns order, so it depends on the option's value alone. Label
   // and disabled state are updated in place; removing and re-appending on a
@@ -452,14 +464,13 @@ function MenubarTrigger({
   ...props
 }: React.ComponentProps<typeof MenubarPrimitive.Trigger>) {
   const { describeTrigger, nameRef } = useMenubarTriggerRegistry()
-  const triggerRef = React.useRef<HTMLButtonElement>(null)
-  const label = useAccessibleName(triggerRef, "")
-  const mergedRef = useMergedRef(ref, triggerRef, nameRef)
+  const mergedRef = useMergedRef(ref, nameRef)
 
-  // The menu's label is its trigger's text; no trigger text means no label.
+  // The menu resolves its label off this element; only `disabled` is a fact
+  // the menu cannot see for itself.
   React.useEffect(() => {
-    describeTrigger(label === "" ? undefined : label, disabled)
-  }, [describeTrigger, label, disabled])
+    describeTrigger(disabled)
+  }, [describeTrigger, disabled])
 
   return (
     <MenubarPrimitive.Trigger

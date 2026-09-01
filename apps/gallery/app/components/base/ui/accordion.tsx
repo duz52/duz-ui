@@ -6,12 +6,22 @@ import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
 
 import { cn } from "@/lib/utils"
 import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
 import { expectString, rejectState } from "@/lib/agent-ui/validate"
 import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
 
 interface ItemEntry {
   value: string
-  label?: string
+  /**
+   * Resolved when an agent reads, not when the item renders. A label captured
+   * at render arrives a commit late — the trigger that carries the text is a
+   * descendant, so its name reached the root through the item's state — and
+   * an option published without its label is one an agent can read, address
+   * and display before it has a name. Reads are pull-based, so by the time
+   * this runs the trigger is mounted and its name is simply there.
+   */
+  readLabel: () => string | undefined
   disabled: boolean
 }
 
@@ -23,12 +33,8 @@ interface AccordionContextValue {
   /** Whether the root is disabled, so every item inherits it. */
   rootDisabled: boolean
   /** Mount and unmount only. Presentation never affects registration order. */
-  registerItem: (value: string) => () => void
-  describeItem: (
-    value: string,
-    label: string | undefined,
-    disabled: boolean,
-  ) => void
+  registerItem: (value: string, readLabel: () => string | undefined) => () => void
+  describeItem: (value: string, disabled: boolean) => void
 }
 
 const AccordionContext = React.createContext<AccordionContextValue | null>(null)
@@ -42,11 +48,12 @@ function useAccordionContext(): AccordionContextValue {
 }
 
 /**
- * A trigger announces its text label to the enclosing item. The item forwards
- * the label to the root alongside its value and disabled state.
+ * The item hands its trigger a ref so it can resolve the trigger's accessible
+ * name on demand. Nothing is announced and nothing is stored: the name is read
+ * from the element that carries it, at the moment an agent asks.
  */
 interface AccordionItemContextValue {
-  setLabel: (label: string | undefined) => void
+  triggerRef: React.RefObject<HTMLElement | null>
 }
 
 const AccordionItemContext =
@@ -88,31 +95,31 @@ function Accordion({
   // Registration owns order, so it depends on the item's value alone. Label
   // and disabled state are updated in place; removing and re-appending on a
   // change would reorder what the agent reads.
-  const registerItem = React.useCallback((value: string): (() => void) => {
-    setItems((prev) =>
-      prev.some((item) => item.value === value)
-        ? prev
-        : [...prev, { value, disabled: false }],
-    )
-    return () => {
-      setItems((prev) => prev.filter((item) => item.value !== value))
-    }
-  }, [])
-
-  const describeItem = React.useCallback(
-    (value: string, label: string | undefined, disabled: boolean) => {
-      setItems((prev) => {
-        const index = prev.findIndex((item) => item.value === value)
-        const current = prev[index]
-        if (!current) return prev
-        if (current.label === label && current.disabled === disabled) return prev
-        const next = [...prev]
-        next[index] = { value, label, disabled }
-        return next
-      })
+  const registerItem = React.useCallback(
+    (value: string, readLabel: () => string | undefined): (() => void) => {
+      setItems((prev) =>
+        prev.some((item) => item.value === value)
+          ? prev
+          : [...prev, { value, readLabel, disabled: false }],
+      )
+      return () => {
+        setItems((prev) => prev.filter((item) => item.value !== value))
+      }
     },
     [],
   )
+
+  const describeItem = React.useCallback((value: string, disabled: boolean) => {
+    setItems((prev) => {
+      const index = prev.findIndex((item) => item.value === value)
+      const current = prev[index]
+      if (!current) return prev
+      if (current.disabled === disabled) return prev
+      const next = [...prev]
+      next[index] = { ...current, disabled }
+      return next
+    })
+  }, [])
 
   useCapability<AccordionState, AccordionActions>({
     agent,
@@ -122,7 +129,7 @@ function Accordion({
       value,
       items: items.map((item) => ({
         value: item.value,
-        label: item.label,
+        label: item.readLabel(),
         disabled: item.disabled,
       })),
     }),
@@ -186,17 +193,25 @@ function AccordionItem({
   className?: string
 }) {
   const { rootDisabled, registerItem, describeItem } = useAccordionContext()
-  const [label, setLabel] = React.useState<string | undefined>(undefined)
+  const triggerRef = React.useRef<HTMLElement | null>(null)
+  const readLabel = useAccessibleNameResolver(triggerRef)
   const effectiveDisabled = disabled || rootDisabled
 
-  React.useEffect(() => registerItem(value), [registerItem, value])
+  // The resolver is registered with the item, so the entry can answer for its
+  // label from the first commit it exists in. `disabled` still arrives through
+  // describeItem, which runs in the same commit as this one and batches with
+  // it — nothing can read between the two.
   React.useEffect(
-    () => describeItem(value, label, effectiveDisabled),
-    [describeItem, value, label, effectiveDisabled],
+    () => registerItem(value, readLabel),
+    [registerItem, value, readLabel],
+  )
+  React.useEffect(
+    () => describeItem(value, effectiveDisabled),
+    [describeItem, value, effectiveDisabled],
   )
 
   const itemContextValue = React.useMemo<AccordionItemContextValue>(
-    () => ({ setLabel }),
+    () => ({ triggerRef }),
     [],
   )
 
@@ -216,20 +231,18 @@ function AccordionItem({
 function AccordionTrigger({
   className,
   children,
+  ref,
   ...props
 }: Omit<AccordionPrimitive.Trigger.Props, "className"> & {
   className?: string
 }) {
   const itemContext = React.useContext(AccordionItemContext)
-  const label = typeof children === "string" ? children : undefined
-
-  React.useEffect(() => {
-    itemContext?.setLabel(label)
-  }, [itemContext, label])
+  const mergedRef = useMergedRef(ref, itemContext?.triggerRef)
 
   return (
     <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
+        ref={mergedRef}
         data-slot="accordion-trigger"
         className={cn(
           "flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&[data-open]>svg]:rotate-180",
@@ -244,9 +257,29 @@ function AccordionTrigger({
   )
 }
 
+/**
+ * Republishes the panel's measured height under the name the shared accordion
+ * keyframes read.
+ *
+ * Those keyframes animate to a height taken from a chain of library-specific
+ * variables — Radix's, Bits', Reka's, Kobalte's, NGP's — written before Base
+ * UI existed and never extended to it. With no name in the chain matching, it
+ * fell through to `auto`, and `height: 0` to `auto` does not animate at all:
+ * the base accordion snapped open and shut while the Radix one animated. Base
+ * UI measures the panel and publishes the result as `--accordion-panel-height`,
+ * so the panel says the same number under the name the keyframes look for.
+ */
+function animatedHeight(style: React.CSSProperties | undefined): React.CSSProperties {
+  return {
+    "--radix-accordion-content-height": "var(--accordion-panel-height)",
+    ...style,
+  } as React.CSSProperties
+}
+
 function AccordionContent({
   className,
   children,
+  style,
   ...props
 }: AccordionPrimitive.Panel.Props) {
   return (
@@ -254,6 +287,9 @@ function AccordionContent({
       data-slot="accordion-content"
       className="overflow-hidden text-sm data-closed:animate-accordion-up data-open:animate-accordion-down"
       {...props}
+      style={(state) =>
+        animatedHeight(typeof style === "function" ? style(state) : style)
+      }
     >
       <div className={cn("pt-0 pb-4", className)}>{children}</div>
     </AccordionPrimitive.Panel>
