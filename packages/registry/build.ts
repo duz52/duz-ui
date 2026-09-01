@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -201,6 +201,9 @@ function writeJson(path: string, data: unknown): void {
 
 const manifest = readJson<Manifest>(resolve(__dirname, "registry.json"))
 
+// Emitted from scratch so a renamed or removed item cannot leave a document
+// behind that nothing points at but the CLI is still served on request.
+rmSync(outputDir, { recursive: true, force: true })
 mkdirSync(outputDir, { recursive: true })
 
 const indexItems: Array<Record<string, unknown>> = []
