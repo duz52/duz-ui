@@ -35,6 +35,9 @@
       "type": "registry:ui",
       "title": "Button",
       "description": "A button whose press action is available to an agent, going through the DOM exactly like a person's click.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -60,6 +63,7 @@
       "type": "registry:ui",
       "title": "Label",
       "description": "An accessible form label built on Radix Label.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -76,6 +80,7 @@
       "type": "registry:ui",
       "title": "Separator",
       "description": "A horizontal or vertical divider that visually separates content sections.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -92,6 +97,7 @@
       "type": "registry:ui",
       "title": "Skeleton",
       "description": "A pulsing placeholder element that indicates content is loading.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -108,6 +114,9 @@
       "type": "registry:ui",
       "title": "Alert",
       "description": "A callout that highlights a message with default and destructive variants.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils"
       ],
@@ -124,6 +133,7 @@
       "type": "registry:ui",
       "title": "AspectRatio",
       "description": "A container that keeps its content at a fixed width-to-height ratio.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -140,6 +150,7 @@
       "type": "registry:ui",
       "title": "Avatar",
       "description": "A user image with size presets, a fallback, and an optional status badge.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -156,6 +167,9 @@
       "type": "registry:ui",
       "title": "Badge",
       "description": "A compact label for statuses and counts, with variant presets.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils"
       ],
@@ -172,6 +186,9 @@
       "type": "registry:ui",
       "title": "Breadcrumb",
       "description": "A navigation trail that shows the path to the current page.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils"
       ],
@@ -188,6 +205,7 @@
       "type": "registry:ui",
       "title": "Card",
       "description": "A composable surface whose title, description, content and footer are readable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -211,6 +229,9 @@
       "type": "registry:ui",
       "title": "Empty",
       "description": "A placeholder layout for states with no data, such as empty lists or searches.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils"
       ],
@@ -227,6 +248,9 @@
       "type": "registry:ui",
       "title": "Item",
       "description": "A composable list row that pairs media, content, and actions.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "separator"
@@ -244,6 +268,7 @@
       "type": "registry:ui",
       "title": "Kbd",
       "description": "A styled kbd element that renders keyboard shortcuts and key combinations.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -260,6 +285,9 @@
       "type": "registry:ui",
       "title": "Spinner",
       "description": "An animated indicator that communicates loading or processing.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils"
       ],
@@ -276,6 +304,7 @@
       "type": "registry:ui",
       "title": "ScrollArea",
       "description": "A scrollable region with custom-styled scrollbars for overflowing content.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -292,6 +321,9 @@
       "type": "registry:ui",
       "title": "ButtonGroup",
       "description": "A container that joins buttons and related controls into a single segmented unit.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "separator"
@@ -309,6 +341,9 @@
       "type": "registry:ui",
       "title": "InputGroup",
       "description": "A wrapper that combines an input or textarea with icons, buttons, and text addons.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "button",
@@ -328,6 +363,9 @@
       "type": "registry:ui",
       "title": "Field",
       "description": "A composable form field that pairs a label with descriptions, errors, and controls.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "label",
@@ -346,6 +384,7 @@
       "type": "registry:ui",
       "title": "Direction",
       "description": "A provider that sets the reading direction for a component tree.",
+      "dependencies": [],
       "registryDependencies": [],
       "bases": [
         "base",
@@ -360,6 +399,9 @@
       "type": "registry:ui",
       "title": "Toaster",
       "description": "A toast region whose notifications are readable by an agent, including toasts that have already disappeared.",
+      "dependencies": [
+        "sonner"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -383,6 +425,7 @@
       "type": "registry:ui",
       "title": "Tooltip",
       "description": "A hover-triggered popover that displays contextual information near an anchor element.",
+      "dependencies": [],
       "registryDependencies": [
         "utils"
       ],
@@ -399,6 +442,7 @@
       "type": "registry:ui",
       "title": "Table",
       "description": "Primitive table elements with consistent styling, used as the rendering layer for DataTable; an agent reads their columns and rows.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -422,6 +466,9 @@
       "type": "registry:ui",
       "title": "Tabs",
       "description": "A tabbed container whose active tab is readable and selectable by an agent.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -447,6 +494,9 @@
       "type": "registry:ui",
       "title": "Select",
       "description": "A dropdown select whose chosen value and options are readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -473,6 +523,9 @@
       "type": "registry:ui",
       "title": "NativeSelect",
       "description": "A native HTML select whose chosen value and options are readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -499,6 +552,9 @@
       "type": "registry:ui",
       "title": "Combobox",
       "description": "A filterable combobox whose selected value and options are readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -532,6 +588,9 @@
       "type": "registry:ui",
       "title": "Checkbox",
       "description": "A checkbox whose checked state is readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -557,6 +616,9 @@
       "type": "registry:ui",
       "title": "Dialog",
       "description": "A modal dialog whose open state and title are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -584,6 +646,7 @@
       "type": "registry:ui",
       "title": "Input",
       "description": "A text input whose value is readable and settable by an agent through the native value channel.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -610,6 +673,7 @@
       "type": "registry:ui",
       "title": "Textarea",
       "description": "A multiline text input whose value is readable and settable by an agent through the native value channel.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -636,6 +700,7 @@
       "type": "registry:ui",
       "title": "Switch",
       "description": "A toggle switch whose checked state is readable and settable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -661,6 +726,9 @@
       "type": "registry:ui",
       "title": "RadioGroup",
       "description": "A radio group whose chosen value and available options are readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -687,6 +755,10 @@
       "type": "registry:ui",
       "title": "DataTable",
       "description": "A TanStack-powered data table exposing filter, sort, row selection, pagination and column visibility to an agent.",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -719,6 +791,9 @@
       "type": "registry:ui",
       "title": "Sheet",
       "description": "A side panel whose open state and title are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -745,6 +820,7 @@
       "type": "registry:ui",
       "title": "AlertDialog",
       "description": "A modal alert dialog whose open state and title are readable and controllable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -772,6 +848,9 @@
       "type": "registry:ui",
       "title": "Toggle",
       "description": "A toggle button whose pressed state is readable and settable by an agent.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -797,6 +876,9 @@
       "type": "registry:ui",
       "title": "ToggleGroup",
       "description": "A group of toggle buttons whose pressed values and available options are readable and settable by an agent.",
+      "dependencies": [
+        "class-variance-authority"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -830,6 +912,7 @@
       "type": "registry:ui",
       "title": "Collapsible",
       "description": "A collapsible container whose open state is readable and controllable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -857,6 +940,7 @@
       "type": "registry:ui",
       "title": "Popover",
       "description": "A popover whose open state is readable and controllable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -884,6 +968,10 @@
       "type": "registry:ui",
       "title": "Sidebar",
       "description": "A composable sidebar whose open state is readable and controllable by an agent.",
+      "dependencies": [
+        "class-variance-authority",
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -918,6 +1006,9 @@
       "type": "registry:ui",
       "title": "Accordion",
       "description": "An accordion whose open sections are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -944,6 +1035,7 @@
       "type": "registry:ui",
       "title": "Slider",
       "description": "A slider whose value is readable and settable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -969,6 +1061,7 @@
       "type": "registry:ui",
       "title": "Progress",
       "description": "A progress bar whose value and range are readable by an agent, with nothing to operate.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -992,6 +1085,9 @@
       "type": "registry:ui",
       "title": "InputOTP",
       "description": "A one-time code input whose value is readable and settable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1018,6 +1114,9 @@
       "type": "registry:ui",
       "title": "DropdownMenu",
       "description": "A dropdown menu whose open state, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1064,6 +1163,7 @@
       "type": "registry:ui",
       "title": "HoverCard",
       "description": "A hover card whose open state is readable and controllable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1091,6 +1191,9 @@
       "type": "registry:ui",
       "title": "Pagination",
       "description": "A pagination navigation bar that renders page links; the current page belongs to the application's router.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "button"
@@ -1108,6 +1211,9 @@
       "type": "registry:ui",
       "title": "ContextMenu",
       "description": "A right-click context menu whose open state, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1154,6 +1260,9 @@
       "type": "registry:ui",
       "title": "Menubar",
       "description": "A horizontal menu bar whose open menu, checkbox items and radio group are readable and controllable by an agent.",
+      "dependencies": [
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1207,6 +1316,10 @@
       "type": "registry:ui",
       "title": "NavigationMenu",
       "description": "A navigation menu whose open item is readable and selectable by an agent.",
+      "dependencies": [
+        "class-variance-authority",
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1233,6 +1346,7 @@
       "type": "registry:ui",
       "title": "Drawer",
       "description": "A slide-in drawer whose open state and title are readable and controllable by an agent.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1259,6 +1373,10 @@
       "type": "registry:ui",
       "title": "Command",
       "description": "A command palette built on cmdk whose search input and items are readable and operable by an agent, and whose content read reports the search string, the matched item count and the empty text.",
+      "dependencies": [
+        "cmdk",
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime",
@@ -1297,6 +1415,9 @@
       "type": "registry:ui",
       "title": "Chart",
       "description": "A themed chart container with styled tooltip and legend built on Recharts.",
+      "dependencies": [
+        "recharts"
+      ],
       "registryDependencies": [
         "utils",
         "agent-ui-runtime"
@@ -1320,6 +1441,9 @@
       "type": "registry:ui",
       "title": "Resizable",
       "description": "A panel group with draggable splitters built on React Resizable Panels.",
+      "dependencies": [
+        "react-resizable-panels"
+      ],
       "registryDependencies": [
         "utils"
       ],
@@ -1336,6 +1460,7 @@
       "type": "registry:ui",
       "title": "Attachment",
       "description": "A display card for a file the application owns, with an upload state the application sets.",
+      "dependencies": [],
       "registryDependencies": [
         "utils",
         "button"
@@ -1353,6 +1478,10 @@
       "type": "registry:ui",
       "title": "Carousel",
       "description": "A sliding region of content built on Embla Carousel, with previous and next controls.",
+      "dependencies": [
+        "embla-carousel-react",
+        "lucide-react"
+      ],
       "registryDependencies": [
         "utils",
         "button"
@@ -1370,6 +1499,9 @@
       "type": "registry:ui",
       "title": "Calendar",
       "description": "A day picker whose selected date or dates are readable and settable by an agent as YYYY-MM-DD strings.",
+      "dependencies": [
+        "react-day-picker"
+      ],
       "registryDependencies": [
         "utils",
         "button",

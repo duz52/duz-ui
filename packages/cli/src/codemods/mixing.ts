@@ -18,10 +18,13 @@
  * ui directory itself — those files are what migration replaces.
  */
 
-import { readdirSync } from "node:fs"
-import { join, relative, sep } from "node:path"
-import { Project, type ImportDeclaration, type SourceFile } from "ts-morph"
+import { Project } from "ts-morph"
 import type { ProjectConfig } from "../project/config.js"
+import {
+  displayPath,
+  valueImports,
+  walkProjectSources,
+} from "../project/source-scan.js"
 import type { MigrationOutcome } from "./index.js"
 import { findSignature } from "./signatures.js"
 
@@ -36,50 +39,6 @@ interface StrandedImport {
   file: string
   name: string
   packageName: string
-}
-
-/** Source extensions the scan reads. Declaration files are types, not runtime. */
-const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"])
-
-/**
- * The first name the import binds to a value, or `undefined` when it binds
- * none: a bare side-effect import loads the module but binds nothing, and
- * nothing that binds no value can consume the primitive's React context.
- * Type-only declarations and type-only specifiers are excluded by the caller
- * and here respectively.
- */
-function firstValueImport(imp: ImportDeclaration): string | undefined {
-  const defaultImport = imp.getDefaultImport()
-  if (defaultImport) return defaultImport.getText()
-  const namespaceImport = imp.getNamespaceImport()
-  if (namespaceImport) return `* as ${namespaceImport.getText()}`
-  const named = imp.getNamedImports().find((s) => !s.isTypeOnly())
-  return named?.getNameNode().getText()
-}
-
-/**
- * The first value-imported name per module specifier, restricted to
- * `specifiers`. A specifier already recorded keeps its first name; a
- * type-only import or one binding no value records nothing, leaving the
- * specifier open for a later import declaration that does bind a value.
- */
-function valueImports(
-  sourceFile: SourceFile,
-  specifiers: ReadonlySet<string>,
-): Map<string, string> {
-  const found = new Map<string, string>()
-  for (const imp of sourceFile.getImportDeclarations()) {
-    const specifier = imp.getModuleSpecifierValue()
-    if (!specifiers.has(specifier) || imp.isTypeOnly() || found.has(specifier)) continue
-    const name = firstValueImport(imp)
-    if (name) found.set(specifier, name)
-  }
-  return found
-}
-
-/** The file's path as the project sees it, e.g. `src/components/data-table/view-options.tsx`. */
-function displayPath(file: string, cwd: string): string {
-  return relative(cwd, file).split(sep).join("/")
 }
 
 /**
@@ -143,22 +102,7 @@ export function refuseBreakingMigrations(
     }
   }
 
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith(".")) continue
-      if (entry.name === "node_modules") continue
-      const path = join(dir, entry.name)
-      if (entry.isDirectory()) {
-        if (path !== config.resolved.ui) walk(path)
-        continue
-      }
-      if (entry.name.endsWith(".d.ts")) continue
-      const dot = entry.name.lastIndexOf(".")
-      if (dot === -1 || !SOURCE_EXTENSIONS.has(entry.name.slice(dot))) continue
-      scanFile(path)
-    }
-  }
-  walk(config.cwd)
+  walkProjectSources(config, scanFile)
 
   const refused = new Set<string>()
   for (const result of results) {

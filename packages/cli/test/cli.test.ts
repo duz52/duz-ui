@@ -546,6 +546,66 @@ test("doctor reports facts and repairs nothing", () => {
   }
 })
 
+test("doctor names a library drawn without the component that would read it", () => {
+  const dir = createProject(["tabs", "button"])
+  try {
+    writeFileSync(
+      join(dir, "src/overview.tsx"),
+      [
+        'import { Bar, BarChart } from "recharts"',
+        'import { CheckIcon } from "lucide-react"',
+        "",
+        "export function Overview() {",
+        "  return <BarChart data={[]}><Bar dataKey=\"total\" /><CheckIcon /></BarChart>",
+        "}",
+        "",
+      ].join("\n"),
+    )
+
+    const result = run(dir, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+
+    // recharts is declared by `chart` alone, so it names the component the
+    // page is missing: the chart's numbers reach nobody until it is installed.
+    assert.match(result.output, /recharts/)
+    assert.match(result.output, /src\/overview\.tsx/)
+    assert.match(result.output, /add chart/)
+
+    // lucide-react is declared by twenty components, so it is infrastructure
+    // and names none. Reporting it would bury the one finding that matters
+    // under a line for every icon an application draws.
+    assert.equal(
+      /lucide-react/.test(result.output),
+      false,
+      `a package many components declare must not be reported: ${result.output}`,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("doctor says nothing about a library whose component is installed", () => {
+  const dir = createProject(["tabs", "command"])
+  try {
+    // cmdk is `command`'s primitive, and command is installed: the
+    // application drawing with it directly is how that component is used.
+    writeFileSync(
+      join(dir, "src/palette.tsx"),
+      ['import { Command } from "cmdk"', "", "export const Palette = Command", ""].join("\n"),
+    )
+
+    const result = run(dir, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+    assert.equal(
+      /Drawn without/.test(result.output),
+      false,
+      `an installed component is not a finding: ${result.output}`,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test("doctor does not create anything in an untouched project", () => {
   const dir = createProject(["tabs"])
   try {

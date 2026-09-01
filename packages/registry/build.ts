@@ -212,10 +212,15 @@ for (const item of manifest.items) {
     type: item.type,
     title: item.title,
     description: item.description,
-    // A base-specific item's npm dependencies differ per base, so the
-    // base-agnostic index carries none; the per-base item document is
-    // authoritative.
-    ...(item.baseSpecific ? {} : { dependencies: item.dependencies }),
+    // The declared list, which the manifest states once and is therefore
+    // base-independent by construction. What differs per base is the primitive
+    // a variant's own source imports, derived in `resolveDependencies`; that
+    // resolved list stays in the per-base item document, which remains
+    // authoritative for installing. Withholding the declared list from
+    // base-specific items left the index unable to answer which package a
+    // component exists to wrap — the question `doctor` asks to notice a
+    // library an application draws with directly.
+    dependencies: item.dependencies,
     registryDependencies: item.registryDependencies,
   }
 
