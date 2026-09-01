@@ -5,8 +5,8 @@
  * `duz-ui add` fetches it over HTTP from exactly there. Vite refuses to let
  * JavaScript import anything under `public/` — a static import or an
  * `import.meta.glob` of those files fails the dev server outright — so this
- * module reads the registry the same way a user's CLI does, over HTTP, from
- * route loaders.
+ * module reads those files at request time, through the Worker's asset
+ * binding.
  *
  * Two requests, two sizes: the index (`registry.json`, no file contents) for
  * navigation, and one item document for the page being rendered. The
@@ -18,6 +18,10 @@
  * shadcn does it: a component missing from a base simply has no page there,
  * rather than being greyed out or redirected to a default base.
  */
+
+import type { RouterContextProvider } from "react-router"
+
+import { cloudflare } from "@/cloudflare"
 
 export interface GalleryItem {
   name: string
@@ -65,16 +69,34 @@ export const BASE_TITLES: Record<string, string> = {
 
 const REGISTRY_ROOT = "/r/"
 
-/** Read a registry document relative to the request's own origin. */
-async function readDocument<T>(request: Request, path: string): Promise<T | undefined> {
-  const response = await fetch(new URL(`${REGISTRY_ROOT}${path}`, request.url))
+/**
+ * Read a registry document from the deployment's own asset store.
+ *
+ * Through the binding, never over HTTP: this Worker is the origin for every
+ * path on its hostname, so a request to its own URL loops back into the
+ * Worker instead of reaching the file. The binding reads the asset store
+ * directly, and costs no edge round trip.
+ */
+async function readDocument<T>(
+  context: Readonly<RouterContextProvider>,
+  request: Request,
+  path: string,
+): Promise<T | undefined> {
+  const { env } = context.get(cloudflare)
+  const response = await env.ASSETS.fetch(
+    new URL(`${REGISTRY_ROOT}${path}`, request.url),
+  )
   if (!response.ok) return undefined
   return (await response.json()) as T
 }
 
 /** The index: every item's metadata, without any file contents. */
-export async function fetchIndex(request: Request): Promise<GalleryIndexItem[]> {
+export async function fetchIndex(
+  context: Readonly<RouterContextProvider>,
+  request: Request,
+): Promise<GalleryIndexItem[]> {
   const index = await readDocument<{ items: GalleryIndexItem[] }>(
+    context,
     request,
     "registry.json",
   )
@@ -129,6 +151,7 @@ export function basesFor(items: GalleryIndexItem[], name: string): string[] {
 
 /** One full item document, or undefined when the base does not carry it. */
 export async function fetchItem(
+  context: Readonly<RouterContextProvider>,
   request: Request,
   items: GalleryIndexItem[],
   base: string,
@@ -137,7 +160,7 @@ export async function fetchItem(
   const entry = items.find((candidate) => candidate.name === name)
   if (!entry || !carriedBy(entry, items).includes(base)) return undefined
   const path = entry.bases ? `${base}/${name}.json` : `${name}.json`
-  const document = await readDocument<RegistryItemFile>(request, path)
+  const document = await readDocument<RegistryItemFile>(context, request, path)
   if (!document) return undefined
   return { ...document, base: entry.bases ? base : null }
 }

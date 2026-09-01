@@ -2,6 +2,9 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "duz-ui-gallery",
   "main": "./workers/app.ts",
+  // The registry documents under public/r/ are read by route loaders through
+  // this binding; a Worker cannot reach its own assets over HTTP.
+  "assets": { "binding": "ASSETS" },
   "routes": [{ "pattern": "ui.duz52.com", "custom_domain": true }],
   "compatibility_date": "2026-08-20",
   "compatibility_flags": ["nodejs_compat"],

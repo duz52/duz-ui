@@ -16,9 +16,10 @@ import { SidebarProvider } from "@/components/radix/ui/sidebar"
 // demonstrated on the Sidebar component's own page, with an example built
 // for it.
 export async function loader({
+  context,
   request,
 }: Route.LoaderArgs): Promise<{ items: GalleryIndexItem[] }> {
-  return { items: await fetchIndex(request) }
+  return { items: await fetchIndex(context, request) }
 }
 
 export default function GalleryLayout(): React.JSX.Element {

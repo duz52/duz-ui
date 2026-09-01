@@ -22,11 +22,18 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export async function loader({
+  context,
   params,
   request,
 }: Route.LoaderArgs): Promise<{ item: GalleryItem }> {
-  const items = await fetchIndex(request)
-  const item = await fetchItem(request, items, params.base ?? "", params.name ?? "")
+  const items = await fetchIndex(context, request)
+  const item = await fetchItem(
+    context,
+    request,
+    items,
+    params.base ?? "",
+    params.name ?? "",
+  )
   if (!item) {
     throw new Response("Not Found", { status: 404 })
   }
