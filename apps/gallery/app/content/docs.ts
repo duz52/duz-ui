@@ -33,11 +33,7 @@ export const DOC_PAGES: DocPage[] = [
       },
       {
         type: "p",
-        text: "The guiding principle is BASED: clean does not mean closed, minimal does not mean inflexible. The irreducible concepts remain stable while behaviour around them is replaceable.",
-      },
-      {
-        type: "p",
-        text: "The irreducible concept is simple: a mounted UI component may expose semantic capabilities that an agent can invoke. Everything else — shadcn, the CLI, codemods, WebMCP — is an adapter around that concept.",
+        text: "One idea carries the whole system: a mounted UI component may expose semantic capabilities that an agent can invoke. Everything else — shadcn, the CLI, codemods, WebMCP — is an adapter around it.",
       },
       { type: "h2", text: "Layer chain" },
       {
@@ -51,7 +47,7 @@ export const DOC_PAGES: DocPage[] = [
       },
       {
         type: "p",
-        text: "No layer may independently reconstruct another layer's truth. The registry is canonical for live capabilities; React is canonical for component state; the adapter is the only layer that touches `document.modelContext`.",
+        text: "No layer reconstructs another layer's truth. The registry is canonical for live capabilities; React is canonical for component state; the adapter is the only layer that touches `document.modelContext`.",
       },
       { type: "h2", text: "Product promise" },
       {
@@ -435,9 +431,9 @@ function getModelContext(): WebMCP.ModelContext | undefined {
     body: [
       {
         type: "p",
-        text: "Agent-visible state must be a semantic subset of component state. The capability layer must not expose arbitrary component props. What the agent sees is what the component's `read()` returns — nothing more.",
+        text: "Agent-visible state is a semantic subset of component state. The capability layer does not expose arbitrary component props. What the agent sees is what the component's `read()` returns — nothing more.",
       },
-      { type: "h2", text: "What must never be exposed automatically" },
+      { type: "h2", text: "What is never exposed automatically" },
       {
         type: "list",
         items: [
@@ -464,7 +460,7 @@ function getModelContext(): WebMCP.ModelContext | undefined {
       { type: "h2", text: "Business actions are explicit" },
       {
         type: "p",
-        text: "Agent UI must not infer business semantics from presentation. A generic button cannot know what its `onClick` means, so it never becomes an automatic agent action. No heuristic may infer buy, delete, send, transfer, publish, or submit from button text.",
+        text: "Agent UI does not infer business semantics from presentation. A generic button cannot know what its `onClick` means, so it never becomes an automatic agent action. No heuristic infers buy, delete, send, transfer, publish, or submit from button text.",
       },
       {
         type: "p",
@@ -594,55 +590,48 @@ WebMCP
     ],
   },
 
-  // ---------------------------------------------------------------- 7. invariants
+  // ---------------------------------------------------------------- 7. guarantees
   {
-    slug: "invariants",
-    title: "Invariants and Stop Conditions",
+    slug: "guarantees",
+    title: "Guarantees",
     summary:
-      "The fifteen invariants the system must uphold, and the conditions under which an implementation must be rejected.",
+      "What Agent UI promises about your application, and the things it will never do to it.",
     body: [
-      { type: "h2", text: "Invariants" },
       {
         type: "p",
-        text: "These fifteen properties must hold at all times. They are the contract every layer — kernel, binding, adapter, CLI, codemod — is built against.",
+        text: "Agent UI adds a second user to an interface you already own. These are the promises that make that safe to accept. They hold for every supported component, on every page, whether or not an agent is present.",
       },
+      { type: "h2", text: "Your application stays yours" },
       {
         type: "list",
         items: [
-          "React/application state is canonical.",
-          "Every mounted capability has exactly one identity.",
-          "Capability availability equals component availability.",
-          "Capability semantics are owned by component bindings.",
-          "The registry is the only live capability index.",
-          "Only the protocol adapter touches WebMCP.",
-          "WebMCP tools dispatch through the registry.",
-          "Tool count scales with capability kinds, not instances.",
-          "Codemods modify source but do not define semantics.",
-          "CLI commands orchestrate tooling but do not own runtime behaviour.",
-          "No DOM automation compensates for missing semantics.",
-          "Business actions are explicit.",
-          "Unsupported components remain ordinary React components.",
-          "Running migration repeatedly cannot create additional mechanisms.",
-          "Removing Agent UI must not alter unrelated application behaviour.",
+          "Your React state is the only source of truth. Agent UI reads and writes through your component's own state and keeps no second copy that can drift out of step with it.",
+          "Components Agent UI does not support are ordinary React components, untouched.",
+          "You never write WebMCP code. Components speak to the capability registry, and a single adapter is the only thing that touches `document.modelContext`.",
+          "`agent-ui migrate` rewrites imports and component sources. It never invents behaviour — semantics live in the components themselves.",
+          "Running `agent-ui migrate` again finds nothing left to do, rather than layering a second mechanism on the first.",
+          "Removing Agent UI leaves the rest of your application behaving exactly as it did.",
         ],
       },
-      { type: "h2", text: "Stop conditions" },
-      {
-        type: "p",
-        text: "Reject an implementation when any of these conditions appear. Do not add a compensating layer — replace the broken owner or boundary instead.",
-      },
+      { type: "h2", text: "What an agent can rely on" },
       {
         type: "list",
         items: [
-          "React state and Agent UI maintain separate canonical values.",
-          "A component and the WebMCP adapter independently define the same semantic action.",
-          "Capability identity is reconstructed from DOM presentation.",
-          "A codemod embeds WebMCP protocol logic directly into components.",
-          "Every component instance registers its own duplicate tool family.",
-          "DOM clicking exists as fallback for failed semantic dispatch.",
-          "Business meaning is guessed from visible text.",
-          "Migration adds wrappers around an obsolete integration instead of removing it.",
-          "The same integration bug requires a third special case.",
+          "Every agent-operable element has exactly one id, and it stays the same for as long as the element is mounted — an agent holding an id can come back to it later.",
+          "An element is operable exactly while it is on the page. Unmount it and its id stops resolving, with an error that says so rather than a silent no-op.",
+          "The component decides what an action means. `select` on a tab set moves the tab; the agent never learns how it does that.",
+          "An action's result reports the state your component committed, not the state that was requested. A controlled component that rejects a value is reported honestly.",
+          "The number of tools scales with kinds of capability, not with instances. A table of five hundred rows exposes the same tools as a table of five.",
+        ],
+      },
+      { type: "h2", text: "What never happens" },
+      {
+        type: "list",
+        items: [
+          "No DOM automation. Where a semantic action is missing the request is refused — nothing clicks, types, or scrolls on an agent's behalf to paper over the gap.",
+          "No business meaning guessed from what a button says. Consequential actions exist only where you declared them with `AgentAction`.",
+          "No identity read out of presentation. A label that changes does not rename the element an agent is holding.",
+          "Nothing hidden becomes readable. What the agent sees is what the component's `read()` returns, and no more.",
         ],
       },
     ],
