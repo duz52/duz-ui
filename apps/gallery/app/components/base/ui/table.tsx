@@ -30,6 +30,8 @@ type TableContentState = {
   rows: Record<string, string>[]
   renderedRowCount: number
   totalRowCount: number | null
+  /** Present only when `totalRowCount` is null. See TOTAL_UNKNOWN. */
+  totalUnknown?: string
 }
 
 /**
@@ -47,6 +49,23 @@ function parseTotalRowCount(root: HTMLTableElement): number | null {
   if (!Number.isInteger(total) || total < 0) return null
   return total
 }
+
+/**
+ * What an absent total means, said where the agent reads it.
+ *
+ * `null` on its own reads as "there is no more". A benchmark operator asked a
+ * paginated task table for forty rows, received the ten that were mounted with
+ * no total beside them, and took those ten for all forty that existed. The
+ * count is missing because the page never declared one, which is a different
+ * fact from a table with nothing else in it — and the difference is the whole
+ * answer to "how many are there".
+ *
+ * Still no inference: a total guessed from pagination controls would be a
+ * number that can be wrong, which is worse than one that is absent.
+ */
+const TOTAL_UNKNOWN =
+  "the table declares no aria-rowcount; renderedRowCount and any window total count only the rows mounted now, which may be one page of more"
+
 
 function Table({
   className,
@@ -84,14 +103,18 @@ function Table({
         return cells
       })
 
+      // The total comes only from the standard ARIA attribute, never from
+      // pagination controls or anything else. When the page declares none,
+      // the state says so rather than leaving a bare null to be read as
+      // "these are all the rows there are".
+      const totalRowCount = parseTotalRowCount(root)
+
       return {
         columns,
         rows,
         renderedRowCount: rowElements.length,
-        // The total comes only from the standard ARIA attribute, never from
-        // pagination controls or anything else: an inferred total that is
-        // wrong is worse than an absent one.
-        totalRowCount: parseTotalRowCount(root),
+        totalRowCount,
+        ...(totalRowCount === null ? { totalUnknown: TOTAL_UNKNOWN } : {}),
       }
     },
     actions: {},

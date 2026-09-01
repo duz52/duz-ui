@@ -2149,6 +2149,7 @@ for (const base of BASES) {
       ],
       renderedRowCount: 2,
       totalRowCount: null,
+      totalUnknown: TABLE_TOTAL_UNKNOWN,
     })
 
     await tree.unmount()
@@ -3903,6 +3904,15 @@ for (const base of BASES) {
 }
 
 /**
+ * The sentence a table returns in place of a total it was never given.
+ * Duplicated from the component on purpose: an assertion that reads the value
+ * out of the source it is checking proves nothing, and a change to this
+ * wording is a change to what agents are told.
+ */
+const TABLE_TOTAL_UNKNOWN =
+  "the table declares no aria-rowcount; renderedRowCount and any window total count only the rows mounted now, which may be one page of more"
+
+/**
  * A table must not claim to know a total it cannot see. `renderedRowCount`
  * is what the DOM actually renders; `totalRowCount` is read only from
  * `aria-rowcount`, the ARIA attribute defined for exactly this — the total
@@ -3945,6 +3955,7 @@ for (const base of BASES) {
       rows: [{ col0: "cell 0" }, { col0: "cell 1" }, { col0: "cell 2" }],
       renderedRowCount: 3,
       totalRowCount: null,
+      totalUnknown: TABLE_TOTAL_UNKNOWN,
     })
 
     await tree.unmount()
@@ -4007,9 +4018,15 @@ for (const base of BASES) {
     const state = registry.read(id) as {
       renderedRowCount: number
       totalRowCount: number | null
+      totalUnknown?: string
     }
     assert.equal(state.renderedRowCount, 3)
     assert.equal(state.totalRowCount, null)
+    assert.equal(
+      state.totalUnknown,
+      TABLE_TOTAL_UNKNOWN,
+      "ARIA's unknown total is still an absent total, and says so",
+    )
 
     await tree.unmount()
   })
