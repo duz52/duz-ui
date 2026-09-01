@@ -44,6 +44,86 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * The state variants, as shadcn defines them in `shadcn/tailwind.css` — the
+ * third stylesheet a shadcn project imports and this gallery does not.
+ *
+ * Every one matches two spellings, because the components are written once for
+ * primitives that disagree: Radix says `data-state="open"`, Base UI says
+ * `data-open`, and both say `data-orientation="vertical"`. Without these,
+ * Tailwind's built-in variant compiles `data-open:` to a bare `[data-open]`,
+ * which Radix never emits, and `data-vertical:` to `[data-vertical]`, which
+ * neither primitive emits. Measured across eleven component pages on both
+ * bases: `data-open`, `data-closed` and `data-checked` never appear on the
+ * Radix tree, and `data-horizontal` and `data-vertical` never appear on
+ * either — so a vertical toggle group laid itself out horizontally, and
+ * thirty-odd classes across six Radix components were inert.
+ *
+ * The `:not([data-open="false"])` guards are shadcn's, kept as written: they
+ * are for primitives that spell a false state out rather than omitting the
+ * attribute.
+ */
+
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-unchecked {
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-selected {
+  &:where([data-selected="true"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-active {
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
 :root {
   color-scheme: light;
   --background: oklch(1 0 0);
