@@ -9,7 +9,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Docs() {
   return (
-    <div className="py-8">
+    <div className="mx-auto max-w-3xl py-8">
       <PageHeader
         title="Documentation"
         description="The engineering contract behind agent-operable React components."

@@ -22,7 +22,10 @@ export function loader({ params }: Route.LoaderArgs) {
 export default function Doc({ loaderData }: Route.ComponentProps) {
   const { page, neighbours } = loaderData
   return (
-    <div className="py-8">
+    // Prose gets a reading measure of its own. The shell is as wide as the
+    // playground's two-column grid needs; a line of body text that long is
+    // read by scanning back to the wrong line.
+    <div className="mx-auto max-w-3xl py-8">
       <PageHeader title={page.title} description={page.summary} />
       <div className="mt-8">
         <DocBody blocks={page.body} />
