@@ -203,14 +203,18 @@ const SECTION_HEADING =
 
 // One source of truth for the page's sections: the headings below and the
 // "On This Page" rail both render from it, so they can never drift apart.
-// All six sections always render (each states its own empty case in prose),
+// All five sections always render (each states its own empty case in prose),
 // so the rail is fully static per page and correct on the server too.
+//
+// The WebMCP runner is not one of them. A tool the visitor runs has to be seen
+// moving the component it names, and a rail entry is an invitation to jump to
+// it alone — which is how it ended up five screens below the preview. It now
+// lives inside the preview section, under the element it operates.
 const SECTIONS = [
   { id: "live-preview", title: "Live Preview" },
   { id: "agent-capabilities", title: "Agent Capabilities" },
   { id: "install", title: "Install" },
   { id: "usage", title: "Usage" },
-  { id: "live-webmcp-test", title: "Live WebMCP Test" },
   { id: "source", title: "Source" },
 ] as const
 
@@ -250,8 +254,12 @@ function ExamplePreview({
     )
   }
 
+  // Capped, because this box is pinned while the runner scrolls beneath it: a
+  // tall preview — a data table, a calendar — would otherwise fill the viewport
+  // and leave no room for the tool that drives it. Shorter previews never reach
+  // the cap and are laid out exactly as before.
   return (
-    <div className="rounded-lg border border-border p-6">
+    <div className="max-h-[55svh] overflow-y-auto rounded-lg border border-border p-6">
       <Preview />
     </div>
   )
@@ -293,11 +301,36 @@ export default function Component({
           <BaseSwitcher name={item.name} base={base ?? ""} />
         </div>
 
+        {/* The preview and the runner are one block, the way shadcn keeps a
+            demo and its code in one. They differ in that both must be on
+            screen at once: a tool call is only legible if the visitor watches
+            the component move. The preview is therefore pinned inside this
+            section — its containing block spans the runner, so it stays put
+            from the first control to the last result and releases when the
+            section ends. */}
         <section id="live-preview" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Live Preview</h2>
-          <React.Suspense fallback={<PreviewFallback />}>
-            <ExamplePreview base={base ?? ""} name={item.name} />
-          </React.Suspense>
+          {/* The padding is part of the pinned state, not decoration: the
+              background must cover the strip between the header and the box,
+              or the runner scrolls through the gap and the preview reads as
+              clipped. */}
+          <div className="sticky top-14 z-10 bg-background pb-4 pt-3">
+            <React.Suspense fallback={<PreviewFallback />}>
+              <ExamplePreview base={base ?? ""} name={item.name} />
+            </React.Suspense>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <h3 className={SECTION_HEADING}>Live WebMCP Test</h3>
+            <p className="text-sm text-muted-foreground">
+              Tools are scoped to the preview above, which stays in view while
+              you run them.
+            </p>
+            {/* The examples name their main capability after the component, so
+                the runner opens on the one this page is about rather than on
+                whichever capability the preview happened to mount first. */}
+            <ToolRunner preferredTarget={`preview-${item.name}`} />
+          </div>
         </section>
 
         <section id="agent-capabilities" className="scroll-mt-20 space-y-3">
@@ -349,17 +382,6 @@ export default function Component({
           <React.Suspense fallback={<UsageFallback />}>
             <ExampleUsage base={base ?? ""} name={item.name} />
           </React.Suspense>
-        </section>
-
-        <section id="live-webmcp-test" className="scroll-mt-20 space-y-3">
-          <h2 className={SECTION_HEADING}>Live WebMCP Test</h2>
-          <p className="text-sm text-muted-foreground">
-            Tools are scoped to the preview mounted above.
-          </p>
-          {/* The examples name their main capability after the component, so
-              the runner opens on the one this page is about rather than on
-              whichever capability the preview happened to mount first. */}
-          <ToolRunner preferredTarget={`preview-${item.name}`} />
         </section>
 
         <section id="source" className="scroll-mt-20 space-y-3">
