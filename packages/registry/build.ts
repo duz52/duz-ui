@@ -65,7 +65,7 @@ function discoverBases(): string[] {
  * declared source path (relative to `src/`).
  */
 function fileMeta(src: string): { type: RegistryFile["type"]; target: string } {
-  // A lib source keeps its path: lib/agent-ui/registry.ts and lib/utils.ts
+  // A lib source keeps its path: lib/duz-ui/registry.ts and lib/utils.ts
   // land at the same place inside the user's lib alias.
   if (src.startsWith("lib/")) {
     return { type: "registry:lib", target: src }
@@ -267,13 +267,13 @@ for (const item of manifest.items) {
  * runtime.
  */
 const shippedSources = new Set(manifest.items.flatMap((item) => item.sources))
-const kernelDir = join(srcRoot, "lib", "agent-ui")
+const kernelDir = join(srcRoot, "lib", "duz-ui")
 const unshipped = readdirSync(kernelDir)
-  .map((file) => `lib/agent-ui/${file}`)
+  .map((file) => `lib/duz-ui/${file}`)
   .filter((src) => !shippedSources.has(src))
 if (unshipped.length > 0) {
   console.error(
-    `No registry item ships ${unshipped.join(", ")}. Add them to the sources of "agent-ui-runtime".`,
+    `No registry item ships ${unshipped.join(", ")}. Add them to the sources of "duz-ui-runtime".`,
   )
   process.exit(1)
 }

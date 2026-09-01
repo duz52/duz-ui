@@ -1,5 +1,5 @@
 /**
- * Agent UI — Resizable.
+ * Duz UI — Resizable.
  *
  * Presentation-only: a panel's size is a viewport preference, not
  * application state, and an agent moving a splitter is not a task anyone

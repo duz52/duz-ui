@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — Calendar.
+ * Duz UI — Calendar.
  *
  * Binds the day picker to the `date` kind. The contract speaks ISO
  * `YYYY-MM-DD` strings in every mode — never a union — because agents handle
@@ -30,10 +30,10 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { expectStringArray, rejectState } from "@/lib/agent-ui/validate"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { expectStringArray, rejectState } from "@/lib/duz-ui/validate"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 type CalendarMode = "single" | "multiple" | "range"
 

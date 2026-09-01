@@ -6,13 +6,13 @@ import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 
 import { cn } from "@/lib/utils"
-import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { pressElement } from "@/lib/agent-ui/press"
-import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { expectBoolean, expectString, rejectState } from "@/lib/agent-ui/validate"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { pressElement } from "@/lib/duz-ui/press"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { expectBoolean, expectString, rejectState } from "@/lib/duz-ui/validate"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 /**
  * A radio option inside a menu. Unlike a menu, its label is captured by the

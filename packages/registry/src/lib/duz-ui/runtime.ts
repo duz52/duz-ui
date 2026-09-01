@@ -1,5 +1,5 @@
 /**
- * Agent UI - composition root.
+ * Duz UI - composition root.
  *
  * This is the only place the capability registry and the WebMCP protocol
  * adapter meet. The kernel (`registry.ts`) does not know WebMCP exists; the
@@ -7,7 +7,7 @@
  * file wires them together.
  *
  * Composition happens here, but activation is deliberately separate from
- * lookup. `getAgentUIRuntime()` is a pure-ish lookup: it creates the runtime
+ * lookup. `getDuzUIRuntime()` is a pure-ish lookup: it creates the runtime
  * object and stores it on a global symbol, and it connects nothing. Creating
  * a plain object and reading `getCapabilityRegistry()` is idempotent and
  * observationally pure, which render can tolerate. Connecting the WebMCP
@@ -26,15 +26,15 @@
 import { connectWebMCP } from "./webmcp"
 import { getCapabilityRegistry, type CapabilityRegistry } from "./registry"
 
-export interface AgentUIRuntime {
+export interface DuzUIRuntime {
   registry: CapabilityRegistry
   /** Connects the WebMCP adapter the first time a capability commits. Idempotent. */
   activate(): void
 }
 
-const RUNTIME_KEY = Symbol.for("agent-ui.runtime")
+const RUNTIME_KEY = Symbol.for("duz-ui.runtime")
 
-type RuntimeHost = { [RUNTIME_KEY]?: AgentUIRuntime }
+type RuntimeHost = { [RUNTIME_KEY]?: DuzUIRuntime }
 
 /**
  * The single live runtime for this document. On first creation it takes the
@@ -48,13 +48,13 @@ type RuntimeHost = { [RUNTIME_KEY]?: AgentUIRuntime }
  * Keyed off a global symbol so module duplication (HMR, multiple bundles)
  * still resolves to one canonical runtime.
  */
-export function getAgentUIRuntime(): AgentUIRuntime {
+export function getDuzUIRuntime(): DuzUIRuntime {
   const host = globalThis as RuntimeHost
   const existing = host[RUNTIME_KEY]
   if (existing) return existing
   const registry = getCapabilityRegistry()
   let connected = false
-  const runtime: AgentUIRuntime = {
+  const runtime: DuzUIRuntime = {
     registry,
     activate() {
       if (connected) return

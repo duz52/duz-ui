@@ -1,5 +1,5 @@
 /**
- * Agent UI — registry install logic shared by `init`, `add` and `migrate`.
+ * Duz UI — registry install logic shared by `init`, `add` and `migrate`.
  *
  * `rewriteAliases` maps canonical registry aliases onto the project's own
  * aliases when writing files; `canonicaliseAliases` is its inverse, used by
@@ -10,7 +10,7 @@
  * and installs the union of the items' npm dependencies. Files under
  * `components/ui/` are project-owned once they land: a differing file is left
  * untouched (`refused`) unless `overwrite` is set, in which case it is rewritten
- * (`updated`). The runtime under `lib/agent-ui/` and hooks under `hooks/` are
+ * (`updated`). The runtime under `lib/duz-ui/` and hooks under `hooks/` are
  * ours and are always create-or-overwrite. `lib/utils.ts` (see
  * `PROJECT_OWNED_TARGETS`) is created when missing but never rewritten.
  */
@@ -59,7 +59,7 @@ export interface WrittenFile {
  */
 function aliasRules(config: ProjectConfig): Array<[string, string]> {
   return [
-    ["@/lib/agent-ui/", `${config.aliases.lib}/agent-ui/`],
+    ["@/lib/duz-ui/", `${config.aliases.lib}/duz-ui/`],
     ["@/components/ui/", `${config.aliases.ui}/`],
     ["@/lib/utils", config.aliases.utils],
     ["@/hooks/", `${config.aliases.hooks}/`],
@@ -91,7 +91,7 @@ function rewriteSpecifiers(
 
 /**
  * Rewrite canonical registry aliases to the project's own aliases, in import
- * specifiers only. Longest canonical prefix wins so `@/lib/agent-ui/` is
+ * specifiers only. Longest canonical prefix wins so `@/lib/duz-ui/` is
  * matched before `@/lib/utils`.
  */
 export function rewriteAliases(content: string, config: ProjectConfig): string {
@@ -116,9 +116,9 @@ export function canonicaliseAliases(content: string, config: ProjectConfig): str
 }
 
 /**
- * Registry `target` values the project owns, not Agent UI. `installItems`
+ * Registry `target` values the project owns, not Duz UI. `installItems`
  * creates these when missing but never overwrites an existing one: shadcn
- * projects keep their own helpers next to `cn` in `lib/utils.ts`, and Agent UI
+ * projects keep their own helpers next to `cn` in `lib/utils.ts`, and Duz UI
  * only needs `cn` to exist there.
  */
 const PROJECT_OWNED_TARGETS = new Set(["lib/utils.ts"])
@@ -160,7 +160,7 @@ export async function installItems(
           // lands. Leave it untouched and let the caller decide what to do.
           status = "refused"
         } else {
-          // Runtime files (lib/agent-ui/) and hooks (hooks/) are ours:
+          // Runtime files (lib/duz-ui/) and hooks (hooks/) are ours:
           // overwriting is how they are upgraded. A components/ui/ file
           // reaches here only when the caller passed `overwrite`.
           status = "updated"

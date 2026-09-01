@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI - React binding.
+ * Duz UI - React binding.
  *
  * Translates component-native behaviour into semantic capability actions.
  * React remains the canonical state owner: nothing here stores a copy of
@@ -14,7 +14,7 @@ import * as React from "react"
 import { useAgentContainer } from "./agent-container"
 import type { Capability, CapabilityResult, CapabilityState } from "./capability"
 import { CapabilityError } from "./capability"
-import { getAgentUIRuntime } from "./runtime"
+import { getDuzUIRuntime } from "./runtime"
 
 /** Value of the `agent` prop that every agent-operable component accepts. */
 export type AgentConfig = {
@@ -137,7 +137,7 @@ export function useCapability<
   // The binding asks the runtime for the registry and knows nothing about
   // any protocol. Lookup is pure: it creates the runtime object and connects
   // nothing.
-  const runtime = getAgentUIRuntime()
+  const runtime = getDuzUIRuntime()
   const { registry } = runtime
   // The instance seed React assigned to this component. It is stable for the
   // component's lifetime, which is what lets the registry hand a

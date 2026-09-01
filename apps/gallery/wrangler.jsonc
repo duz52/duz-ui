@@ -1,7 +1,8 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "agent-ui-gallery",
+  "name": "duz-ui-gallery",
   "main": "./workers/app.ts",
+  "routes": [{ "pattern": "ui.duz52.com", "custom_domain": true }],
   "compatibility_date": "2026-08-20",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {

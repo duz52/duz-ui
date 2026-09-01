@@ -9,9 +9,9 @@ import {
   agentWithElementId,
   useAccessibleName,
   useAccessibleNameResolver,
-} from "@/lib/agent-ui/agent-identity"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+} from "@/lib/duz-ui/agent-identity"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const

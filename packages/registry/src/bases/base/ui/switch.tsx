@@ -4,11 +4,11 @@ import * as React from "react"
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
 
 import { cn } from "@/lib/utils"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { expectBoolean, rejectState } from "@/lib/agent-ui/validate"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { expectBoolean, rejectState } from "@/lib/duz-ui/validate"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 type SwitchState = {
   checked: boolean

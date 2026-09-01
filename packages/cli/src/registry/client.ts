@@ -1,5 +1,5 @@
 /**
- * Agent UI — registry client.
+ * Duz UI — registry client.
  *
  * Fetches registry documents from an HTTP base URL or a local directory,
  * validates them with zod, and caches parsed items for the process lifetime.
@@ -24,7 +24,7 @@ export interface RegistryClient {
 }
 
 export function defaultRegistrySource(): string {
-  return process.env.AGENT_UI_REGISTRY ?? "https://agent-ui.dev/r"
+  return process.env.DUZ_UI_REGISTRY ?? "https://ui.duz52.com/r"
 }
 
 /**

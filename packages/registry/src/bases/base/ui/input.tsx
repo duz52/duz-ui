@@ -4,10 +4,10 @@ import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { expectString, rejectState } from "@/lib/agent-ui/validate"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { expectString, rejectState } from "@/lib/duz-ui/validate"
 
 // A native <input> has exactly one semantic channel for changing its value:
 // setting the .value property and letting the input event propagate. React's

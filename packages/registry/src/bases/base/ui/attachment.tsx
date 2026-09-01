@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — Attachment.
+ * Duz UI — Attachment.
  *
  * Presentation-only, deliberately: this is a display card for a file the
  * application already owns, not a file input. Its `state` ("idle" |

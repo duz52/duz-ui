@@ -1,8 +1,8 @@
 /**
- * Agent UI — codemod component signatures.
+ * Duz UI — codemod component signatures.
  *
  * Each signature describes a stock shadcn/ui implementation that
- * `agent-ui migrate` can safely replace with the Agent UI version from the
+ * `duz-ui migrate` can safely replace with the Duz UI version from the
  * registry. Lists are derived from the vendored stock sources in
  * `packages/cli/stock/<base>/*.tsx`. Do not edit them by hand
  * unless the stock source changes.

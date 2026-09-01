@@ -1,6 +1,6 @@
 /**
  * Tests for the migration codemod: `planMigration`, `applyMigration`, and
- * `classify`. Run with `pnpm --filter agent-ui test`.
+ * `classify`. Run with `pnpm --filter duz-ui test`.
  */
 
 import { describe, it } from "node:test"
@@ -49,12 +49,12 @@ function baseConfig(base: StockBase): string {
 }
 
 /**
- * Build a minimal replacement that carries the Agent UI runtime import and
+ * Build a minimal replacement that carries the Duz UI runtime import and
  * exports every name the signature requires. Derived from SIGNATURES so a
  * signature added tomorrow is covered without anyone remembering to hand-write
  * a matching stub. The stub is intentionally minimal — the recognition test
  * checks that planMigration identifies known stock, not that the replacement is
- * the real Agent UI implementation.
+ * the real Duz UI implementation.
  */
 function stubReplacement(name: string): string {
   const signature = SIGNATURES.find((s) => s.name === name)
@@ -70,7 +70,7 @@ function stubReplacement(name: string): string {
     .join("\n")
   const body = [functions, consts].filter((s) => s.length > 0).join("\n")
   return [
-    'import { useCapability } from "@/lib/agent-ui/use-capability"',
+    'import { useCapability } from "@/lib/duz-ui/use-capability"',
     "",
     body,
     "",
@@ -80,14 +80,14 @@ function stubReplacement(name: string): string {
 }
 
 /**
- * A minimal replacement that carries an Agent UI runtime import. Used to verify
- * the idempotence gate — `planMigration` must recognise the `@/lib/agent-ui/`
+ * A minimal replacement that carries an Duz UI runtime import. Used to verify
+ * the idempotence gate — `planMigration` must recognise the `@/lib/duz-ui/`
  * import prefix and report `already-migrated` without touching the file.
  */
-const AGENT_UI_REPLACEMENT = [
+const DUZ_UI_REPLACEMENT = [
   '"use client"',
   "",
-  'import { useTabsCapability } from "@/lib/agent-ui/tabs"',
+  'import { useTabsCapability } from "@/lib/duz-ui/tabs"',
   'import { Tabs as TabsPrimitive } from "radix-ui"',
   "",
   "function Tabs() {}",
@@ -99,10 +99,10 @@ const AGENT_UI_REPLACEMENT = [
   "",
 ].join("\n")
 
-const RUNTIME_PREFIX = "@/lib/agent-ui/"
+const RUNTIME_PREFIX = "@/lib/duz-ui/"
 
 /**
- * Wraps `planMigration` with the same inputs the `agent-ui migrate` command
+ * Wraps `planMigration` with the same inputs the `duz-ui migrate` command
  * supplies: the project config is loaded with `loadProject` against the
  * temp project, never hand-constructed. A test that invents its own config
  * is testing a fiction.
@@ -166,17 +166,17 @@ describe("planMigration — idempotence (spec section 18)", () => {
     await withTempProject(
       {
         "components.json": baseConfig("radix"),
-        "components/ui/tabs.tsx": AGENT_UI_REPLACEMENT,
+        "components/ui/tabs.tsx": DUZ_UI_REPLACEMENT,
       },
       async (dir) => {
         const file = join(dir, "components/ui/tabs.tsx")
         const before = readFileSync(file, "utf8")
 
-        const outcome = await plan(dir, file, "tabs", AGENT_UI_REPLACEMENT)
+        const outcome = await plan(dir, file, "tabs", DUZ_UI_REPLACEMENT)
         assert.equal(outcome.status, "already-migrated")
 
         // applyMigration on a non-migrated outcome is a no-op.
-        applyMigration(outcome, AGENT_UI_REPLACEMENT)
+        applyMigration(outcome, DUZ_UI_REPLACEMENT)
 
         const after = readFileSync(file, "utf8")
         assert.equal(before, after)

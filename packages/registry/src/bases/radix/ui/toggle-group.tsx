@@ -6,11 +6,11 @@ import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { toggleVariants } from "@/components/ui/toggle"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { expectString, expectStringArray, rejectState } from "@/lib/agent-ui/validate"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { agentWithElementId, useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { expectString, expectStringArray, rejectState } from "@/lib/duz-ui/validate"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants> & {

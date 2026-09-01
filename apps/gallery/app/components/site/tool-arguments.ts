@@ -9,8 +9,8 @@
  * for the first Run.
  */
 
-import type { CapabilityState } from "@/lib/agent-ui/capability"
-import type { AgentTool } from "@/lib/agent-ui/tools"
+import type { CapabilityState } from "@/lib/duz-ui/capability"
+import type { AgentTool } from "@/lib/duz-ui/tools"
 
 export type Choice = { value: string; label: string; disabled?: boolean }
 

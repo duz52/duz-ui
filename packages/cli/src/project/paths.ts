@@ -1,5 +1,5 @@
 /**
- * Agent UI — pure path helpers.
+ * Duz UI — pure path helpers.
  *
  * No I/O. These are the building blocks `config.ts` and `install.ts` use to
  * turn aliases and registry targets into absolute filesystem paths.

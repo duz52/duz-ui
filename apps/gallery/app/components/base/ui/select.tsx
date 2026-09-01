@@ -5,9 +5,9 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { expectString, rejectState } from "@/lib/agent-ui/validate"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { expectString, rejectState } from "@/lib/duz-ui/validate"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 interface OptionEntry {
   value: string

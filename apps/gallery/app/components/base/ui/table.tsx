@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils"
 import {
   AgentContainerProvider,
   useAgentItemPosition,
-} from "@/lib/agent-ui/agent-container"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { readText } from "@/lib/agent-ui/agent-content"
+} from "@/lib/duz-ui/agent-container"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { readText } from "@/lib/duz-ui/agent-content"
 
 /** Cap for each table cell reported to an agent. */
 const CELL_MAX_LENGTH = 200

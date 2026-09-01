@@ -1,32 +1,32 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
-  "name": "agent-ui",
-  "homepage": "https://agent-ui.dev",
+  "name": "duz-ui",
+  "homepage": "https://ui.duz52.com",
   "items": [
     {
-      "name": "agent-ui-runtime",
+      "name": "duz-ui-runtime",
       "type": "registry:lib",
-      "title": "Agent UI Runtime",
+      "title": "Duz UI Runtime",
       "description": "The capability kernel, registry, WebMCP bridge and hooks that every agent-native component binds to.",
       "dependencies": [],
       "registryDependencies": [],
       "sources": [
-        "lib/agent-ui/agent-action.tsx",
-        "lib/agent-ui/agent-container.tsx",
-        "lib/agent-ui/agent-content.tsx",
-        "lib/agent-ui/agent-identity.ts",
-        "lib/agent-ui/agent-page.tsx",
-        "lib/agent-ui/capability.ts",
-        "lib/agent-ui/press.ts",
-        "lib/agent-ui/registry.ts",
-        "lib/agent-ui/runtime.ts",
-        "lib/agent-ui/tools.ts",
-        "lib/agent-ui/use-capabilities.ts",
-        "lib/agent-ui/use-capability.ts",
-        "lib/agent-ui/use-controllable-state.ts",
-        "lib/agent-ui/use-merged-ref.ts",
-        "lib/agent-ui/validate.ts",
-        "lib/agent-ui/webmcp.ts"
+        "lib/duz-ui/agent-action.tsx",
+        "lib/duz-ui/agent-container.tsx",
+        "lib/duz-ui/agent-content.tsx",
+        "lib/duz-ui/agent-identity.ts",
+        "lib/duz-ui/agent-page.tsx",
+        "lib/duz-ui/capability.ts",
+        "lib/duz-ui/press.ts",
+        "lib/duz-ui/registry.ts",
+        "lib/duz-ui/runtime.ts",
+        "lib/duz-ui/tools.ts",
+        "lib/duz-ui/use-capabilities.ts",
+        "lib/duz-ui/use-capability.ts",
+        "lib/duz-ui/use-controllable-state.ts",
+        "lib/duz-ui/use-merged-ref.ts",
+        "lib/duz-ui/validate.ts",
+        "lib/duz-ui/webmcp.ts"
       ]
     },
     {
@@ -65,7 +65,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/button.tsx"
@@ -233,7 +233,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/card.tsx"
@@ -429,7 +429,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/sonner.tsx"
@@ -470,7 +470,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/table.tsx"
@@ -496,7 +496,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/tabs.tsx"
@@ -524,7 +524,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/select.tsx"
@@ -553,7 +553,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/native-select.tsx"
@@ -582,7 +582,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button",
         "input-group"
       ],
@@ -619,7 +619,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/checkbox.tsx"
@@ -647,7 +647,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button"
       ],
       "sources": [
@@ -675,7 +675,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/input.tsx"
@@ -702,7 +702,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/textarea.tsx"
@@ -729,7 +729,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/switch.tsx"
@@ -757,7 +757,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/radio-group.tsx"
@@ -787,7 +787,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "table",
         "button",
         "checkbox"
@@ -822,7 +822,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/sheet.tsx"
@@ -849,7 +849,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button"
       ],
       "sources": [
@@ -879,7 +879,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/toggle.tsx"
@@ -907,7 +907,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "toggle"
       ],
       "sources": [
@@ -941,7 +941,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/collapsible.tsx"
@@ -969,7 +969,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/popover.tsx"
@@ -1000,7 +1000,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button",
         "input",
         "separator",
@@ -1037,7 +1037,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/accordion.tsx"
@@ -1064,7 +1064,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/slider.tsx"
@@ -1090,7 +1090,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/progress.tsx"
@@ -1116,7 +1116,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/input-otp.tsx"
@@ -1145,7 +1145,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/dropdown-menu.tsx"
@@ -1192,7 +1192,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/hover-card.tsx"
@@ -1242,7 +1242,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/context-menu.tsx"
@@ -1291,7 +1291,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/menubar.tsx"
@@ -1348,7 +1348,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/navigation-menu.tsx"
@@ -1375,7 +1375,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/drawer.tsx"
@@ -1405,7 +1405,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "dialog",
         "input-group"
       ],
@@ -1446,7 +1446,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/chart.tsx"
@@ -1531,7 +1531,7 @@
       "registryDependencies": [
         "utils",
         "button",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "sources": [
         "ui/calendar.tsx"

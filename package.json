@@ -1,11 +1,11 @@
 {
-  "name": "agent-ui-monorepo",
+  "name": "duz-ui-monorepo",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.20.0",
   "scripts": {
-    "build:registry": "pnpm --filter @agent-ui/registry build",
-    "build:cli": "pnpm --filter agent-ui build",
+    "build:registry": "pnpm --filter @duz-ui/registry build",
+    "build:cli": "pnpm --filter duz-ui build",
     "sync:gallery": "pnpm build:registry && pnpm build:cli && node scripts/sync-gallery.mjs",
     "build": "pnpm sync:gallery && pnpm --filter gallery build",
     "dev": "pnpm --filter gallery dev",

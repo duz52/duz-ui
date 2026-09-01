@@ -1,5 +1,5 @@
 /**
- * Agent UI — capability registry.
+ * Duz UI — capability registry.
  *
  * Exactly one live registry per document runtime. Registration defines
  * availability; unregistration defines disappearance. There is no
@@ -161,7 +161,7 @@ function createRegistry(): CapabilityRegistry {
       const existing = capabilities.get(capability.id)
       if (existing && existing !== capability) {
         throw new Error(
-          `Agent UI: duplicate capability id "${capability.id}". ` +
+          `Duz UI: duplicate capability id "${capability.id}". ` +
             `Every mounted capability must have exactly one identity — give one of them a distinct \`agent.id\`.`,
         )
       }
@@ -264,7 +264,7 @@ function createRegistry(): CapabilityRegistry {
   }
 }
 
-const REGISTRY_KEY = Symbol.for("agent-ui.capability-registry")
+const REGISTRY_KEY = Symbol.for("duz-ui.capability-registry")
 
 type RegistryHost = { [REGISTRY_KEY]?: CapabilityRegistry }
 

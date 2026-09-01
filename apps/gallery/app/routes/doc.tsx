@@ -6,7 +6,7 @@ import { DocBody } from "@/components/site/doc-body"
 
 export function meta({ params }: Route.MetaArgs) {
   const page = getDocPage(params.slug ?? "")
-  return [{ title: page ? `${page.title} — Agent UI` : "Agent UI" }]
+  return [{ title: page ? `${page.title} — Duz UI` : "Duz UI" }]
 }
 
 export function loader({ params }: Route.LoaderArgs) {

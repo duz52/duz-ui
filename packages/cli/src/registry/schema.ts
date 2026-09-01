@@ -1,5 +1,5 @@
 /**
- * Agent UI — registry document schemas.
+ * Duz UI — registry document schemas.
  *
  * Zod schemas mirroring the shape `packages/registry/build.ts` emits. Every
  * fetched document is validated against these before it reaches the CLI.

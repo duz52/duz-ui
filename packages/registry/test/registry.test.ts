@@ -5,8 +5,8 @@ import {
   CapabilityError,
   type Capability,
   type CapabilityResult,
-} from "../src/lib/agent-ui/capability"
-import { getCapabilityRegistry } from "../src/lib/agent-ui/registry"
+} from "../src/lib/duz-ui/capability"
+import { getCapabilityRegistry } from "../src/lib/duz-ui/registry"
 
 /**
  * The registry is the only live capability index. These tests pin the

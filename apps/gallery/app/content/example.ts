@@ -12,7 +12,7 @@ import type * as React from "react"
  *   example whose usage is identical across bases. Its imports point at the
  *   radix tree; `scripts/sync-gallery.mjs` rewrites the specifiers per base
  *   into `app/content/examples/.generated/<base>/<name>.tsx`, so every base
- *   renders the same source a user gets after `npx agent-ui add`. Every
+ *   renders the same source a user gets after `npx duz-ui add`. Every
  *   preview there uses only the props both bases' grammars share.
  * - `app/content/examples/overrides/<base>/<name>.tsx` — hand-written
  *   replacements for components whose *usage*, not just internals, differs

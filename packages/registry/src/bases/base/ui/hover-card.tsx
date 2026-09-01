@@ -1,8 +1,8 @@
 import { PreviewCard as HoverCardPrimitive } from "@base-ui/react/preview-card"
 
 import { cn } from "@/lib/utils"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 type HoverCardState = {
   open: boolean

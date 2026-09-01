@@ -1,5 +1,5 @@
 /**
- * Sticky top bar: the `agent-ui` wordmark in mono plus primary navigation.
+ * Sticky top bar: the `duz-ui` wordmark in mono plus primary navigation.
  *
  * A thin bottom border separates it from the page body. No gradient, no
  * glassmorphism — solid `bg-background`.
@@ -24,7 +24,7 @@ export function SiteHeader(): React.JSX.Element {
           to="/"
           className="font-mono text-sm font-medium tracking-tight"
         >
-          agent-ui
+          duz-ui
         </Link>
         <div className="flex items-center gap-6">
           <nav className="flex items-center gap-6">

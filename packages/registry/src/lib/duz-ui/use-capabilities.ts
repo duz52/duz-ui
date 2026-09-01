@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI - React view of the live capability registry.
+ * Duz UI - React view of the live capability registry.
  *
  * The registry owns the snapshot, so this hook is a direct
  * `useSyncExternalStore` over it. Caching the snapshot here instead would go

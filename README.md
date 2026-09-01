@@ -1,13 +1,13 @@
-# Agent UI
+# Duz UI
 
-React components that ship with native agent semantics.
+An agent-native component library.
 
-Agent UI is a shadcn-compatible component system where supported interactive
+Duz UI is a shadcn-compatible component system where supported interactive
 components expose their semantic capabilities to WebMCP-capable agents
 automatically.
 
 ```bash
-npx agent-ui migrate
+npx duz-ui migrate
 ```
 
 Run this on an existing shadcn-based React site. A component whose source is
@@ -16,7 +16,7 @@ from every known stock source is left untouched and named in the report; hand
 it over with `--overwrite`:
 
 ```bash
-npx agent-ui migrate --overwrite
+npx duz-ui migrate --overwrite
 ```
 
 A component whose exports the replacement would not preserve is refused, and
@@ -25,11 +25,11 @@ agent code and no call site changes. `migrate` accepts component names, so
 ownership can be handed over one component at a time:
 
 ```bash
-npx agent-ui migrate checkbox --overwrite
+npx duz-ui migrate checkbox --overwrite
 ```
 
 ```bash
-npx agent-ui add data-table
+npx duz-ui add data-table
 ```
 
 installs an agent-native component directly.
@@ -63,12 +63,12 @@ The full specification is `internal/specs/mvp.spec`.
 
 ```text
 packages/registry   source of truth for everything the CLI distributes
-  src/lib/agent-ui  capability kernel, React binding, WebMCP adapter
+  src/lib/duz-ui  capability kernel, React binding, WebMCP adapter
   src/ui            agent-native components
   registry.json     the shadcn-compatible registry manifest
   build.ts          inlines sources into apps/gallery/public/r/*.json
 
-packages/cli        the `agent-ui` CLI: init, add, migrate, doctor
+packages/cli        the `duz-ui` CLI: init, add, migrate, doctor
   src/codemods      ts-morph migration of stock shadcn implementations
 
 apps/gallery        docs, registry browser, WebMCP playground, challenge demo
@@ -76,7 +76,7 @@ apps/gallery        docs, registry browser, WebMCP playground, challenge demo
 ```
 
 The gallery contains **no demo-only implementation path**. Its
-`app/components/ui/` and `app/lib/agent-ui/` directories are produced by running
+`app/components/ui/` and `app/lib/duz-ui/` directories are produced by running
 the real CLI against the real registry (`pnpm sync:gallery`).
 
 ## Development
@@ -84,7 +84,7 @@ the real CLI against the real registry (`pnpm sync:gallery`).
 ```bash
 pnpm install
 pnpm build:registry     # emit apps/gallery/public/r/*.json
-pnpm build:cli          # build the agent-ui binary
+pnpm build:cli          # build the duz-ui binary
 pnpm sync:gallery       # install the registry into the gallery with the CLI
 pnpm dev                # gallery at http://localhost:5173
 ```

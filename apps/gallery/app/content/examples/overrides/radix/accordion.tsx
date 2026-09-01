@@ -21,7 +21,7 @@ export function Preview(): React.JSX.Element {
       agent={{ id: "preview-accordion", label: "Preview accordion" }}
     >
       <AccordionItem value="item-1">
-        <AccordionTrigger>What is Agent UI?</AccordionTrigger>
+        <AccordionTrigger>What is Duz UI?</AccordionTrigger>
         <AccordionContent>
           A registry of agent-native React components for real applications.
         </AccordionContent>
@@ -29,7 +29,7 @@ export function Preview(): React.JSX.Element {
       <AccordionItem value="item-2">
         <AccordionTrigger>How do I add a component?</AccordionTrigger>
         <AccordionContent>
-          Run <code>npx agent-ui add</code> and pick the component.
+          Run <code>npx duz-ui add</code> and pick the component.
         </AccordionContent>
       </AccordionItem>
     </Accordion>
@@ -42,7 +42,7 @@ export const usage = `<Accordion
   agent={{ id: "faq", label: "FAQ" }}
 >
   <AccordionItem value="item-1">
-    <AccordionTrigger>What is Agent UI?</AccordionTrigger>
+    <AccordionTrigger>What is Duz UI?</AccordionTrigger>
     <AccordionContent>…</AccordionContent>
   </AccordionItem>
 </Accordion>`

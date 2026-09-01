@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — explicit business action wrapper.
+ * Duz UI — explicit business action wrapper.
  *
  * Generic buttons do not automatically become callable agent actions (spec
  * section 6: business semantics are never inferred from presentation).
@@ -51,7 +51,7 @@ export function AgentAction(props: AgentActionProps): React.ReactNode {
 
   if (!ACTION_ID.test(id)) {
     throw new Error(
-      `Agent UI: AgentAction id "${id}" is invalid. Use 1-23 characters from A-Z, a-z, 0-9, "_", "-" or ".".`,
+      `Duz UI: AgentAction id "${id}" is invalid. Use 1-23 characters from A-Z, a-z, 0-9, "_", "-" or ".".`,
     )
   }
 

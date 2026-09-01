@@ -1,5 +1,5 @@
 /**
- * Agent UI — input validation.
+ * Duz UI — input validation.
  *
  * Agent input is untrusted. These helpers reject invalid requests with
  * messages an agent can self-correct from. They never coerce, never guess and

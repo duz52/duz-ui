@@ -2,7 +2,7 @@
  * Gallery registry reader.
  *
  * The registry is emitted to `public/r/` because that is the product surface:
- * `agent-ui add` fetches it over HTTP from exactly there. Vite refuses to let
+ * `duz-ui add` fetches it over HTTP from exactly there. Vite refuses to let
  * JavaScript import anything under `public/` — a static import or an
  * `import.meta.glob` of those files fails the dev server outright — so this
  * module reads the registry the same way a user's CLI does, over HTTP, from
@@ -102,7 +102,7 @@ function carriedBy(item: GalleryIndexItem, items: GalleryIndexItem[]): string[] 
  * `utils` lib and the `use-mobile` hook, which arrive as dependencies rather
  * than as things a reader installs or a page documents. Excluding only the
  * runtime by name left those two in the list, where every consumer then
- * dropped them silently because they have no `agentUi` status. `agent-ui add`
+ * dropped them silently because they have no `agentUi` status. `duz-ui add`
  * draws the same line at `registry:ui`.
  */
 export function listItems(

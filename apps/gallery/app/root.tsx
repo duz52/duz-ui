@@ -26,7 +26,7 @@ const THEME_BOOTSTRAP = `(() => {
   const media = matchMedia("(prefers-color-scheme: dark)")
   // Reading storage throws outright when a browser is set to block site data.
   // This runs before first paint, so an uncaught throw here is a blank page.
-  const read = () => { try { return localStorage.getItem("agent-ui-theme") } catch { return null } }
+  const read = () => { try { return localStorage.getItem("duz-ui-theme") } catch { return null } }
   const stored = read()
   root.classList.toggle("dark", stored ? stored === "dark" : media.matches)
   // With no stored choice the page keeps following the system while open.
@@ -89,7 +89,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <p className="font-mono text-sm text-muted-foreground">{status}</p>
       <h1 className="text-2xl font-semibold tracking-tight">{message}</h1>
       <a className="text-sm underline underline-offset-4" href="/">
-        Back to Agent UI
+        Back to Duz UI
       </a>
     </main>
   )

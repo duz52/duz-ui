@@ -1,5 +1,5 @@
 /**
- * Agent UI — one pass over a project's own source.
+ * Duz UI — one pass over a project's own source.
  *
  * Two commands need the same question answered about application code: which
  * files value-import a given npm package. `migrate` asks it to refuse a

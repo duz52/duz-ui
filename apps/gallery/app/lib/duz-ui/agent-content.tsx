@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — explicit content wrapper.
+ * Duz UI — explicit content wrapper.
  *
  * Content the application renders itself — a chart, a paragraph, a whole
  * panel of markup — carries no capability, so discovery never reports it and
@@ -13,8 +13,8 @@
 
 import * as React from "react"
 
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
 
 /**
  * Tags that end a line of reading.

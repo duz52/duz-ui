@@ -6,7 +6,7 @@ import { KindBadge } from "@/components/site/kind-badge"
 import { PageHeader } from "@/components/site/page-header"
 
 export function meta({}: Route.MetaArgs) {
-  return [{ title: "Components — Agent UI" }]
+  return [{ title: "Components — Duz UI" }]
 }
 
 type GalleryItemStatus = NonNullable<GalleryIndexItem["agentUi"]>["status"]

@@ -11,7 +11,7 @@ import { JSDOM } from "jsdom"
  */
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://agent-ui.test/",
+  url: "https://duz-ui.test/",
   pretendToBeVisual: true,
 })
 
@@ -35,7 +35,7 @@ Object.defineProperty(globalThis, "navigator", {
 })
 
 // Radix primitives ask for these; jsdom does not implement them. They are part
-// of the test host, not of Agent UI.
+// of the test host, not of Duz UI.
 class ResizeObserverStub {
   observe(): void {}
   unobserve(): void {}
@@ -56,8 +56,8 @@ if (!dom.window.matchMedia) {
 
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
-let registry: import("../src/lib/agent-ui/registry").CapabilityRegistry
-let createAgentTools: typeof import("../src/lib/agent-ui/tools").createAgentTools
+let registry: import("../src/lib/duz-ui/registry").CapabilityRegistry
+let createAgentTools: typeof import("../src/lib/duz-ui/tools").createAgentTools
 let Tabs: typeof import("../src/bases/radix/ui/tabs")
 let Checkbox: typeof import("../src/bases/radix/ui/checkbox")
 let Input: typeof import("../src/bases/radix/ui/input")
@@ -69,9 +69,9 @@ let Textarea: typeof import("../src/bases/radix/ui/textarea")
 before(async () => {
   React = await import("react")
   ;({ createRoot } = await import("react-dom/client"))
-  const registryModule = await import("../src/lib/agent-ui/registry")
+  const registryModule = await import("../src/lib/duz-ui/registry")
   registry = registryModule.getCapabilityRegistry()
-  ;({ createAgentTools } = await import("../src/lib/agent-ui/tools"))
+  ;({ createAgentTools } = await import("../src/lib/duz-ui/tools"))
   Tabs = await import("../src/bases/radix/ui/tabs")
   Checkbox = await import("../src/bases/radix/ui/checkbox")
   Input = await import("../src/bases/radix/ui/input")

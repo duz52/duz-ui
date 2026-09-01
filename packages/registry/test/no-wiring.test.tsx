@@ -15,11 +15,11 @@ import { JSDOM } from "jsdom"
  * cannot be one file with test A. Each test file is its own process, so the
  * jsdom host setup is duplicated from components.test.tsx rather than shared.
  *
- * Run with `pnpm --filter @agent-ui/registry test`.
+ * Run with `pnpm --filter @duz-ui/registry test`.
  */
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://agent-ui.test/",
+  url: "https://duz-ui.test/",
   pretendToBeVisual: true,
 })
 
@@ -42,7 +42,7 @@ Object.defineProperty(globalThis, "navigator", {
 })
 
 // Radix primitives ask for these; jsdom does not implement them. They are part
-// of the test host, not of Agent UI.
+// of the test host, not of Duz UI.
 class ResizeObserverStub {
   observe(): void {}
   unobserve(): void {}
@@ -71,8 +71,8 @@ if (!dom.window.matchMedia) {
  * agree with Chrome's dialect and blind to the browsers that reject it; the
  * dialects themselves are pinned in webmcp-wire.test.ts.
  *
- * Installed on the jsdom document before any Agent UI module is imported, so
- * the runtime's composition root (`getAgentUIRuntime` → `connectWebMCP`) sees
+ * Installed on the jsdom document before any Duz UI module is imported, so
+ * the runtime's composition root (`getDuzUIRuntime` → `connectWebMCP`) sees
  * a context on first access and wires the adapter to this fake.
  */
 class FakeModelContext extends EventTarget {
@@ -104,7 +104,7 @@ class FakeModelContext extends EventTarget {
       description: tool.description,
       inputSchema: tool.inputSchema,
       window: dom.window,
-      origin: "https://agent-ui.test",
+      origin: "https://duz-ui.test",
       annotations: tool.annotations,
     }))
   }

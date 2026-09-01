@@ -5,11 +5,11 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 
 import { cn } from "@/lib/utils"
-import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 /**
  * The title reports itself so the capability can carry a human-meaningful

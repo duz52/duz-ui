@@ -5,9 +5,9 @@ import {
   CapabilityError,
   type Capability,
   type CapabilityResult,
-} from "../src/lib/agent-ui/capability"
-import { getCapabilityRegistry } from "../src/lib/agent-ui/registry"
-import { createAgentTools, digest, KIND_TOOLS, type AgentTool } from "../src/lib/agent-ui/tools"
+} from "../src/lib/duz-ui/capability"
+import { getCapabilityRegistry } from "../src/lib/duz-ui/registry"
+import { createAgentTools, digest, KIND_TOOLS, type AgentTool } from "../src/lib/duz-ui/tools"
 
 /**
  * The adapter exposes a stable tool surface keyed by capability kind,
@@ -1290,7 +1290,7 @@ test("a confirmed action advertises the confirmation argument", () => {
   off()
 })
 
-test("no tool exists for a component kind Agent UI does not support", () => {
+test("no tool exists for a component kind Duz UI does not support", () => {
   const off = registry.register(stub({ id: "x", kind: "carousel", actions: ["next"] }))
   const names = createAgentTools(registry).map((tool) => tool.name)
 

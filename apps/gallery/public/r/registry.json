@@ -1,12 +1,12 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
-  "name": "agent-ui",
-  "homepage": "https://agent-ui.dev",
+  "name": "duz-ui",
+  "homepage": "https://ui.duz52.com",
   "items": [
     {
-      "name": "agent-ui-runtime",
+      "name": "duz-ui-runtime",
       "type": "registry:lib",
-      "title": "Agent UI Runtime",
+      "title": "Duz UI Runtime",
       "description": "The capability kernel, registry, WebMCP bridge and hooks that every agent-native component binds to.",
       "dependencies": [],
       "registryDependencies": []
@@ -40,7 +40,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -208,7 +208,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -404,7 +404,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -445,7 +445,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -471,7 +471,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -499,7 +499,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -528,7 +528,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -557,7 +557,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button",
         "input-group"
       ],
@@ -593,7 +593,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -621,7 +621,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button"
       ],
       "bases": [
@@ -649,7 +649,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -676,7 +676,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -703,7 +703,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -731,7 +731,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -761,7 +761,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "table",
         "button",
         "checkbox"
@@ -796,7 +796,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -823,7 +823,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button"
       ],
       "bases": [
@@ -853,7 +853,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -881,7 +881,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "toggle"
       ],
       "bases": [
@@ -915,7 +915,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -943,7 +943,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -974,7 +974,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "button",
         "input",
         "separator",
@@ -1011,7 +1011,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1038,7 +1038,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1064,7 +1064,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1090,7 +1090,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1119,7 +1119,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1166,7 +1166,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1216,7 +1216,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1265,7 +1265,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1322,7 +1322,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1349,7 +1349,7 @@
       "dependencies": [],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1379,7 +1379,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime",
+        "duz-ui-runtime",
         "dialog",
         "input-group"
       ],
@@ -1420,7 +1420,7 @@
       ],
       "registryDependencies": [
         "utils",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",
@@ -1505,7 +1505,7 @@
       "registryDependencies": [
         "utils",
         "button",
-        "agent-ui-runtime"
+        "duz-ui-runtime"
       ],
       "bases": [
         "base",

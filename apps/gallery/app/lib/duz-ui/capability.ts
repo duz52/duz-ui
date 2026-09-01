@@ -1,5 +1,5 @@
 /**
- * Agent UI — capability kernel.
+ * Duz UI — capability kernel.
  *
  * A capability is one mounted semantic UI surface. It knows nothing about
  * WebMCP, shadcn, the DOM, the CLI or codemods. It only knows how to report

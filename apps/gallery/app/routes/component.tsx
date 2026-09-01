@@ -12,12 +12,12 @@ import { ToolRunner } from "@/components/site/tool-runner"
 import { BaseSwitcher } from "@/components/site/base-switcher"
 import { PageHeader } from "@/components/site/page-header"
 import { Toc } from "@/components/site/toc"
-import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
-import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
+import { createAgentTools, type AgentTool } from "@/lib/duz-ui/tools"
+import { getCapabilityRegistry } from "@/lib/duz-ui/registry"
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
-    { title: loaderData ? `${loaderData.item.title} — Agent UI` : "Agent UI" },
+    { title: loaderData ? `${loaderData.item.title} — Duz UI` : "Duz UI" },
   ]
 }
 
@@ -340,7 +340,7 @@ export default function Component({
 
         <section id="install" className="scroll-mt-20 space-y-3">
           <h2 className={SECTION_HEADING}>Install</h2>
-          <CodeBlock code={`npx agent-ui add ${item.name}`} lang="bash" />
+          <CodeBlock code={`npx duz-ui add ${item.name}`} lang="bash" />
           {item.dependencies.length > 0 ? (
             <div className="space-y-1">
               <p className="font-mono text-[11px] text-muted-foreground">

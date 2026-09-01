@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — containment context.
+ * Duz UI — containment context.
  *
  * A capability rendered inside another capability's subtree usually belongs
  * to that container: a checkbox in a table row belongs to the table, not to

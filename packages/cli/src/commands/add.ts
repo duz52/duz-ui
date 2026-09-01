@@ -1,5 +1,5 @@
 /**
- * Agent UI — `agent-ui add` command.
+ * Duz UI — `duz-ui add` command.
  *
  * Installs agent-native components. They already carry their capability
  * bindings, so no codemod is involved. `registryDependencies` pull in the
@@ -71,7 +71,7 @@ export async function addCommand(
   const refused = result.files.filter((f) => f.status === "refused")
   const reported = result.files.filter((f) => f.status !== "refused")
 
-  title(dryRun ? "Agent UI add (dry run)" : "Agent UI add")
+  title(dryRun ? "Duz UI add (dry run)" : "Duz UI add")
   blank()
   reportFiles(reported)
   reportDependencies(result.installedDependencies)

@@ -30,11 +30,11 @@ import { JSDOM } from "jsdom"
  * The jsdom host is duplicated from components.test.tsx (each test file runs
  * in its own process) and extended below with the globals the Base UI tree
  * and the select popups need. Those bindings are part of the test host, not
- * of Agent UI.
+ * of Duz UI.
  */
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://agent-ui.test/",
+  url: "https://duz-ui.test/",
   pretendToBeVisual: true,
 })
 
@@ -64,7 +64,7 @@ Object.defineProperty(globalThis, "navigator", {
 
 // jsdom does not implement these, and Node's built-ins live in a different
 // realm than the jsdom window, so every binding below must come from
-// `dom.window`. They are part of the test host, not of Agent UI.
+// `dom.window`. They are part of the test host, not of Duz UI.
 //
 // - Element: Base UI's floating-ui layer does `instanceof Element` checks.
 // - DocumentFragment, MutationObserver: Radix's select portal and focus scope.
@@ -1130,15 +1130,15 @@ const EXTRA_MODULES = ["card", "data-table", "table"] as const
 
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
-let registry: import("../src/lib/agent-ui/registry").CapabilityRegistry
-let createAgentTools: typeof import("../src/lib/agent-ui/tools").createAgentTools
+let registry: import("../src/lib/duz-ui/registry").CapabilityRegistry
+let createAgentTools: typeof import("../src/lib/duz-ui/tools").createAgentTools
 const modules = new Map<string, ComponentModule>()
 
 before(async () => {
   React = await import("react")
   ;({ createRoot } = await import("react-dom/client"))
-  registry = (await import("../src/lib/agent-ui/registry")).getCapabilityRegistry()
-  ;({ createAgentTools } = await import("../src/lib/agent-ui/tools"))
+  registry = (await import("../src/lib/duz-ui/registry")).getCapabilityRegistry()
+  ;({ createAgentTools } = await import("../src/lib/duz-ui/tools"))
   for (const base of BASES) {
     for (const def of casesFor(base)) {
       modules.set(
@@ -4079,7 +4079,7 @@ for (const base of BASES) {
   test(`[${base}] card: content rendered inside a card belongs to that card`, async () => {
     const mod = modules.get(`${base}/card`)
     assert.ok(mod, `the ${base} card module must load`)
-    const { AgentContent } = await import("../src/lib/agent-ui/agent-content")
+    const { AgentContent } = await import("../src/lib/duz-ui/agent-content")
     const cardId = `${base}-card-owns-content`
     const innerId = `${base}-card-inner-content`
     const tree = await mount(
@@ -4428,7 +4428,7 @@ for (const base of BASES) {
  */
 for (const base of BASES) {
   test(`[${base}] data-table: select-all through the tool leaves the same state as pressing the header checkbox`, async () => {
-    const { pressElement } = (await import("../src/lib/agent-ui/press")) as {
+    const { pressElement } = (await import("../src/lib/duz-ui/press")) as {
       pressElement: (element: HTMLElement) => void
     }
 

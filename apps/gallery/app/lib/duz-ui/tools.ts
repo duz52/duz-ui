@@ -1,5 +1,5 @@
 /**
- * Agent UI — protocol-independent tool definitions.
+ * Duz UI — protocol-independent tool definitions.
  *
  * This file is deliberately separate from `webmcp.ts`: it defines the agent
  * tool surface as plain data plus executors that dispatch exclusively through
@@ -461,7 +461,7 @@ const VALUE_SETTERS = new Map<string, { action: string; argument: string }>(
     const [argument, ...rest] = Object.keys(def.inputSchema)
     if (argument === undefined || rest.length > 0) {
       throw new Error(
-        `Agent UI: "${def.name}" is marked as setting a value but takes ${
+        `Duz UI: "${def.name}" is marked as setting a value but takes ${
           rest.length + (argument === undefined ? 0 : 1)
         } arguments; a value setter takes exactly one.`,
       )
@@ -546,7 +546,7 @@ function buildListDocument(
     if (page) {
       if (pages.length > 1) {
         console.error(
-          "[agent-ui]",
+          "[duz-ui]",
           `Multiple capabilities of kind "page" are mounted; listing "${page.id}" as the page and leaving the rest out.`,
         )
       }
@@ -789,7 +789,7 @@ function makeExecutor(
       }
       // Any other thrown value is a bug in the page. Log the full error for
       // debugging; return only a neutral message that names the tool.
-      console.error("[agent-ui]", error)
+      console.error("[duz-ui]", error)
       return serialise(toolName, {
         ok: false,
         error: {
@@ -1107,7 +1107,7 @@ function createFillTool(registry: CapabilityRegistry): AgentTool {
           // here, reported neutrally. Either way the fields set before the
           // failure are still set, and the result says which.
           const refusal = error instanceof CapabilityError
-          if (!refusal) console.error("[agent-ui]", error)
+          if (!refusal) console.error("[duz-ui]", error)
           const done = applied.map((entry) => entry.target).join(", ")
           const reason = refusal ? error.message : "The page hit an unexpected error."
           return serialise("ui_fill", {
@@ -1267,7 +1267,7 @@ export function createAgentTools(registry: CapabilityRegistry): AgentTool[] {
       // not an action. Report it and expose no tool for it rather than
       // advertising an action with no description.
       console.error(
-        "[agent-ui]",
+        "[duz-ui]",
         `Capability "${capability.id}" registered as kind "action" without a description.`,
       )
       continue

@@ -6,7 +6,7 @@
  * button and horizontal-scroll behaviour with the rest of the site.
  *
  * Prose carries one piece of inline markup, the backtick, and it is rendered
- * rather than shown. The content model has always written `agent-ui migrate`
+ * rather than shown. The content model has always written `duz-ui migrate`
  * and `document.modelContext` in backticks; without this they reached the page
  * as literal grave accents, which is how an unrendered markdown file looks.
  */

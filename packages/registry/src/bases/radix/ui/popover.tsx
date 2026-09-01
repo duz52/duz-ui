@@ -4,11 +4,11 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 type PopoverState = {
   open: boolean

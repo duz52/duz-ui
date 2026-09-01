@@ -18,13 +18,13 @@ import * as React from "react"
 import { Button } from "@/components/radix/ui/button"
 import { CopyButton } from "@/components/site/copy-button"
 import { JsonBlock } from "@/components/site/json-block"
-import type { CapabilityState } from "@/lib/agent-ui/capability"
+import type { CapabilityState } from "@/lib/duz-ui/capability"
 import {
   getCapabilityRegistry,
   type CapabilityRegistry,
-} from "@/lib/agent-ui/registry"
-import { createAgentTools } from "@/lib/agent-ui/tools"
-import { executeViaWebMCP, isWebMCPSupported } from "@/lib/agent-ui/webmcp"
+} from "@/lib/duz-ui/registry"
+import { createAgentTools } from "@/lib/duz-ui/tools"
+import { executeViaWebMCP, isWebMCPSupported } from "@/lib/duz-ui/webmcp"
 import { cn } from "@/lib/utils"
 
 /** Arguments of one step: static JSON, or derived from live capability state. */

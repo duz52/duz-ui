@@ -3,7 +3,7 @@ import { CodeBlock } from "@/components/site/code-block"
 import { Prose } from "@/components/site/prose"
 
 export function meta({}: Route.MetaArgs) {
-  return [{ title: "Agent UI" }]
+  return [{ title: "Duz UI" }]
 }
 
 const PIPELINE = [
@@ -17,19 +17,19 @@ const PIPELINE = [
 const COMMANDS = [
   {
     name: "Add",
-    command: "npx agent-ui add data-table",
+    command: "npx duz-ui add data-table",
     description:
       "Installs an agent-native component with built-in capability bindings.",
   },
   {
     name: "Migrate",
-    command: "npx agent-ui migrate",
+    command: "npx duz-ui migrate",
     description:
       "Upgrades supported shadcn components in place via codemods.",
   },
   {
     name: "Inspect",
-    command: "npx agent-ui doctor",
+    command: "npx duz-ui doctor",
     description: "Inspects integration status without repairing anything.",
   },
 ] as const
@@ -38,11 +38,11 @@ export default function Home() {
   return (
     <div className="space-y-16 py-8">
       <section className="space-y-6">
-        <h1 className="font-mono text-3xl font-medium tracking-tight">agent-ui</h1>
+        <h1 className="font-mono text-3xl font-medium tracking-tight">duz-ui</h1>
         <p className="text-lg text-foreground">
           React components that ship with native agent semantics.
         </p>
-        <CodeBlock code="npx agent-ui migrate" lang="bash" />
+        <CodeBlock code="npx duz-ui migrate" lang="bash" />
         <Prose>
           <p className="text-muted-foreground">
             Run it on an existing shadcn site and supported components become

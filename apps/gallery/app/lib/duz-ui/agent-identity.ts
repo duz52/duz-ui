@@ -5,7 +5,7 @@ import * as React from "react"
 import type { AgentConfig, AgentProp } from "./use-capability"
 
 /**
- * Agent UI — identity and naming helpers for agent-operable components.
+ * Duz UI — identity and naming helpers for agent-operable components.
  *
  * The ordinary shadcn way of writing a form already carries both facts an
  * agent needs: an `id` for addressing and a `<label>` for description. These

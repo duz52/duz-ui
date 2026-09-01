@@ -1,5 +1,5 @@
 /**
- * Agent UI - WebMCP protocol adapter.
+ * Duz UI - WebMCP protocol adapter.
  *
  * The only layer that touches `document.modelContext`. It translates the
  * capability registry into WebMCP tools and dispatches agent calls back
@@ -159,7 +159,7 @@ export function connectWebMCP(registry: CapabilityRegistry): () => void {
         // Progressive enhancement again: a failed registration must never
         // break human interaction. This is the one place a catch is correct.
         console.warn(
-          "[agent-ui]",
+          "[duz-ui]",
           `Failed to register the WebMCP tool "${tool.name}":`,
           error,
         )

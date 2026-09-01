@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — page identity.
+ * Duz UI — page identity.
  *
  * A person knows what a page is for before reading a single control: the
  * heading says "User List", the subheading says what it manages. An agent gets
@@ -15,7 +15,7 @@
  * it. It renders nothing, so it can be dropped anywhere in the route.
  */
 
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 
 export interface AgentPageProps {
   /** What this page is, as its heading says it. */

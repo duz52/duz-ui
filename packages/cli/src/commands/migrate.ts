@@ -1,5 +1,5 @@
 /**
- * Agent UI — `agent-ui migrate` command.
+ * Duz UI — `duz-ui migrate` command.
  *
  * Migration is structural recognition followed by canonical replacement. The
  * command plans every component file in the project's `ui` directory before it
@@ -8,7 +8,7 @@
  * 1. Load the project and create the registry client.
  * 2. List the component files and plan every one of them — classify by name
  *    (migratable / presentation / unknown), fetch the
- *    Agent UI registry item, rewrite its import aliases to the project's
+ *    Duz UI registry item, rewrite its import aliases to the project's
  *    aliases, and run `planMigration` to decide whether the file is stock
  *    (→ replace), already migrated (→ skip), or locally modified (→ refuse).
  *    Planning is all reads.
@@ -35,7 +35,7 @@
  * before the project is touched.
  *
  * `--dry-run` takes the same decision path and simply skips the writes in
- * steps 5 to 8. Refreshing an already-installed runtime is `agent-ui init`'s
+ * steps 5 to 8. Refreshing an already-installed runtime is `duz-ui init`'s
  * job, not `migrate`'s — `migrate` writes when, and only when, it migrates
  * something.
  */
@@ -126,7 +126,7 @@ function printReport(
     }
   }
 
-  title("Agent UI migration")
+  title("Duz UI migration")
   blank()
 
   let printedAny = false
@@ -293,7 +293,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
     }
 
     const replacement = rewriteAliases(uiFile.content, config)
-    const runtimeImportPrefix = `${config.aliases.lib}/agent-ui/`
+    const runtimeImportPrefix = `${config.aliases.lib}/duz-ui/`
     const outcome = planMigration({
       file: filePath,
       component,
@@ -327,9 +327,9 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
   // Resolve the runtime — migrated components import from it.
   let runtimeItems: RegistryItem[]
   try {
-    runtimeItems = await client.resolve(["agent-ui-runtime", "utils"])
+    runtimeItems = await client.resolve(["duz-ui-runtime", "utils"])
   } catch (cause) {
-    error("Could not read the Agent UI registry.", cause)
+    error("Could not read the Duz UI registry.", cause)
     process.exitCode = 1
     return
   }
@@ -341,7 +341,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
   // created before the migrated file needs it and an existing one is kept.
   // All resolution runs before any write, so a failure to obtain a
   // dependency stops the migration before the project is touched.
-  const RUNTIME_ALREADY_INSTALLED = new Set(["agent-ui-runtime", "utils"])
+  const RUNTIME_ALREADY_INSTALLED = new Set(["duz-ui-runtime", "utils"])
   const dependencyNames = new Set<string>()
   for (const item of migratedItems) {
     for (const dep of item.registryDependencies) {
@@ -357,7 +357,7 @@ export async function migrateCommand(options: MigrateOptions = {}): Promise<void
         (item) => !RUNTIME_ALREADY_INSTALLED.has(item.name),
       )
     } catch (cause) {
-      error("Could not read the Agent UI registry.", cause)
+      error("Could not read the Duz UI registry.", cause)
       process.exitCode = 1
       return
     }

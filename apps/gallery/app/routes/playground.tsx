@@ -59,14 +59,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/ui/t
 import { Textarea } from "@/components/base/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/base/ui/toggle-group"
 import { ORDERS, type Order } from "@/data/orders"
-import { AgentAction } from "@/lib/agent-ui/agent-action"
-import type { CapabilityState } from "@/lib/agent-ui/capability"
-import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
-import { useCapabilities } from "@/lib/agent-ui/use-capabilities"
+import { AgentAction } from "@/lib/duz-ui/agent-action"
+import type { CapabilityState } from "@/lib/duz-ui/capability"
+import { getCapabilityRegistry } from "@/lib/duz-ui/registry"
+import { useCapabilities } from "@/lib/duz-ui/use-capabilities"
 import { cn } from "@/lib/utils"
 
 export function meta({}: Route.MetaArgs) {
-  return [{ title: "Playground — Agent UI" }]
+  return [{ title: "Playground — Duz UI" }]
 }
 
 const SECTION_HEADING =
@@ -715,7 +715,7 @@ export default function Playground(): React.JSX.Element {
                 agent={{ id: "pg-accordion", label: "FAQ" }}
               >
                 <AccordionItem value="what">
-                  <AccordionTrigger>What is Agent UI?</AccordionTrigger>
+                  <AccordionTrigger>What is Duz UI?</AccordionTrigger>
                   <AccordionContent>
                     A registry of agent-native React components for real
                     applications.
@@ -724,7 +724,7 @@ export default function Playground(): React.JSX.Element {
                 <AccordionItem value="add">
                   <AccordionTrigger>How do I add a component?</AccordionTrigger>
                   <AccordionContent>
-                    Run <code>npx agent-ui add</code> and pick the component.
+                    Run <code>npx duz-ui add</code> and pick the component.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

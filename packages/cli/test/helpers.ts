@@ -1,6 +1,6 @@
 /**
  * Test helper — materialises a temporary project directory with the structure
- * `agent-ui migrate` expects: a `package.json` declaring `react`, a
+ * `duz-ui migrate` expects: a `package.json` declaring `react`, a
  * `tsconfig.json` with an `@/*` path mapping, and the given component files.
  * Cleans up on exit, even if the test throws.
  */
@@ -13,7 +13,7 @@ export async function withTempProject<T>(
   files: Record<string, string>,
   fn: (dir: string) => Promise<T>,
 ): Promise<T> {
-  const dir = mkdtempSync(join(tmpdir(), "agent-ui-test-"))
+  const dir = mkdtempSync(join(tmpdir(), "duz-ui-test-"))
   try {
     writeFileSync(
       join(dir, "package.json"),

@@ -1,9 +1,9 @@
 /**
- * Agent UI — CLI logger.
+ * Duz UI — CLI logger.
  *
  * Thin wrapper over picocolors. Every user-facing string is in English.
  * `error` prints only the neutral `message`; the full `cause` goes to
- * `console.error` exclusively when `AGENT_UI_DEBUG` is set, so a stack trace
+ * `console.error` exclusively when `DUZ_UI_DEBUG` is set, so a stack trace
  * never leaks to the user otherwise.
  */
 
@@ -31,7 +31,7 @@ export function warn(message: string): void {
 
 export function error(message: string, cause?: unknown): void {
   console.error(pc.red(message))
-  if (cause !== undefined && process.env.AGENT_UI_DEBUG) {
+  if (cause !== undefined && process.env.DUZ_UI_DEBUG) {
     console.error(cause)
   }
 }

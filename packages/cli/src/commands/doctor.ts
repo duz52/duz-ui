@@ -1,5 +1,5 @@
 /**
- * Agent UI — `agent-ui doctor` command.
+ * Duz UI — `duz-ui doctor` command.
  *
  * Reports facts. It never repairs anything: repair belongs to `init`, `add` and
  * `migrate` (spec section 19). Detection is structural — a file exists, or an
@@ -28,7 +28,7 @@ const RUNTIME_PARTS: { label: string; file: string }[] = [
 ]
 
 function runtimePath(config: ProjectConfig, file: string): string {
-  return join(config.resolved.lib, "agent-ui", file)
+  return join(config.resolved.lib, "duz-ui", file)
 }
 
 function componentPath(config: ProjectConfig, name: string): string {
@@ -42,7 +42,7 @@ function componentPath(config: ProjectConfig, name: string): string {
 function isAgentNative(file: string, config: ProjectConfig): boolean {
   if (!existsSync(file)) return false
   const source = readFileSync(file, "utf8")
-  return source.includes(`${config.aliases.lib}/agent-ui/use-capability`)
+  return source.includes(`${config.aliases.lib}/duz-ui/use-capability`)
 }
 
 function installedComponentNames(config: ProjectConfig): Set<string> {
@@ -151,7 +151,7 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
   const { cwd = process.cwd(), registry } = options
   const config = await loadProject(cwd)
 
-  title("Agent UI")
+  title("Duz UI")
   blank()
 
   info("Runtime")
@@ -245,6 +245,6 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
   step(
     adapterInstalled
       ? "adapter installed; availability is a browser runtime property"
-      : "adapter not installed; run `agent-ui init`",
+      : "adapter not installed; run `duz-ui init`",
   )
 }

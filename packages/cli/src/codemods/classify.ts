@@ -1,5 +1,5 @@
 /**
- * Agent UI — codemod component classification.
+ * Duz UI — codemod component classification.
  *
  * Determines what migration should do with a component based on its file name.
  * The classification is a fact about the component kind, not a decision about
@@ -37,10 +37,10 @@ const MIGRATABLE_NAMES = new Set(SIGNATURES.map((s) => s.name))
 /**
  * Classify a component by its file base name (without extension).
  *
- * - `migratable` — the component is in the Agent UI signature set.
+ * - `migratable` — the component is in the Duz UI signature set.
  * - `presentation` — stock shadcn components with no agent semantics.
  * - `unknown` — everything else, including components that have real agent
- *   semantics but no Agent UI implementation yet (accordion, calendar, form,
+ *   semantics but no Duz UI implementation yet (accordion, calendar, form,
  *   etc.). Migration must not touch them.
  */
 export function classify(componentName: string): Classification {

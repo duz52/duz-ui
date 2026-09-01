@@ -1,5 +1,5 @@
 /**
- * Agent UI — project configuration loader.
+ * Duz UI — project configuration loader.
  *
  * Reads `package.json`, `components.json` (shadcn config) and
  * `tsconfig.json` / `jsconfig.json` to build a `ProjectConfig` that the rest of
@@ -40,7 +40,7 @@ interface ComponentsJson {
 
 /**
  * The style prefixes shadcn's encoding defines, including `aria`, which
- * Agent UI does not ship: a project asking for it must be told so plainly,
+ * Duz UI does not ship: a project asking for it must be told so plainly,
  * not silently given another base.
  */
 const KNOWN_STYLE_BASES = ["radix", "base", "aria"] as const
@@ -66,7 +66,7 @@ function resolveBase(style: string | undefined): RegistryBase {
   }
   if (!isRegistryBase(requested)) {
     throw new Error(
-      `components.json style "${style}" requests the primitive base "${requested}", which Agent UI does not provide. Available bases: ${REGISTRY_BASES.join(", ")}.`,
+      `components.json style "${style}" requests the primitive base "${requested}", which Duz UI does not provide. Available bases: ${REGISTRY_BASES.join(", ")}.`,
     )
   }
   return requested
@@ -75,7 +75,7 @@ function resolveBase(style: string | undefined): RegistryBase {
 export async function loadProject(cwd: string): Promise<ProjectConfig> {
   const packageJsonPath = join(cwd, "package.json")
   if (!existsSync(packageJsonPath)) {
-    throw new Error("Agent UI requires a React project.")
+    throw new Error("Duz UI requires a React project.")
   }
   const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     dependencies?: Record<string, string>
@@ -83,7 +83,7 @@ export async function loadProject(cwd: string): Promise<ProjectConfig> {
   }
   const allDeps = { ...pkg.dependencies, ...pkg.devDependencies }
   if (!("react" in allDeps)) {
-    throw new Error("Agent UI requires a React project.")
+    throw new Error("Duz UI requires a React project.")
   }
 
   // Read shadcn components.json when present.

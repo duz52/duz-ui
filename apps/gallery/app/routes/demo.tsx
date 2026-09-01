@@ -7,8 +7,8 @@ import {
   type Scenario,
 } from "@/components/site/scenario-runner"
 import { ToolRunner } from "@/components/site/tool-runner"
-import { AgentAction } from "@/lib/agent-ui/agent-action"
-import type { CapabilityState } from "@/lib/agent-ui/capability"
+import { AgentAction } from "@/lib/duz-ui/agent-action"
+import type { CapabilityState } from "@/lib/duz-ui/capability"
 import { Button } from "@/components/radix/ui/button"
 import { Checkbox } from "@/components/radix/ui/checkbox"
 import { DataTable, type DataTableColumn } from "@/components/radix/ui/data-table"
@@ -32,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/radix/ui/
 import { ORDERS, type Order, type OrderStatus } from "@/data/orders"
 
 export function meta({}: Route.MetaArgs) {
-  return [{ title: "Demo — Agent UI" }]
+  return [{ title: "Demo — Duz UI" }]
 }
 
 type StatusFilter = "all" | OrderStatus

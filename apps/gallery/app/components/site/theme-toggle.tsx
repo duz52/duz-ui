@@ -15,7 +15,7 @@ import { Moon, Sun } from "lucide-react"
 
 // Keep in sync with the inline bootstrap script in root.tsx, which cannot
 // import this module (it must run before first paint).
-const STORAGE_KEY = "agent-ui-theme"
+const STORAGE_KEY = "duz-ui-theme"
 
 type Theme = "light" | "dark"
 

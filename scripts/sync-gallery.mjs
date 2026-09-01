@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Populates the gallery by running the real `agent-ui` CLI against the real
+ * Populates the gallery by running the real `duz-ui` CLI against the real
  * registry output.
  *
  * The gallery is not allowed a demo-only implementation path (spec section 20):
  * every component and runtime file it renders must be the same source a user
- * receives from `npx agent-ui add`. Running the CLI here is what proves that.
+ * receives from `npx duz-ui add`. Running the CLI here is what proves that.
  *
  * The CLI takes both the base and the install location from `components.json`
  * (`style` names the base, the `ui` alias the directory), so the script runs
@@ -27,7 +27,7 @@ const gallery = path.join(root, "apps/gallery")
 const registry = path.join(root, "apps/gallery/public/r")
 
 if (!existsSync(cli)) {
-  console.error("agent-ui CLI is not built. Run `pnpm build:cli` first.")
+  console.error("duz-ui CLI is not built. Run `pnpm build:cli` first.")
   process.exit(1)
 }
 
@@ -37,7 +37,7 @@ if (!existsSync(path.join(registry, "registry.json"))) {
 }
 
 // The built registry index is the same document the CLI serves, so the
-// gallery installs exactly what `npx agent-ui add` installs. An item's
+// gallery installs exactly what `npx duz-ui add` installs. An item's
 // `bases` field says which bases carry it, and an item may exist in only
 // one — the index is the authority, never a hardcoded list.
 const registryIndex = JSON.parse(readFileSync(path.join(registry, "registry.json"), "utf8"))
@@ -76,11 +76,11 @@ function writeComponentsJson(base) {
 }
 
 function run(args) {
-  console.log(`\n$ agent-ui ${args.join(" ")}`)
+  console.log(`\n$ duz-ui ${args.join(" ")}`)
   const result = spawnSync(process.execPath, [cli, ...args], {
     cwd: gallery,
     stdio: "inherit",
-    env: { ...process.env, AGENT_UI_REGISTRY: registry },
+    env: { ...process.env, DUZ_UI_REGISTRY: registry },
   })
   if (result.status !== 0) {
     process.exit(result.status ?? 1)

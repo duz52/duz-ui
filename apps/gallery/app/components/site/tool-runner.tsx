@@ -35,10 +35,10 @@ import {
 import type {
   CapabilityDescriptor,
   CapabilityState,
-} from "@/lib/agent-ui/capability"
-import { getCapabilityRegistry } from "@/lib/agent-ui/registry"
-import { createAgentTools, type AgentTool } from "@/lib/agent-ui/tools"
-import { executeViaWebMCP, isWebMCPSupported } from "@/lib/agent-ui/webmcp"
+} from "@/lib/duz-ui/capability"
+import { getCapabilityRegistry } from "@/lib/duz-ui/registry"
+import { createAgentTools, type AgentTool } from "@/lib/duz-ui/tools"
+import { executeViaWebMCP, isWebMCPSupported } from "@/lib/duz-ui/webmcp"
 import {
   Select,
   SelectContent,

@@ -12,10 +12,10 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { agentWithElementId } from "@/lib/agent-ui/agent-identity"
-import { expectString, expectStringArray, rejectState } from "@/lib/agent-ui/validate"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { agentWithElementId } from "@/lib/duz-ui/agent-identity"
+import { expectString, expectStringArray, rejectState } from "@/lib/duz-ui/validate"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 
 interface OptionEntry {
   value: string

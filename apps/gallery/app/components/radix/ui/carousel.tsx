@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — Carousel.
+ * Duz UI — Carousel.
  *
  * Presentation-only, deliberately. A capability shaped like `{ index, count }`
  * with a `go` action would be a clean contract, but moving someone through

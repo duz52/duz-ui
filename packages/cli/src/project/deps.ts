@@ -1,5 +1,5 @@
 /**
- * Agent UI — package manager detection and dependency installation.
+ * Duz UI — package manager detection and dependency installation.
  *
  * Detects the workspace's package manager by walking up to the filesystem
  * root for a lockfile, and installs only the dependencies the project does

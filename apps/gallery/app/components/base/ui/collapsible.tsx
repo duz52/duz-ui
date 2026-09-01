@@ -3,12 +3,12 @@
 import * as React from "react"
 import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
 
-import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { useAccessibleName, useAccessibleNameResolver } from "@/lib/agent-ui/agent-identity"
-import { useControllableState } from "@/lib/agent-ui/use-controllable-state"
-import { rejectState } from "@/lib/agent-ui/validate"
+import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
+import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
+import { rejectState } from "@/lib/duz-ui/validate"
 
 type CollapsibleState = {
   open: boolean

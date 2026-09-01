@@ -3,10 +3,10 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { AgentContainerProvider } from "@/lib/agent-ui/agent-container"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
-import { readText } from "@/lib/agent-ui/agent-content"
+import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
+import { readText } from "@/lib/duz-ui/agent-content"
 
 /** Cap for each card field reported to an agent. */
 const FIELD_MAX_LENGTH = 500

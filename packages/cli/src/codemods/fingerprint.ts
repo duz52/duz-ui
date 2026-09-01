@@ -1,5 +1,5 @@
 /**
- * Agent UI — source fingerprinting primitive.
+ * Duz UI — source fingerprinting primitive.
  *
  * `fingerprintSource` produces a structural fingerprint of TSX source: the
  * SHA-256 of a token stream built by walking every descendant of the parsed

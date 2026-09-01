@@ -11,7 +11,7 @@
  * scoped @radix-ui packages, an older-generation tabs without tabsListVariants,
  * and a lib/utils.ts that carries an application-owned helper next to cn.
  *
- * Run with `pnpm --filter agent-ui test`.
+ * Run with `pnpm --filter duz-ui test`.
  */
 
 import { describe, it } from "node:test"
@@ -136,7 +136,7 @@ interface MigrationResult {
 }
 
 /**
- * Replicates the `agent-ui migrate` flow using the CLI's own entry points:
+ * Replicates the `duz-ui migrate` flow using the CLI's own entry points:
  * load the project config, install the runtime from the registry, classify
  * each component file, plan migration for migratable ones, and apply. Does
  * not spawn the CLI binary and does not call ensureDependencies for the
@@ -149,7 +149,7 @@ async function runMigration(dir: string, overwrite: boolean = false): Promise<Mi
 
   // The runtime (capability kernel + WebMCP adapter + utils) is installed
   // first, because migrated components import from it.
-  const runtimeItems = await client.resolve(["agent-ui-runtime", "utils"])
+  const runtimeItems = await client.resolve(["duz-ui-runtime", "utils"])
   await installItems(config, runtimeItems)
 
   const uiDir = config.resolved.ui
@@ -194,7 +194,7 @@ async function runMigration(dir: string, overwrite: boolean = false): Promise<Mi
     }
 
     const replacement = rewriteAliases(uiFile.content, config)
-    const runtimeImportPrefix = `${config.aliases.lib}/agent-ui/`
+    const runtimeImportPrefix = `${config.aliases.lib}/duz-ui/`
     const outcome = planMigration({
       file: filePath,
       component,
@@ -206,7 +206,7 @@ async function runMigration(dir: string, overwrite: boolean = false): Promise<Mi
     results.push({ outcome, replacement })
   }
 
-  // The same refusal pass `agent-ui migrate` runs between planning and
+  // The same refusal pass `duz-ui migrate` runs between planning and
   // writing: a replacement that would strand files mixing the project's own
   // ui module with a direct primitive import is reported unsupported.
   refuseBreakingMigrations(results, config)

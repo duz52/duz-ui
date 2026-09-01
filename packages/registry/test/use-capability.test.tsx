@@ -11,7 +11,7 @@ import { JSDOM } from "jsdom"
  */
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://agent-ui.test/",
+  url: "https://duz-ui.test/",
   pretendToBeVisual: true,
 })
 
@@ -29,27 +29,27 @@ Object.defineProperty(globalThis, "navigator", {
 
 let React: typeof import("react")
 let createRoot: typeof import("react-dom/client").createRoot
-let useCapability: typeof import("../src/lib/agent-ui/use-capability").useCapability
-let useAccessibleName: typeof import("../src/lib/agent-ui/agent-identity").useAccessibleName
-let useAccessibleNameResolver: typeof import("../src/lib/agent-ui/agent-identity").useAccessibleNameResolver
-let getCapabilityRegistry: typeof import("../src/lib/agent-ui/registry").getCapabilityRegistry
-let rejectState: typeof import("../src/lib/agent-ui/validate").rejectState
-let AgentContent: typeof import("../src/lib/agent-ui/agent-content").AgentContent
-let AgentPage: typeof import("../src/lib/agent-ui/agent-page").AgentPage
-let agentWithElementId: typeof import("../src/lib/agent-ui/agent-identity").agentWithElementId
+let useCapability: typeof import("../src/lib/duz-ui/use-capability").useCapability
+let useAccessibleName: typeof import("../src/lib/duz-ui/agent-identity").useAccessibleName
+let useAccessibleNameResolver: typeof import("../src/lib/duz-ui/agent-identity").useAccessibleNameResolver
+let getCapabilityRegistry: typeof import("../src/lib/duz-ui/registry").getCapabilityRegistry
+let rejectState: typeof import("../src/lib/duz-ui/validate").rejectState
+let AgentContent: typeof import("../src/lib/duz-ui/agent-content").AgentContent
+let AgentPage: typeof import("../src/lib/duz-ui/agent-page").AgentPage
+let agentWithElementId: typeof import("../src/lib/duz-ui/agent-identity").agentWithElementId
 
 before(async () => {
   React = await import("react")
   ;({ createRoot } = await import("react-dom/client"))
-  ;({ useCapability } = await import("../src/lib/agent-ui/use-capability"))
+  ;({ useCapability } = await import("../src/lib/duz-ui/use-capability"))
   ;({ useAccessibleName, useAccessibleNameResolver } = await import(
-    "../src/lib/agent-ui/agent-identity"
+    "../src/lib/duz-ui/agent-identity"
   ))
-  ;({ getCapabilityRegistry } = await import("../src/lib/agent-ui/registry"))
-  ;({ rejectState } = await import("../src/lib/agent-ui/validate"))
-  ;({ AgentContent } = await import("../src/lib/agent-ui/agent-content"))
-  ;({ AgentPage } = await import("../src/lib/agent-ui/agent-page"))
-  ;({ agentWithElementId } = await import("../src/lib/agent-ui/agent-identity"))
+  ;({ getCapabilityRegistry } = await import("../src/lib/duz-ui/registry"))
+  ;({ rejectState } = await import("../src/lib/duz-ui/validate"))
+  ;({ AgentContent } = await import("../src/lib/duz-ui/agent-content"))
+  ;({ AgentPage } = await import("../src/lib/duz-ui/agent-page"))
+  ;({ agentWithElementId } = await import("../src/lib/duz-ui/agent-identity"))
 })
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Agent UI — CLI entry point.
+ * Duz UI — CLI entry point.
  *
  * The single developer-facing tooling surface. It orchestrates the commands; it
  * owns no runtime behaviour and no capability semantics.
@@ -30,7 +30,7 @@ interface GlobalOptions {
 
 /**
  * Runs a command and turns any failure into one neutral line. The cause only
- * reaches the terminal when AGENT_UI_DEBUG is set, which `log.error` handles.
+ * reaches the terminal when DUZ_UI_DEBUG is set, which `log.error` handles.
  */
 function guard<Args extends unknown[]>(
   run: (...args: Args) => Promise<void>,
@@ -48,7 +48,7 @@ function guard<Args extends unknown[]>(
 const program = new Command()
 
 program
-  .name("agent-ui")
+  .name("duz-ui")
   .description("React components that ship with native agent semantics.")
   .version(packageJson.version)
   .option("--cwd <dir>", "directory to operate in", process.cwd())
@@ -63,7 +63,7 @@ function globals(): GlobalOptions {
 
 program
   .command("init")
-  .description("Install the Agent UI runtime and WebMCP adapter.")
+  .description("Install the Duz UI runtime and WebMCP adapter.")
   .option("--dry-run", "print the plan without writing anything")
   .option(...YES)
   .action(
@@ -124,7 +124,7 @@ program
 
 program
   .command("doctor")
-  .description("Report Agent UI integration status. Repairs nothing.")
+  .description("Report Duz UI integration status. Repairs nothing.")
   .option(...YES)
   .action(
     guard(async () => {

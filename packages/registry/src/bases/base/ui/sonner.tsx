@@ -3,9 +3,9 @@
 import * as React from "react"
 import { Toaster as SonnerToaster, type ToasterProps } from "sonner"
 
-import { readText } from "@/lib/agent-ui/agent-content"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
-import { useMergedRef } from "@/lib/agent-ui/use-merged-ref"
+import { readText } from "@/lib/duz-ui/agent-content"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
 
 /** Caps for the text reported for a toast's title and description. */
 const TITLE_MAX_LENGTH = 200

@@ -26,7 +26,7 @@ import { JSDOM } from "jsdom"
  */
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://agent-ui.test/",
+  url: "https://duz-ui.test/",
 })
 const globals = globalThis as Record<string, unknown>
 globals["window"] = dom.window
@@ -72,7 +72,7 @@ async function loadAdapter(dialect: Dialect) {
     configurable: true,
     value: fakeModelContext(dialect),
   })
-  return import(`../src/lib/agent-ui/webmcp.ts?dialect=${dialect}`)
+  return import(`../src/lib/duz-ui/webmcp.ts?dialect=${dialect}`)
 }
 
 for (const dialect of ["spec", "chrome"] as const) {

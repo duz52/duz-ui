@@ -4,7 +4,7 @@ import { DOC_PAGES } from "@/content/docs"
 import { PageHeader } from "@/components/site/page-header"
 
 export function meta({}: Route.MetaArgs) {
-  return [{ title: "Docs — Agent UI" }]
+  return [{ title: "Docs — Duz UI" }]
 }
 
 export default function Docs() {

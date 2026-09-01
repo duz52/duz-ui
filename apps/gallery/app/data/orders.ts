@@ -1,5 +1,5 @@
 /**
- * Agent UI gallery — demo order data.
+ * Duz UI gallery — demo order data.
  *
  * A literal array of 40 stable orders. No generator loop: the data must be
  * readable in the source and identical across renders. The `internalNote`

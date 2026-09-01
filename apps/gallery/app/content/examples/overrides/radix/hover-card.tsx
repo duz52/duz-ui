@@ -12,10 +12,10 @@ export function Preview(): React.JSX.Element {
   return (
     <HoverCard agent={{ id: "preview-hover-card", label: "Preview hover card" }}>
       <HoverCardTrigger asChild>
-        <Button variant="link">@agent-ui</Button>
+        <Button variant="link">@duz-ui</Button>
       </HoverCardTrigger>
       <HoverCardContent className="space-y-1">
-        <p className="text-sm font-medium">Agent UI</p>
+        <p className="text-sm font-medium">Duz UI</p>
         <p className="text-sm text-muted-foreground">
           Agent-native React components for real applications.
         </p>
@@ -28,7 +28,7 @@ export const usage = `// A person opens this by hovering the trigger; an agent o
 // explicitly with the "open" action.
 <HoverCard agent={{ id: "profile-card", label: "Profile" }}>
   <HoverCardTrigger asChild>
-    <Button variant="link">@agent-ui</Button>
+    <Button variant="link">@duz-ui</Button>
   </HoverCardTrigger>
   <HoverCardContent>
     <p>…</p>

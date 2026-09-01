@@ -1,7 +1,7 @@
 /**
- * Agent UI — `agent-ui init` command.
+ * Duz UI — `duz-ui init` command.
  *
- * Installs the Agent UI infrastructure and leaves application behaviour
+ * Installs the Duz UI infrastructure and leaves application behaviour
  * unchanged. Running it twice is safe: that property comes from `installItems`
  * comparing bytes, not from an "already initialised" branch.
  */
@@ -19,7 +19,7 @@ export interface InitOptions {
   registry?: string
 }
 
-/** `✓ created  lib/agent-ui/registry.ts` and friends. */
+/** `✓ created  lib/duz-ui/registry.ts` and friends. */
 export function reportFiles(files: WrittenFile[]): void {
   for (const file of files) {
     if (file.status === "unchanged") {
@@ -41,10 +41,10 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
 
   const config = await loadProject(cwd)
   const client = createRegistryClient(registry ?? defaultRegistrySource(), config.base)
-  const items = await client.resolve(["agent-ui-runtime", "utils"])
+  const items = await client.resolve(["duz-ui-runtime", "utils"])
   const result = await installItems(config, items, { dryRun })
 
-  title(dryRun ? "Agent UI init (dry run)" : "Agent UI init")
+  title(dryRun ? "Duz UI init (dry run)" : "Duz UI init")
   blank()
   reportFiles(result.files)
   reportDependencies(result.installedDependencies)

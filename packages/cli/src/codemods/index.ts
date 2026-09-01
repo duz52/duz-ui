@@ -1,5 +1,5 @@
 /**
- * Agent UI — migration codemod.
+ * Duz UI — migration codemod.
  *
  * Migration is structural recognition followed by canonical replacement.
  * The codemod owns ONLY source transformation. It never defines capability
@@ -33,9 +33,9 @@ export interface MigrateFileInput {
   file: string
   /** Component name derived from the file name. */
   component: string
-  /** The Agent UI implementation, aliases already rewritten. */
+  /** The Duz UI implementation, aliases already rewritten. */
   replacement: string
-  /** Alias prefix that identifies an installed Agent UI runtime import. */
+  /** Alias prefix that identifies an installed Duz UI runtime import. */
   runtimeImportPrefix: string
   /**
    * Permission to replace a supported but customised implementation. Defaults

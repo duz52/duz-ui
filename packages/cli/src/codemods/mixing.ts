@@ -1,5 +1,5 @@
 /**
- * Agent UI — refusal of migrations that would break primitive mixing.
+ * Duz UI — refusal of migrations that would break primitive mixing.
  *
  * A project file that value-imports directly from the primitive package a ui
  * component's implementation uses shares one module instance — and one React

@@ -46,7 +46,7 @@ type BaseName = keyof typeof BASES
 
 function createProject(components: string[], base: BaseName = "radix"): string {
   const { style, fixtures } = BASES[base]
-  const dir = mkdtempSync(join(tmpdir(), "agent-ui-cli-"))
+  const dir = mkdtempSync(join(tmpdir(), "duz-ui-cli-"))
   writeFileSync(
     join(dir, "package.json"),
     JSON.stringify(
@@ -114,7 +114,7 @@ function run(dir: string, args: string[]) {
   const result = spawnSync(process.execPath, [cli, ...args], {
     cwd: dir,
     encoding: "utf8",
-    env: { ...process.env, AGENT_UI_REGISTRY: registry },
+    env: { ...process.env, DUZ_UI_REGISTRY: registry },
   })
   return { ...result, output: `${result.stdout}${result.stderr}` }
 }
@@ -125,8 +125,8 @@ test("init installs the runtime and is safe to run twice", () => {
     const first = run(dir, ["init"])
     assert.equal(first.status, 0, first.output)
 
-    const registryFile = join(dir, "src/lib/agent-ui/registry.ts")
-    const webmcpFile = join(dir, "src/lib/agent-ui/webmcp.ts")
+    const registryFile = join(dir, "src/lib/duz-ui/registry.ts")
+    const webmcpFile = join(dir, "src/lib/duz-ui/webmcp.ts")
     assert.ok(existsSync(registryFile), "capability registry must be installed")
     assert.ok(existsSync(webmcpFile), "WebMCP adapter must be installed")
     assert.ok(existsSync(join(dir, "src/lib/utils.ts")))
@@ -150,13 +150,13 @@ test("add installs a component with its runtime and rewrites aliases", () => {
     const dataTable = join(dir, "src/components/ui/data-table.tsx")
     assert.ok(existsSync(dataTable), "the component must be installed")
     // registryDependencies pulled the runtime and the components it imports.
-    assert.ok(existsSync(join(dir, "src/lib/agent-ui/use-capability.ts")))
+    assert.ok(existsSync(join(dir, "src/lib/duz-ui/use-capability.ts")))
     assert.ok(existsSync(join(dir, "src/components/ui/table.tsx")))
     assert.ok(existsSync(join(dir, "src/components/ui/checkbox.tsx")))
     assert.ok(existsSync(join(dir, "src/components/ui/button.tsx")))
 
     const source = readFileSync(dataTable, "utf8")
-    assert.match(source, /from "@\/lib\/agent-ui\/use-capability"/)
+    assert.match(source, /from "@\/lib\/duz-ui\/use-capability"/)
     assert.match(source, /from "@\/components\/ui\/table"/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -272,7 +272,7 @@ for (const base of Object.keys(BASES) as BaseName[]) {
 
       const tabs = readFileSync(join(dir, "src/components/ui/tabs.tsx"), "utf8")
       assert.match(tabs, /useCapability/, "tabs must carry the capability binding")
-      assert.match(tabs, /from "@\/lib\/agent-ui\/use-capability"/)
+      assert.match(tabs, /from "@\/lib\/duz-ui\/use-capability"/)
       assert.match(tabs, /export \{ Tabs, TabsList, TabsTrigger, TabsContent/, "exports must be unchanged")
 
       assert.equal(readFileSync(callSite, "utf8"), callSiteSource, "no call site may change")
@@ -281,7 +281,7 @@ for (const base of Object.keys(BASES) as BaseName[]) {
       // agent-native now and migrates with the rest.
       const button = readFileSync(join(dir, "src/components/ui/button.tsx"), "utf8")
       assert.match(button, /useCapability/, "button must carry the capability binding")
-      assert.match(button, /from "@\/lib\/agent-ui\/use-capability"/)
+      assert.match(button, /from "@\/lib\/duz-ui\/use-capability"/)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -405,7 +405,7 @@ for (const base of Object.keys(BASES) as BaseName[]) {
         "the component file must be byte-identical",
       )
       assert.equal(
-        existsSync(join(dir, "src/lib/agent-ui")),
+        existsSync(join(dir, "src/lib/duz-ui")),
         false,
         "no runtime must be installed",
       )
@@ -430,7 +430,7 @@ for (const base of Object.keys(BASES) as BaseName[]) {
       // The named component was migrated.
       const checkbox = readFileSync(join(dir, "src/components/ui/checkbox.tsx"), "utf8")
       assert.match(checkbox, /useCapability/, "the named component must be migrated")
-      assert.match(checkbox, /from "@\/lib\/agent-ui\/use-capability"/)
+      assert.match(checkbox, /from "@\/lib\/duz-ui\/use-capability"/)
 
       // The un-named component is untouched, byte for byte.
       assert.equal(
@@ -525,7 +525,7 @@ for (const base of Object.keys(BASES) as BaseName[]) {
         "no component file may change",
       )
       assert.equal(
-        existsSync(join(dir, "src/lib/agent-ui")),
+        existsSync(join(dir, "src/lib/duz-ui")),
         false,
         "no runtime must be installed",
       )
@@ -681,7 +681,7 @@ test("doctor does not create anything in an untouched project", () => {
     const result = run(dir, ["doctor"])
     assert.equal(result.status, 0, result.output)
     assert.equal(
-      existsSync(join(dir, "src/lib/agent-ui")),
+      existsSync(join(dir, "src/lib/duz-ui")),
       false,
       "doctor must never install the runtime",
     )

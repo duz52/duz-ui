@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Agent UI — DataTable.
+ * Duz UI — DataTable.
  *
  * Wraps `@tanstack/react-table` v8 and exposes a `data-table` capability whose
  * actions are the intrinsic semantics of a data table: filter, sort, select
@@ -28,8 +28,8 @@ import {
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import type { CapabilityState } from "@/lib/agent-ui/capability"
-import { useCapability, type AgentProp } from "@/lib/agent-ui/use-capability"
+import type { CapabilityState } from "@/lib/duz-ui/capability"
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 import {
   expectBoolean,
   expectInteger,
@@ -37,7 +37,7 @@ import {
   expectString,
   expectStringArray,
   rejectState,
-} from "@/lib/agent-ui/validate"
+} from "@/lib/duz-ui/validate"
 import { Button } from "@/components/radix/ui/button"
 import { Checkbox } from "@/components/radix/ui/checkbox"
 import {

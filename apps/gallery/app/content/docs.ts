@@ -1,9 +1,9 @@
 /**
- * Agent UI gallery — documentation content.
+ * Duz UI gallery — documentation content.
  *
  * Pure data: no React, no imports. Every code block that quotes the kernel or
  * the adapter is taken verbatim from the source under
- * `packages/registry/src/lib/agent-ui/` and `packages/registry/src/ui/`.
+ * `packages/registry/src/lib/duz-ui/` and `packages/registry/src/ui/`.
  */
 
 export type DocBlock =
@@ -25,11 +25,11 @@ export const DOC_PAGES: DocPage[] = [
     slug: "introduction",
     title: "Introduction",
     summary:
-      "Agent UI ships React components with native agent semantics — one interface, two users.",
+      "Duz UI ships React components with native agent semantics — one interface, two users.",
     body: [
       {
         type: "p",
-        text: "Agent UI is a shadcn-compatible component system where supported interactive components expose their semantic capabilities to WebMCP-capable agents automatically. Run `agent-ui migrate` on an existing shadcn-based site and supported components become agent-operable without application-level WebMCP integration code.",
+        text: "Duz UI is a shadcn-compatible component system where supported interactive components expose their semantic capabilities to WebMCP-capable agents automatically. Run `duz-ui migrate` on an existing shadcn-based site and supported components become agent-operable without application-level WebMCP integration code.",
       },
       {
         type: "p",
@@ -52,7 +52,7 @@ export const DOC_PAGES: DocPage[] = [
       { type: "h2", text: "Product promise" },
       {
         type: "p",
-        text: "For new applications, `agent-ui add` installs a React component with built-in agent semantics. For existing shadcn applications, `agent-ui migrate` upgrades supported components to the same semantic mechanism.",
+        text: "For new applications, `duz-ui add` installs a React component with built-in agent semantics. For existing shadcn applications, `duz-ui migrate` upgrades supported components to the same semantic mechanism.",
       },
       {
         type: "p",
@@ -122,7 +122,7 @@ export interface CapabilityResult<State extends CapabilityState = CapabilityStat
       { type: "h2", text: "Identity" },
       {
         type: "p",
-        text: "Every mounted capability receives exactly one identity. Explicit IDs are preferred: `<DataTable agent={{ id: \"orders\", label: \"Orders\" }} />`. If omitted, Agent UI generates a document-local identity.",
+        text: "Every mounted capability receives exactly one identity. Explicit IDs are preferred: `<DataTable agent={{ id: \"orders\", label: \"Orders\" }} />`. If omitted, Duz UI generates a document-local identity.",
       },
       {
         type: "p",
@@ -212,7 +212,7 @@ export function describe(capability: Capability): CapabilityDescriptor {
       { type: "h2", text: "Real usage: tabs.tsx" },
       {
         type: "p",
-        text: "The following is the actual `useCapability` call from the Agent UI Tabs component. React owns `value` and `tabs`; the capability only reads them and forwards `select`.",
+        text: "The following is the actual `useCapability` call from the Duz UI Tabs component. React owns `value` and `tabs`; the capability only reads them and forwards `select`.",
       },
       {
         type: "code",
@@ -460,7 +460,7 @@ function getModelContext(): WebMCP.ModelContext | undefined {
       { type: "h2", text: "Business actions are explicit" },
       {
         type: "p",
-        text: "Agent UI does not infer business semantics from presentation. A generic button cannot know what its `onClick` means, so it never becomes an automatic agent action. No heuristic infers buy, delete, send, transfer, publish, or submit from button text.",
+        text: "Duz UI does not infer business semantics from presentation. A generic button cannot know what its `onClick` means, so it never becomes an automatic agent action. No heuristic infers buy, delete, send, transfer, publish, or submit from button text.",
       },
       {
         type: "p",
@@ -495,17 +495,17 @@ function getModelContext(): WebMCP.ModelContext | undefined {
         type: "p",
         text: "The CLI is the single developer-facing tooling surface. It is not part of the capability kernel. Commands orchestrate tooling but do not own runtime behaviour.",
       },
-      { type: "h2", text: "agent-ui init" },
+      { type: "h2", text: "duz-ui init" },
       {
         type: "p",
-        text: "Initialises Agent UI infrastructure. It detects the React project, detects shadcn configuration when available, installs the runtime files (capability kernel and WebMCP adapter), adds required dependencies, and leaves application behaviour unchanged. Running it twice is safe.",
+        text: "Initialises Duz UI infrastructure. It detects the React project, detects shadcn configuration when available, installs the runtime files (capability kernel and WebMCP adapter), adds required dependencies, and leaves application behaviour unchanged. Running it twice is safe.",
       },
       {
         type: "code",
         lang: "bash",
-        code: "npx agent-ui init",
+        code: "npx duz-ui init",
       },
-      { type: "h2", text: "agent-ui add" },
+      { type: "h2", text: "duz-ui add" },
       {
         type: "p",
         text: "Installs agent-native components. These components already include their capability bindings, so no codemod is required. Multiple components can be installed in one command.",
@@ -513,9 +513,9 @@ function getModelContext(): WebMCP.ModelContext | undefined {
       {
         type: "code",
         lang: "bash",
-        code: "npx agent-ui add tabs\nnpx agent-ui add select data-table",
+        code: "npx duz-ui add tabs\nnpx duz-ui add select data-table",
       },
-      { type: "h2", text: "agent-ui migrate" },
+      { type: "h2", text: "duz-ui migrate" },
       {
         type: "p",
         text: "Upgrades supported existing shadcn components through codemods. The codemod modifies component implementations, not application usage sites. Before and after migration, application usage remains identical — only the local `tabs.tsx` (and peers) changes.",
@@ -523,7 +523,7 @@ function getModelContext(): WebMCP.ModelContext | undefined {
       {
         type: "code",
         lang: "bash",
-        code: "npx agent-ui migrate",
+        code: "npx duz-ui migrate",
       },
       {
         type: "p",
@@ -532,7 +532,7 @@ function getModelContext(): WebMCP.ModelContext | undefined {
       {
         type: "code",
         lang: "text",
-        code: `Agent UI migration
+        code: `Duz UI migration
 
 ✓ tabs
 ✓ select
@@ -552,7 +552,7 @@ Skipped:
         type: "p",
         text: "Migration is idempotent. An already-migrated file is recognised by its runtime import prefix and skipped, so running migrate twice produces no change. A locally modified component — one whose top-level statements do not match the stock signature — is reported as unsupported with a reason and left untouched.",
       },
-      { type: "h2", text: "agent-ui doctor" },
+      { type: "h2", text: "duz-ui doctor" },
       {
         type: "p",
         text: "Inspects integration status. It reports facts: which runtime pieces are present, which components are agent-operable, which are presentation-only, and whether WebMCP is available. It never silently repairs architecture.",
@@ -560,12 +560,12 @@ Skipped:
       {
         type: "code",
         lang: "bash",
-        code: "npx agent-ui doctor",
+        code: "npx duz-ui doctor",
       },
       {
         type: "code",
         lang: "text",
-        code: `Agent UI
+        code: `Duz UI
 
 Runtime
 ✓ capability registry
@@ -595,22 +595,22 @@ WebMCP
     slug: "guarantees",
     title: "Guarantees",
     summary:
-      "What Agent UI promises about your application, and the things it will never do to it.",
+      "What Duz UI promises about your application, and the things it will never do to it.",
     body: [
       {
         type: "p",
-        text: "Agent UI adds a second user to an interface you already own. These are the promises that make that safe to accept. They hold for every supported component, on every page, whether or not an agent is present.",
+        text: "Duz UI adds a second user to an interface you already own. These are the promises that make that safe to accept. They hold for every supported component, on every page, whether or not an agent is present.",
       },
       { type: "h2", text: "Your application stays yours" },
       {
         type: "list",
         items: [
-          "Your React state is the only source of truth. Agent UI reads and writes through your component's own state and keeps no second copy that can drift out of step with it.",
-          "Components Agent UI does not support are ordinary React components, untouched.",
+          "Your React state is the only source of truth. Duz UI reads and writes through your component's own state and keeps no second copy that can drift out of step with it.",
+          "Components Duz UI does not support are ordinary React components, untouched.",
           "You never write WebMCP code. Components speak to the capability registry, and a single adapter is the only thing that touches `document.modelContext`.",
-          "`agent-ui migrate` rewrites imports and component sources. It never invents behaviour — semantics live in the components themselves.",
-          "Running `agent-ui migrate` again finds nothing left to do, rather than layering a second mechanism on the first.",
-          "Removing Agent UI leaves the rest of your application behaving exactly as it did.",
+          "`duz-ui migrate` rewrites imports and component sources. It never invents behaviour — semantics live in the components themselves.",
+          "Running `duz-ui migrate` again finds nothing left to do, rather than layering a second mechanism on the first.",
+          "Removing Duz UI leaves the rest of your application behaving exactly as it did.",
         ],
       },
       { type: "h2", text: "What an agent can rely on" },
