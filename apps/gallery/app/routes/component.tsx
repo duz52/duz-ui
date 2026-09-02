@@ -12,6 +12,7 @@ import { ToolRunner } from "@/components/site/tool-runner"
 import { BaseSwitcher } from "@/components/site/base-switcher"
 import { PageHeader } from "@/components/site/page-header"
 import { Toc } from "@/components/site/toc"
+import { AgentContent } from "@/lib/duz-ui/agent-content"
 import { createAgentTools, type AgentTool } from "@/lib/duz-ui/tools"
 import { getCapabilityRegistry } from "@/lib/duz-ui/registry"
 
@@ -243,12 +244,22 @@ function UsageFallback(): React.JSX.Element {
   return <div className="min-h-40 rounded-lg border border-border bg-muted/40" />
 }
 
+/**
+ * Identity of the preview panel, and therefore the runner's scope.
+ *
+ * A constant: one page shows one preview, and an id that survives navigating
+ * between component pages is one an agent can hold.
+ */
+const PREVIEW_ID = "preview"
+
 function ExamplePreview({
   base,
   name,
+  title,
 }: {
   base: string
   name: string
+  title: string
 }): React.JSX.Element {
   const example = useExample(base, name)
   const Preview = example?.Preview
@@ -261,14 +272,26 @@ function ExamplePreview({
     )
   }
 
+  // The box is the capability: it is the panel a person sees, so it is what
+  // says what is in it. Everything the example mounts is rendered inside, and
+  // therefore owned by it — which is what lets the runner below offer this
+  // component's elements and not the site's, and what makes an agent's ui_list
+  // nest the example under one named root instead of listing it flat beside
+  // the header's search button.
+  //
   // Capped, because this box is pinned while the runner scrolls beneath it: a
   // tall preview — a data table, a calendar — would otherwise fill the viewport
   // and leave no room for the tool that drives it. Shorter previews never reach
   // the cap and are laid out exactly as before.
   return (
-    <div className="max-h-[55svh] overflow-y-auto rounded-lg border border-border p-6">
+    <AgentContent
+      agent={{ id: PREVIEW_ID }}
+      label={`${title} preview`}
+      description="The live example on this page, from the source `duz-ui add` installs."
+      className="max-h-[55svh] overflow-y-auto rounded-lg border border-border p-6"
+    >
       <Preview />
-    </div>
+    </AgentContent>
   )
 }
 
@@ -323,7 +346,11 @@ export default function Component({
               clipped. */}
           <div className="sticky top-14 z-10 bg-background pb-4 pt-3">
             <React.Suspense fallback={<PreviewFallback />}>
-              <ExamplePreview base={base ?? ""} name={item.name} />
+              <ExamplePreview
+                base={base ?? ""}
+                name={item.name}
+                title={item.title}
+              />
             </React.Suspense>
           </div>
 
@@ -333,10 +360,15 @@ export default function Component({
               Tools are scoped to the preview above, which stays in view while
               you run them.
             </p>
-            {/* The examples name their main capability after the component, so
-                the runner opens on the one this page is about rather than on
-                whichever capability the preview happened to mount first. */}
-            <ToolRunner preferredTarget={`preview-${item.name}`} />
+            {/* Scoped to the preview, so the picker offers this component's
+                elements and not the site's own furniture. The examples name
+                their main capability after the component, so the runner opens
+                on the one this page is about rather than on whichever the
+                preview happened to mount first. */}
+            <ToolRunner
+              scope={PREVIEW_ID}
+              preferredTarget={`preview-${item.name}`}
+            />
           </div>
         </section>
 

@@ -486,6 +486,42 @@ function ArgumentField({
 }
 
 /**
+ * The capabilities inside `scope` — not `scope` itself.
+ *
+ * The registry is the whole document's, and on a component page most of it is
+ * the site: the search palette, its dialog, the page's own identity. A visitor
+ * came to test one component, and a picker offering them the header's search
+ * button is offering the wrong thing. Scoping is by containment rather than by
+ * a list of ids to exclude, so it stays right as the site grows furniture.
+ *
+ * The scope is left out because it is the panel holding the example, not part
+ * of it: it carries no action, and a page about the accordion should offer the
+ * accordion and nothing else. A component that mounts none — a presentation
+ * one — then offers nothing, which is the honest answer for it.
+ *
+ * The walk is up the owner chain, with a seen set: a cycle cannot hang it, the
+ * same way the registry's own tree walk cannot.
+ */
+function withinScope(
+  caps: CapabilityDescriptor[],
+  scope: string | undefined,
+): CapabilityDescriptor[] {
+  if (scope === undefined) return caps
+  const owners = new Map(caps.map((cap) => [cap.id, cap.owner]))
+  const contained = (id: string): boolean => {
+    const seen = new Set<string>()
+    let current = owners.get(id)
+    while (current !== undefined && !seen.has(current)) {
+      if (current === scope) return true
+      seen.add(current)
+      current = owners.get(current)
+    }
+    return false
+  }
+  return caps.filter((cap) => contained(cap.id))
+}
+
+/**
  * Picks the element the runner opens on. A page that knows which of its
  * capabilities the visitor came to see says so; otherwise the first live one
  * is as good a guess as any. Without this, a page whose preview mounts
@@ -507,9 +543,15 @@ function chooseTarget(
 
 export function ToolRunner({
   preferredTarget,
+  scope,
 }: {
   /** Id of the capability to select first, when it is mounted. */
   preferredTarget?: string
+  /**
+   * Id of the capability whose contents are the only ones offered. Omit to
+   * offer the whole document, which is what /demo and /playground are about.
+   */
+  scope?: string
 } = {}): React.JSX.Element {
   const registry = getCapabilityRegistry()
   // Read after mount, never during render. `document.modelContext` exists
@@ -526,14 +568,21 @@ export function ToolRunner({
     setWebmcpAvailable(isWebMCPSupported())
   }, [])
 
-  const [caps, setCaps] = React.useState<CapabilityDescriptor[]>(() =>
+  // The full snapshot is held and narrowed on the way out, so a capability
+  // mounting inside the scope after this state was seeded is picked up by the
+  // same subscription as any other.
+  const [allCaps, setCaps] = React.useState<CapabilityDescriptor[]>(() =>
     registry.describeAll(),
+  )
+  const caps = React.useMemo(
+    () => withinScope(allCaps, scope),
+    [allCaps, scope],
   )
   const [tools, setTools] = React.useState<AgentTool[]>(() =>
     createAgentTools(registry),
   )
   const [target, setTarget] = React.useState<string | null>(() =>
-    chooseTarget(registry.describeAll(), preferredTarget, null),
+    chooseTarget(withinScope(registry.describeAll(), scope), preferredTarget, null),
   )
   const [selectedName, setSelectedName] = React.useState<string | null>(null)
   const [mode, setMode] = React.useState<"form" | "json">("form")
@@ -614,7 +663,7 @@ export function ToolRunner({
     setJsonError(null)
     // `result` and `error` are read only to mark a discarded refusal as
     // explained; the key guard above keeps the reruns they cause a no-op.
-  }, [caps, tools, target, selectedName, registry, preferredTarget, result, error])
+  }, [caps, tools, target, selectedName, registry, preferredTarget, scope, result, error])
 
   const selectedCap = caps.find((entry) => entry.id === target)
   const selectedTool = tools.find((entry) => entry.name === selectedName) ?? null
@@ -747,7 +796,9 @@ export function ToolRunner({
       {caps.length === 0 ? (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            No agent-operable elements are mounted on this page.
+            {scope === undefined
+              ? "No agent-operable elements are mounted on this page."
+              : "This component mounts no agent-operable element."}
           </p>
           {listElementsButton}
         </div>

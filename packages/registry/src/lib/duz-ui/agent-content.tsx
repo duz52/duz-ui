@@ -9,11 +9,15 @@
  * registers a capability of kind `"content"` whose `read()` reports the
  * normalised text of its own subtree. Like `AgentAction`, it is a semantics
  * wrapper, not a UI element — it renders its children unchanged.
+ *
+ * It is also their container: a capability inside it is reported as its child
+ * rather than as one more root of the page.
  */
 
 import * as React from "react"
 
 import { readText } from "@/lib/duz-ui/read-text"
+import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
 
@@ -58,7 +62,7 @@ export function AgentContent({
   // Reads are pull-based: they run only when an agent calls ui_list or
   // ui_read, never on render and never in an effect. That is what makes
   // registering a whole content subtree affordable.
-  useCapability<AgentContentState, Record<string, never>>({
+  const { id } = useCapability<AgentContentState, Record<string, never>>({
     agent,
     kind: "content",
     defaultLabel: label,
@@ -72,5 +76,14 @@ export function AgentContent({
     actions: {},
   })
 
-  return <div ref={mergedRef} data-slot="agent-content" {...props} />
+  // A capability rendered inside this content belongs to it — the same rule
+  // `Table` and `Command` already follow, and for the same reason: a wrapper
+  // that names a panel should own what the panel contains, or its contents are
+  // listed flat beside the page's own furniture as if they were unrelated.
+  // With `agent={false}` the id is undefined and descendants stay roots.
+  return (
+    <AgentContainerProvider ownerId={id}>
+      <div ref={mergedRef} data-slot="agent-content" {...props} />
+    </AgentContainerProvider>
+  )
 }
