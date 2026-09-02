@@ -616,6 +616,127 @@ test("doctor says nothing about a library whose component is installed", () => {
   }
 })
 
+test("doctor names an element whose id is derived from text that changes", () => {
+  const dir = createProject(["button", "label", "checkbox"])
+  try {
+    run(dir, ["migrate"])
+    writeFileSync(
+      join(dir, "src/panel.tsx"),
+      [
+        'import { Button } from "@/components/ui/button"',
+        'import { Checkbox } from "@/components/ui/checkbox"',
+        'import { Label } from "@/components/ui/label"',
+        "",
+        "export function Panel({ busy }: { busy: boolean }) {",
+        "  return (",
+        "    <div>",
+        // Renames itself when pressed: this is the finding.
+        '      <Button>{busy ? "Stop" : "Run"}</Button>',
+        // Says what it is, so its id never moves however its text reads.
+        '      <Button id="save">{busy ? "Saving" : "Save"}</Button>',
+        // Static text beside a static label: its id is as durable as they are.
+        '      <Button>Cancel</Button>',
+        '      <Checkbox id="terms" />',
+        '      <Label htmlFor="terms">Accept terms</Label>',
+        "    </div>",
+        "  )",
+        "}",
+        "",
+      ].join("\n"),
+    )
+
+    const result = run(dir, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+    assert.match(result.output, /Addressed by text that changes/)
+    assert.match(result.output, /src\/panel\.tsx:8/)
+
+    // Exactly one finding. A report that also named the element with an id,
+    // and the two whose text is a constant, would be noise the developer has
+    // to disprove — and the constants are the case measured to be stable.
+    assert.equal(
+      (result.output.match(/src\/panel\.tsx/g) ?? []).length,
+      1,
+      `only the element named by an expression may be reported: ${result.output}`,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("doctor reports only the exports that register a capability", () => {
+  const dir = createProject(["command", "button"])
+  try {
+    run(dir, ["migrate"])
+    writeFileSync(
+      join(dir, "src/palette.tsx"),
+      [
+        'import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"',
+        "",
+        "export function Palette({ q }: { q: string }) {",
+        "  return (",
+        "    <Command>",
+        "      <CommandList>",
+        "        <CommandGroup heading={q}>",
+        "          <CommandItem>{q}</CommandItem>",
+        "        </CommandGroup>",
+        "      </CommandList>",
+        "    </Command>",
+        "  )",
+        "}",
+        "",
+      ].join("\n"),
+    )
+
+    const result = run(dir, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+
+    // CommandItem registers a capability and is named by an expression, so it
+    // is the finding. CommandList and CommandGroup are layout its module also
+    // exports — an agent cannot address either, and reporting them made every
+    // line of the report something the developer had to disprove.
+    assert.match(result.output, /CommandItem/)
+    for (const noise of ["CommandList", "CommandGroup"]) {
+      assert.equal(
+        result.output.includes(`✗ ${noise}`),
+        false,
+        `${noise} registers no capability and must not be reported: ${result.output}`,
+      )
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("doctor says nothing about identity when every element states one", () => {
+  const dir = createProject(["button"])
+  try {
+    run(dir, ["migrate"])
+    writeFileSync(
+      join(dir, "src/quiet.tsx"),
+      [
+        'import { Button } from "@/components/ui/button"',
+        "",
+        "export function Quiet({ busy }: { busy: boolean }) {",
+        // A spread may carry an id, and this pass cannot see inside it. A
+        // finding the developer has to disprove is worse than one fewer.
+        "  return <Button {...{ id: \"go\" }}>{busy ? \"Stop\" : \"Run\"}</Button>",
+        "}",
+        "",
+      ].join("\n"),
+    )
+
+    const result = run(dir, ["doctor"])
+    assert.equal(result.status, 0, result.output)
+    assert.equal(
+      /Addressed by text that changes/.test(result.output),
+      false,
+      `nothing to report: ${result.output}`,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test("doctor names what a stylesheet without shadcn's own is missing", () => {
   const dir = createProject(["tabs", "button"])
   try {

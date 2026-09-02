@@ -10,7 +10,12 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 
 import { loadProject, type ProjectConfig } from "../project/config.js"
-import { displayPath, findPackageImporters } from "../project/source-scan.js"
+import {
+  capabilityComponents,
+  displayPath,
+  findPackageImporters,
+  unstableIdentities,
+} from "../project/source-scan.js"
 import { createRegistryClient, defaultRegistrySource } from "../registry/client.js"
 import type { RegistryIndexItem } from "../registry/schema.js"
 import { blank, info, step, success, title, warn } from "../ui/log.js"
@@ -118,6 +123,15 @@ function unwrappedLibraries(
 }
 
 /**
+ * How many elements the identity report names before it stops.
+ *
+ * The report exists to be read: a page that writes a hundred of them needs the
+ * habit pointed out, not a hundred lines of it. The count still says how many
+ * there are.
+ */
+const IDENTITY_REPORT_LIMIT = 10
+
+/**
  * What a stylesheet must provide for shadcn's components to style themselves,
  * and how to tell whether it does.
  *
@@ -221,6 +235,25 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
       warn(`✗ ${packageName.padEnd(26)}${file}`)
       info(`  ${"".padEnd(26)}an agent cannot read it; add ${component}`)
     }
+  }
+
+  // Which installed components an agent can address at all. Read from their
+  // own source, because a module exports many more names than it registers.
+  const capabilityTags = new Set(
+    agentNative.flatMap((name) => [...capabilityComponents(componentPath(config, name))]),
+  )
+  const unstable = unstableIdentities(config, capabilityTags)
+  if (unstable.length > 0) {
+    blank()
+    info("Addressed by text that changes")
+    for (const { tag, file, line } of unstable.slice(0, IDENTITY_REPORT_LIMIT)) {
+      warn(`✗ ${tag.padEnd(26)}${file}:${line}`)
+    }
+    const hidden = unstable.length - IDENTITY_REPORT_LIMIT
+    if (hidden > 0) step(`… and ${hidden} more`)
+    info(`  ${"".padEnd(26)}with no id, name or agent prop, an element is`)
+    info(`  ${"".padEnd(26)}addressed by its own text — so its id moves when`)
+    info(`  ${"".padEnd(26)}that text does. Give it an id an agent can hold.`)
   }
 
   blank()

@@ -14,7 +14,14 @@
 
 import { readdirSync } from "node:fs"
 import { join, relative, sep } from "node:path"
-import { Project, type ImportDeclaration, type SourceFile } from "ts-morph"
+import {
+  Node,
+  Project,
+  SyntaxKind,
+  type ImportDeclaration,
+  type JsxElement,
+  type SourceFile,
+} from "ts-morph"
 
 import type { ProjectConfig } from "./config.js"
 
@@ -113,4 +120,134 @@ export function findPackageImporters(
 /** The file's path as the project sees it, e.g. `src/components/chart/overview.tsx`. */
 export function displayPath(file: string, cwd: string): string {
   return relative(cwd, file).split(sep).join("/")
+}
+
+/** One element whose agent identity is derived from text that can change. */
+export interface UnstableIdentity {
+  /** The JSX tag as written, e.g. `Button`. */
+  tag: string
+  file: string
+  line: number
+}
+
+/** Attributes that give an element an identity of its own. */
+const IDENTITY_ATTRIBUTES = new Set(["id", "name", "agent"])
+
+/**
+ * Whether the element states its own identity, or might through a spread.
+ *
+ * A spread is counted as stating one. `{...props}` can carry an `id` and this
+ * pass cannot see inside it, and a report the developer has to disprove is
+ * worse than one finding fewer things.
+ */
+function statesIdentity(element: JsxElement): boolean {
+  for (const attribute of element.getOpeningElement().getAttributes()) {
+    if (Node.isJsxSpreadAttribute(attribute)) return true
+    if (IDENTITY_ATTRIBUTES.has(attribute.getNameNode().getText())) return true
+  }
+  return false
+}
+
+/**
+ * Whether the element's own text is assembled from an expression.
+ *
+ * `<Button>Run</Button>` names itself the same way for ever. `<Button>{busy ?
+ * "Stop" : "Run"}</Button>` renames itself when it is pressed, and so does
+ * `<CollapsibleTrigger>Status {count}</CollapsibleTrigger>`. A `{" "}` and the
+ * like are formatting, not a name, so a string-literal expression is not one.
+ */
+function namedByExpression(element: JsxElement): boolean {
+  return element.getJsxChildren().some((child) => {
+    if (!Node.isJsxExpression(child)) return false
+    const expression = child.getExpression()
+    return expression !== undefined && !Node.isStringLiteral(expression)
+  })
+}
+
+/**
+ * The components in an installed source file that register a capability.
+ *
+ * A component module exports far more than its capability: `command.tsx`
+ * ships `CommandList`, `CommandGroup` and `CommandSeparator` beside
+ * `CommandItem`, and only the last of them is addressable at all. Taking the
+ * module as the unit reported every one of them — noise a developer has to
+ * disprove — so the set is read from the installed source instead: a function
+ * whose body calls `useCapability`.
+ *
+ * A component registering through a helper rather than directly is missed.
+ * That is the intended direction of error: a finding fewer, never a finding
+ * the developer has to argue with.
+ */
+export function capabilityComponents(file: string): Set<string> {
+  const sourceFile = new Project({ useInMemoryFileSystem: false }).addSourceFileAtPath(
+    file,
+  )
+  const registering = new Set<string>()
+  for (const fn of sourceFile.getFunctions()) {
+    const name = fn.getName()
+    if (name === undefined) continue
+    const calls = fn.getDescendantsOfKind(SyntaxKind.CallExpression)
+    if (calls.some((call) => call.getExpression().getText().startsWith("useCapability"))) {
+      registering.add(name)
+    }
+  }
+  return registering
+}
+
+/**
+ * Agent-native elements whose id would be derived from text that changes.
+ *
+ * With no `id`, `name` or `agent` prop, an element is addressed by its
+ * accessible name — which holds for exactly as long as that name does. A
+ * control beside a `<Label>Email</Label>` is therefore never reported: that
+ * label reads "Email" for ever. One whose text is an expression is, because
+ * that is the case measured to strand an agent: a button reading "Run" becomes
+ * `button.run`, and pressing it makes the element `button.stop` on its next
+ * mount while the agent still holds the old id.
+ *
+ * Structural throughout: which components are agent-native comes from the
+ * caller, which names they are imported under comes from the import, and
+ * whether the text can change comes from the syntax. Nothing is guessed from
+ * what the text says.
+ */
+export function unstableIdentities(
+  config: ProjectConfig,
+  capabilityTags: ReadonlySet<string>,
+): UnstableIdentity[] {
+  if (capabilityTags.size === 0) return []
+
+  const project = new Project({ useInMemoryFileSystem: false })
+  const found: UnstableIdentity[] = []
+  const uiPrefix = `${config.aliases.ui}/`
+
+  walkProjectSources(config, (path) => {
+    const sourceFile = project.addSourceFileAtPath(path)
+
+    // The capability-registering names this file imported from the ui
+    // directory. Reading the import rather than matching tag names keeps a
+    // local `Button` of the application's own out of the report.
+    const tags = new Set<string>()
+    for (const imp of sourceFile.getImportDeclarations()) {
+      const specifier = imp.getModuleSpecifierValue()
+      if (imp.isTypeOnly() || !specifier.startsWith(uiPrefix)) continue
+      for (const named of imp.getNamedImports()) {
+        const tag = named.getNameNode().getText()
+        if (!named.isTypeOnly() && capabilityTags.has(tag)) tags.add(tag)
+      }
+    }
+    if (tags.size === 0) return
+
+    for (const element of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
+      const tag = element.getOpeningElement().getTagNameNode().getText()
+      if (!tags.has(tag)) continue
+      if (statesIdentity(element) || !namedByExpression(element)) continue
+      found.push({
+        tag,
+        file: displayPath(path, config.cwd),
+        line: element.getStartLineNumber(),
+      })
+    }
+  })
+
+  return found
 }
