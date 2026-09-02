@@ -1,6 +1,13 @@
 import type { Route } from "./+types/home"
+import { AgentPage } from "@/lib/duz-ui/agent-page"
 import { CodeBlock } from "@/components/site/code-block"
 import { Prose } from "@/components/site/prose"
+
+// The home page states its identity from the same two strings it renders, so
+// what an agent is told the page is and what a person reads cannot drift. Every
+// other route gets this from `PageHeader`; this one styles its heading itself.
+const TITLE = "duz-ui"
+const TAGLINE = "React components that ship with native agent semantics."
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Duz UI" }]
@@ -38,10 +45,9 @@ export default function Home() {
   return (
     <div className="space-y-16 py-8">
       <section className="space-y-6">
-        <h1 className="font-mono text-3xl font-medium tracking-tight">duz-ui</h1>
-        <p className="text-lg text-foreground">
-          React components that ship with native agent semantics.
-        </p>
+        <AgentPage title={TITLE} description={TAGLINE} />
+        <h1 className="font-mono text-3xl font-medium tracking-tight">{TITLE}</h1>
+        <p className="text-lg text-foreground">{TAGLINE}</p>
         <CodeBlock code="npx duz-ui migrate" lang="bash" />
         <Prose>
           <p className="text-muted-foreground">

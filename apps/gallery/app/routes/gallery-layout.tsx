@@ -1,7 +1,5 @@
 import { Outlet } from "react-router"
 
-import type { Route } from "./+types/gallery-layout"
-import { fetchIndex, type GalleryIndexItem } from "@/registry"
 import { GallerySidebar } from "@/components/site/gallery-sidebar"
 import { SidebarProvider } from "@/components/radix/ui/sidebar"
 
@@ -15,13 +13,6 @@ import { SidebarProvider } from "@/components/radix/ui/sidebar"
 // could call and nothing would move. The sidebar's real capability is
 // demonstrated on the Sidebar component's own page, with an example built
 // for it.
-export async function loader({
-  context,
-  request,
-}: Route.LoaderArgs): Promise<{ items: GalleryIndexItem[] }> {
-  return { items: await fetchIndex(context, request) }
-}
-
 export default function GalleryLayout(): React.JSX.Element {
   return (
     <SidebarProvider

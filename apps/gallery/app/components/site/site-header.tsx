@@ -7,6 +7,8 @@
 
 import { Link, NavLink } from "react-router"
 
+import type { GalleryIndexItem } from "@/registry"
+import { SiteSearch } from "./site-search"
 import { ThemeToggle } from "./theme-toggle"
 
 const NAV = [
@@ -16,7 +18,11 @@ const NAV = [
   { to: "/demo", label: "Demo" },
 ] as const
 
-export function SiteHeader(): React.JSX.Element {
+export function SiteHeader({
+  items,
+}: {
+  items: GalleryIndexItem[]
+}): React.JSX.Element {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background">
       <div className="flex h-14 items-center justify-between px-6">
@@ -42,6 +48,7 @@ export function SiteHeader(): React.JSX.Element {
               </NavLink>
             ))}
           </nav>
+          <SiteSearch items={items} />
           <ThemeToggle />
         </div>
       </div>

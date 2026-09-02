@@ -28,7 +28,7 @@ const GROUPS: { status: GalleryItemStatus; label: string; note: string }[] = [
 
 export default function Components(): React.JSX.Element {
   const index =
-    useRouteLoaderData<{ items: GalleryIndexItem[] }>("routes/gallery-layout")
+    useRouteLoaderData<{ items: GalleryIndexItem[] }>("root")
       ?.items ?? []
   // This route has no base in the URL, so `base` is always undefined here.
   // Any base keeps the links addressable; the first registry-derived one is

@@ -16,7 +16,7 @@ export function BaseSwitcher({
   base: string
 }): React.JSX.Element | null {
   const index =
-    useRouteLoaderData<{ items: GalleryIndexItem[] }>("routes/gallery-layout")
+    useRouteLoaderData<{ items: GalleryIndexItem[] }>("root")
       ?.items ?? []
   const bases = basesFor(index, name)
   // A switcher with one option is noise.

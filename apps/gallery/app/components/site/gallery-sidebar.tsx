@@ -34,7 +34,7 @@ export function GallerySidebar(): React.JSX.Element {
   // base in the URL. Both trees are installed, so any base keeps the links
   // addressable; the first registry-derived one is the deterministic choice.
   const index =
-    useRouteLoaderData<{ items: GalleryIndexItem[] }>("routes/gallery-layout")
+    useRouteLoaderData<{ items: GalleryIndexItem[] }>("root")
       ?.items ?? []
   const activeBase = base ?? basesOf(index)[0] ?? ""
   const items = listItems(index, activeBase)

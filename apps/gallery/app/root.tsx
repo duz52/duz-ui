@@ -10,7 +10,23 @@ import {
 import type { Route } from "./+types/root"
 import "./app.css"
 
+import { fetchIndex, type GalleryIndexItem } from "@/registry"
 import { SiteHeader } from "@/components/site/site-header"
+
+/**
+ * The registry index, loaded once for the whole site.
+ *
+ * It lives here rather than in `gallery-layout` because the search palette in
+ * the header is on every page, and it searches components. A route that wants
+ * the index reads it with `useRouteLoaderData("root")`; nothing fetches it a
+ * second time.
+ */
+export async function loader({
+  context,
+  request,
+}: Route.LoaderArgs): Promise<{ items: GalleryIndexItem[] }> {
+  return { items: await fetchIndex(context, request) }
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -65,10 +81,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   )
 }
 
-export default function App() {
+export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader items={loaderData.items} />
       {/* No width here: the gallery is full bleed and every other route gets
           its column from `site-layout`. */}
       <Outlet />
