@@ -25,7 +25,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "duz-ui": "./dist/index.js"
+    "duz-ui": "dist/index.js"
   },
   "files": [
     "dist"
