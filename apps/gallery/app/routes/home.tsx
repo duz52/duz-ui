@@ -30,9 +30,9 @@ const COMMANDS = [
   },
   {
     name: "Migrate",
-    command: "npx duz-ui migrate",
+    command: "npx duz-ui migrate --overwrite",
     description:
-      "Upgrades supported shadcn components in place via codemods. Drifted sources are named, not rewritten; add --overwrite to hand them over.",
+      "Upgrades supported shadcn components in place via codemods. Without the flag, a source that has drifted from stock is named rather than rewritten.",
   },
   {
     name: "Inspect",
@@ -48,26 +48,20 @@ export default function Home() {
         <AgentPage title={TITLE} description={TAGLINE} />
         <h1 className="font-mono text-3xl font-medium tracking-tight">{TITLE}</h1>
         <p className="text-lg text-foreground">{TAGLINE}</p>
-        <CodeBlock code="npx duz-ui migrate" lang="bash" />
+        <CodeBlock code="npx duz-ui migrate --overwrite" lang="bash" />
         <Prose>
           <p className="text-muted-foreground">
             Run it on an existing shadcn site and supported components become
             agent-operable with no application-level WebMCP code.
           </p>
           <p className="text-muted-foreground">
-            A component whose source is stock is upgraded on that command alone.
-            One that has drifted — a tweaked class, an earlier shadcn generation
-            — is named in the report and left untouched, because replacing it
-            would change how your application looks. Hand those over
-            deliberately:
-          </p>
-        </Prose>
-        <CodeBlock code="npx duz-ui migrate --overwrite" lang="bash" />
-        <Prose>
-          <p className="text-muted-foreground">
-            Most real projects need it. It buys permission to replace an
-            implementation and nothing else: a component whose exports the
-            replacement would not preserve is still refused.
+            The flag is there because a component is replaced only when Duz UI
+            recognises its source structurally. Anything that has drifted — a
+            tweaked class, an earlier shadcn generation — is named and left
+            alone without it, which on a real project is usually most of them.
+            It still refuses a swap that would drop an export, and{" "}
+            <code className="font-mono text-[0.9em]">--dry-run</code> prints the
+            plan before anything is written.
           </p>
         </Prose>
       </section>
