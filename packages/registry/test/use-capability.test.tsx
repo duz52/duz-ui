@@ -34,6 +34,8 @@ let useAccessibleName: typeof import("../src/lib/duz-ui/agent-identity").useAcce
 let useAccessibleNameResolver: typeof import("../src/lib/duz-ui/agent-identity").useAccessibleNameResolver
 let getCapabilityRegistry: typeof import("../src/lib/duz-ui/registry").getCapabilityRegistry
 let rejectState: typeof import("../src/lib/duz-ui/validate").rejectState
+let expectString: typeof import("../src/lib/duz-ui/validate").expectString
+let createAgentTools: typeof import("../src/lib/duz-ui/tools").createAgentTools
 let AgentContent: typeof import("../src/lib/duz-ui/agent-content").AgentContent
 let AgentPage: typeof import("../src/lib/duz-ui/agent-page").AgentPage
 let agentWithElementId: typeof import("../src/lib/duz-ui/agent-identity").agentWithElementId
@@ -46,7 +48,8 @@ before(async () => {
     "../src/lib/duz-ui/agent-identity"
   ))
   ;({ getCapabilityRegistry } = await import("../src/lib/duz-ui/registry"))
-  ;({ rejectState } = await import("../src/lib/duz-ui/validate"))
+  ;({ rejectState, expectString } = await import("../src/lib/duz-ui/validate"))
+  ;({ createAgentTools } = await import("../src/lib/duz-ui/tools"))
   ;({ AgentContent } = await import("../src/lib/duz-ui/agent-content"))
   ;({ AgentPage } = await import("../src/lib/duz-ui/agent-page"))
   ;({ agentWithElementId } = await import("../src/lib/duz-ui/agent-identity"))
@@ -477,6 +480,85 @@ test("AgentContent holds adjacent elements apart but keeps a phrase whole", asyn
   // "Hello world !".
   assert.equal((registry.read("phrase") as { text: string }).text, "Hello world!")
   await phrase.unmount()
+})
+
+/**
+ * The component the "Your Own Component" doc page tells a developer to write,
+ * reduced to what the claim rests on. It uses only what `duz-ui init` puts in
+ * their repo: `useCapability`, and the validation helpers.
+ *
+ * The page promises three things this pins — that declaring an existing kind
+ * is the whole of the wiring, that discovery reports only the actions the
+ * capability declared, and that an undeclared one is refused by name.
+ */
+const STARS = ["1", "2", "3", "4", "5"]
+
+function Rating({
+  value,
+  onValueChange,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+}) {
+  useCapability<
+    { value: string; options: { value: string }[] },
+    { choose: { value: string } }
+  >({
+    agent: { id: "rating", label: "Rating" },
+    kind: "select",
+    read: () => ({ value, options: STARS.map((v) => ({ value: v })) }),
+    actions: {
+      choose(input) {
+        const next = expectString(input, "value")
+        if (!STARS.includes(next)) {
+          rejectState(`"${next}" is not a rating.`)
+        }
+        onValueChange(next)
+      },
+    },
+  })
+  return React.createElement("div", null, value)
+}
+
+test("a component a developer writes reaches the agent through a kind alone", async () => {
+  const registry = getCapabilityRegistry()
+
+  function Host() {
+    const [value, setValue] = React.useState("3")
+    return React.createElement(Rating, { value, onValueChange: setValue })
+  }
+
+  const tree = await mount(React.createElement(Host))
+
+  // 1. Declaring `kind: "select"` is the whole of the wiring: the kind's tool
+  //    exists because something of that kind is mounted.
+  const names = createAgentTools(registry).map((tool) => tool.name)
+  assert.ok(names.includes("select_choose"), "select_choose must exist")
+
+  // 2. Discovery reports the actions this capability declared, not every tool
+  //    the kind carries: `clear` was never written, so it is not offered.
+  const [descriptor] = registry.describeAll()
+  assert.deepEqual([...(descriptor?.actions ?? [])], ["choose"])
+
+  // 3. The action runs through the application's own handler, and the result
+  //    is state read back after React committed it.
+  const chosen = await registry.invoke("rating", "choose", { value: "5" })
+  assert.equal((chosen.state as { value: string }).value, "5")
+
+  // 4. A refusal an agent can correct from, for input the component rejects.
+  await assert.rejects(
+    () => registry.invoke("rating", "choose", { value: "9" }),
+    /is not a rating/,
+  )
+
+  // 5. An action the capability never declared is refused by name, so a
+  //    `select_clear` sent anyway cannot silently do nothing.
+  await assert.rejects(
+    () => registry.invoke("rating", "clear", {}),
+    /does not support "clear"/,
+  )
+
+  await tree.unmount()
 })
 
 test("an accessible name from several elements keeps them apart", async () => {

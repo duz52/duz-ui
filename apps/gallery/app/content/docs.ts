@@ -11,6 +11,26 @@ export type DocBlock =
   | { type: "h2"; text: string }
   | { type: "code"; lang: string; code: string }
   | { type: "list"; items: string[] }
+  | { type: "figure"; figure: Figure }
+
+/**
+ * A layered chain, read top to bottom: each stage, the one thing it owns, and
+ * where it lives. `down` and `up` name what travels each way, because the two
+ * directions are the architecture — a request descends, a registration climbs.
+ *
+ * Drawn from this data rather than from a diagram library: the whole of
+ * mermaid is 84 MB unpacked, against a 2.9 MB client bundle whose largest
+ * chunk is 344 KB, and the site already refuses that trade for syntax
+ * highlighting — it ships the grammar, not the editor. Structured data renders
+ * on the server, costs no JavaScript, follows the theme, and reaches an agent
+ * as text rather than as geometry.
+ */
+export interface Figure {
+  title: string
+  stages: { label: string; owns: string; file?: string }[]
+  down?: string
+  up?: string
+}
 
 export interface DocPage {
   slug: string
@@ -37,9 +57,39 @@ export const DOC_PAGES: DocPage[] = [
       },
       { type: "h2", text: "Layer chain" },
       {
-        type: "code",
-        lang: "text",
-        code: "React Component\n      ↓\nCapability\n      ↓\nCapability Registry\n      ↓\nProtocol Adapter\n      ↓\nWebMCP",
+        type: "figure",
+        figure: {
+          title: "Five layers, one responsibility each",
+          down: "a mounted component becomes a tool",
+          up: "a tool call reaches the component",
+          stages: [
+            {
+              label: "React Component",
+              owns: "Component state. The only layer that decides what the UI actually does.",
+              file: "components/ui/*.tsx",
+            },
+            {
+              label: "Capability",
+              owns: "Semantic interaction: what this element is, what it reads, what it can be asked to do.",
+              file: "lib/duz-ui/capability.ts",
+            },
+            {
+              label: "Capability Registry",
+              owns: "Live identity and dispatch. Canonical for which capabilities exist right now.",
+              file: "lib/duz-ui/registry.ts",
+            },
+            {
+              label: "Protocol Adapter",
+              owns: "Protocol exposure. The only layer that touches document.modelContext.",
+              file: "lib/duz-ui/webmcp.ts",
+            },
+            {
+              label: "WebMCP",
+              owns: "The browser's agent-facing tool surface. Not ours.",
+              file: "document.modelContext",
+            },
+          ],
+        },
       },
       {
         type: "p",
@@ -94,6 +144,10 @@ export interface Capability<
   id: string
   kind: string
   label?: string
+  /** What this specific element is for, one sentence. Instance-specific. */
+  description?: string
+  /** id of the capability that contains this one, when it is nested. */
+  owner?: string
 
   /**
    * Names of the actions this capability supports. Discovery cannot be
@@ -102,6 +156,12 @@ export interface Capability<
   actions: readonly (keyof Actions & string)[]
 
   read(): State
+
+  /**
+   * One-line digest of current state, when the component can say it better
+   * than a generic formatter can.
+   */
+  summarise?(): string | undefined
 
   invoke<Action extends keyof Actions & string>(
     action: Action,
@@ -136,16 +196,25 @@ export interface CapabilityDescriptor {
   id: string
   kind: string
   label?: string
+  description?: string
+  owner?: string
   actions: readonly string[]
 }
 
 export function describe(capability: Capability): CapabilityDescriptor {
-  return {
+  // Absent optional fields are left off the descriptor entirely, so a
+  // descriptor never carries an \`undefined\` placeholder.
+  const descriptor: CapabilityDescriptor = {
     id: capability.id,
     kind: capability.kind,
-    label: capability.label,
     actions: capability.actions,
   }
+  if (capability.label !== undefined) descriptor.label = capability.label
+  if (capability.description !== undefined) {
+    descriptor.description = capability.description
+  }
+  if (capability.owner !== undefined) descriptor.owner = capability.owner
+  return descriptor
 }`,
       },
       { type: "h2", text: "Registry" },
@@ -159,6 +228,8 @@ export function describe(capability: Capability): CapabilityDescriptor {
         code: `export interface CapabilityRegistry {
   register(capability: Capability): () => void
   get(id: string): Capability | undefined
+  /** The same, or a refusal an agent can correct from. Neither reads state. */
+  require(id: string): Capability
   list(): Capability[]
   listByKind(kind: string): Capability[]
   listKinds(): string[]
@@ -169,8 +240,19 @@ export function describe(capability: Capability): CapabilityDescriptor {
   invoke(id: string, action: string, input: unknown): Promise<CapabilityResult>
   /** Notified whenever the set of live capabilities changes. */
   subscribe(listener: () => void): () => void
-  /** Document-local identity for a capability that did not supply one. */
+  /** Document-local identity for a capability that resolved no label. */
   createId(kind: string, seed: string): string
+  /**
+   * Reserves a deterministic id from what the capability can say about
+   * itself — \`[owner, kind, slug(source)]\` — made unique with a numeric
+   * discriminator the capability instance keeps across re-registration.
+   */
+  deriveId(
+    owner: string | undefined,
+    kind: string,
+    source: string,
+    seed: string,
+  ): string
 }`,
       },
       {
@@ -322,34 +404,26 @@ useCapability<RunState, RunActions>({
   ui_read          — read one element's current semantic state
   ui_fill          — set several elements' values in one call
 
-tabs
-  tabs_select
+tabs             tabs_select
+select           select_choose, select_clear
+multi-select     multi_select_set
+checkbox         checkbox_set
+button           button_press
+dialog           dialog_open, dialog_close
+disclosure       disclosure_open, disclosure_close, disclosure_toggle
+input            input_set_value, input_clear
+accordion        accordion_expand, accordion_collapse
+slider           slider_set
+date             date_set
 
-select
-  select_choose
-  select_clear
+data-table       table_filter, table_sort,
+                 table_select_rows, table_select_all_rows,
+                 table_set_page, table_set_column_visibility
 
-checkbox
-  checkbox_set
+action           action_<id> — one tool per mounted AgentAction
 
-dialog
-  dialog_open
-  dialog_close
-
-input
-  input_set_value
-  input_clear
-
-data-table
-  table_filter
-  table_sort
-  table_select_rows
-  table_select_all_rows
-  table_set_page
-  table_set_column_visibility
-
-action (AgentAction)
-  action_<id>      — one tool per mounted AgentAction`,
+Read-only kinds — listed and readable, with no tool of their own:
+  content, page, progress`,
       },
       {
         type: "p",
@@ -378,21 +452,38 @@ Good — one tool per kind, target selects the instance:
         text: "An agent action has exactly one execution path. The adapter resolves the target through the registry, invokes the capability action, and returns the post-commit state. There is no DOM querying, no clicking, no synthetic events, and no fallback to browser automation.",
       },
       {
-        type: "code",
-        lang: "text",
-        code: `table_filter
-     ↓
-target = "orders"
-     ↓
-registry.invoke("orders", "filter", input)
-     ↓
-capability.invoke("filter", input)
-     ↓
-table-native state API
-     ↓
-React state changes
-     ↓
-visible UI changes`,
+        type: "figure",
+        figure: {
+          title: "One call, all the way down",
+          down: "the request",
+          up: "canonical post-commit state",
+          stages: [
+            {
+              label: "table_filter",
+              owns: 'The agent calls one tool per kind, naming the instance: { "target": "orders" }.',
+            },
+            {
+              label: "registry.invoke",
+              owns: "Resolves the target, or refuses with an id the agent can correct from.",
+            },
+            {
+              label: "capability.invoke",
+              owns: "Validates the input against this action's own contract.",
+            },
+            {
+              label: "table-native state API",
+              owns: "The component's own setter — the same one a person's click reaches.",
+            },
+            {
+              label: "React commits",
+              owns: "The application accepts, transforms or rejects. Nothing here can overrule it.",
+            },
+            {
+              label: "read back",
+              owns: "State is read after the commit, so the result is what happened, not what was asked.",
+            },
+          ],
+        },
       },
       {
         type: "p",
@@ -422,7 +513,179 @@ function getModelContext(): WebMCP.ModelContext | undefined {
     ],
   },
 
-  // ---------------------------------------------------------------- 5. security
+  // ---------------------------------------------------------------- 5. your own component
+  {
+    slug: "custom-components",
+    title: "Your Own Component",
+    summary:
+      "Everything the built-in components use is already in your repo. What a component you write has to decide, and what it gets for free.",
+    body: [
+      {
+        type: "p",
+        text: "`duz-ui init` installs the whole runtime into your project under `lib/duz-ui/`. There is no package to import from, no plugin to register and no build step: a component you write reaches the same kernel the shipped ones do, by importing the same files.",
+      },
+      { type: "h2", text: "The one decision" },
+      {
+        type: "p",
+        text: "A capability's `kind` decides whether an agent can act on it. The adapter builds its tool surface from a fixed table of kinds — one tool per kind, never one per instance — so a kind that is not in that table produces no tool at all.",
+      },
+      {
+        type: "p",
+        text: "This is the thing to get right first, because a novel kind fails quietly: the element is listed by `ui_list` and readable by `ui_read`, and nothing an agent can call ever appears. There are three honest routes, and no fourth.",
+      },
+      {
+        type: "list",
+        items: [
+          "Reuse a kind — your component behaves like a select, a checkbox, an input or a table. Declare that kind and it inherits that kind's tools, which the agent already knows how to call.",
+          "Declare a business action — the interaction is yours alone. `AgentAction` registers one tool per mounted action, named `action_<id>`, with an input schema you write.",
+          "Report only — nothing to call, but something to read. `AgentContent` registers content whose text, or whose data through `value`, an agent can read.",
+        ],
+      },
+      { type: "h2", text: "Reusing a kind" },
+      {
+        type: "p",
+        text: "A star rating is a select with five options. Declaring `kind: \"select\"` is what makes `select_choose` reach it; nothing else has to be registered anywhere.",
+      },
+      {
+        type: "code",
+        lang: "tsx",
+        code: `"use client"
+
+import * as React from "react"
+
+import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
+import { expectString, rejectState } from "@/lib/duz-ui/validate"
+
+const STARS = ["1", "2", "3", "4", "5"]
+
+export function Rating({
+  value,
+  onValueChange,
+  agent,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  agent?: AgentProp
+}) {
+  useCapability<
+    { value: string; options: { value: string }[] },
+    { choose: { value: string } }
+  >({
+    agent,
+    kind: "select",
+    defaultLabel: "Rating",
+    // Pull-based: this runs when an agent asks, never on render.
+    read: () => ({ value, options: STARS.map((v) => ({ value: v })) }),
+    actions: {
+      choose(input) {
+        const next = expectString(input, "value")
+        if (!STARS.includes(next)) {
+          rejectState(
+            \`"\${next}" is not a rating. Choose one of: \${STARS.join(", ")}.\`,
+          )
+        }
+        // React owns the value. The action asks; the application decides.
+        onValueChange(next)
+      },
+    },
+  })
+
+  return (
+    <div role="radiogroup" aria-label="Rating">
+      {STARS.map((star) => (
+        <button key={star} type="button" onClick={() => onValueChange(star)}>
+          {star <= value ? "★" : "☆"}
+        </button>
+      ))}
+    </div>
+  )
+}`,
+      },
+      {
+        type: "p",
+        text: "The `select` kind carries two tools, `select_choose` and `select_clear`, but this capability declares only `choose`. Discovery reports the tools a capability actually supports, so `ui_list` offers `select_choose` alone — and a `select_clear` sent anyway is refused with `unsupported_action` and the list of actions that do exist.",
+      },
+      {
+        type: "p",
+        text: "Note what the action does not do: it does not write the value anywhere. It calls the application's own handler, and `useCapability` reads the state back after React commits. If the parent rejects the value, the agent is told the value it asked for was not taken.",
+      },
+      { type: "h2", text: "An interaction that is yours alone" },
+      {
+        type: "p",
+        text: "A business action is never inferred from a button. Wrap it in `AgentAction` and it becomes one tool, `action_<id>`, described in your own words. `confirm` makes a consequential action require `confirmed: true` before it runs.",
+      },
+      {
+        type: "code",
+        lang: "tsx",
+        code: `<AgentAction
+  id="archive-order"
+  description="Archive this order. It leaves the active list and stops billing."
+  inputSchema={{
+    reason: { type: "string", description: "Why it is being archived." },
+  }}
+  confirm="Archiving stops billing. Pass confirmed: true to proceed."
+  execute={async ({ reason }) => archive(order.id, reason)}
+>
+  <Button variant="destructive">Archive</Button>
+</AgentAction>`,
+      },
+      { type: "h2", text: "Validating what an agent sends" },
+      {
+        type: "p",
+        text: "Input arriving from an agent is untrusted. `lib/duz-ui/validate.ts` ships the same checks the built-in components use: `expectString`, `expectBoolean`, `expectInteger`, `expectOneOf`, `expectStringArray` and the rest. Each throws a `CapabilityError` an agent can correct from — the field it was, and what was expected.",
+      },
+      {
+        type: "p",
+        text: "`rejectState` is the other half: the input was well-formed, and the application will not do it. Say why, in a sentence an agent can act on. Never leak an internal identifier, a stack or a provider name into either.",
+      },
+      { type: "h2", text: "When your component holds others" },
+      {
+        type: "p",
+        text: "A capability rendered inside another usually belongs to it: a checkbox in a table row belongs to the table. Wrap your subtree in `AgentContainerProvider` and every capability inside it is reported as your element's child rather than as one more root of the page — which is also what scopes its id, so two rows' checkboxes stay distinguishable.",
+      },
+      {
+        type: "code",
+        lang: "tsx",
+        code: `const { id } = useCapability({ /* ... */ })
+
+// \`id\` is undefined when the component opted out, and the provider then
+// passes \`ownerId: undefined\` — descendants stay roots rather than being
+// attached to nothing.
+return (
+  <AgentContainerProvider ownerId={id}>
+    {children}
+  </AgentContainerProvider>
+)`,
+      },
+      { type: "h2", text: "Naming, and why it is separate" },
+      {
+        type: "p",
+        text: "Pass `agent={{ id }}` whenever your application has a stable name for the instance — nothing derived beats knowing. Without one, give `identitySource` a resolver that reads the element's own name; the binding runs it once, at registration, and keeps the answer for the rest of the mount so a label that changes cannot rename the element under an agent holding its id.",
+      },
+      {
+        type: "p",
+        text: "`duz-ui doctor` reports elements that have neither: an element with no `id`, `name` or `agent` prop whose text is built from an expression is one whose id moves when that text does.",
+      },
+      { type: "h2", text: "What you can import" },
+      {
+        type: "list",
+        items: [
+          "`lib/duz-ui/use-capability` — `useCapability`, the binding, and the `AgentProp` type every component's `agent` prop uses.",
+          "`lib/duz-ui/validate` — input checks that produce agent-correctable refusals.",
+          "`lib/duz-ui/agent-action` — one tool per mounted business action.",
+          "`lib/duz-ui/agent-content` — readable content, and the container for what it holds.",
+          "`lib/duz-ui/agent-container` — containment for a component that holds other capabilities.",
+          "`lib/duz-ui/agent-page` — what the page is, for the header of every listing.",
+          "`lib/duz-ui/agent-identity` — accessible-name resolution, shared with the built-in components.",
+          "`lib/duz-ui/press` — a real press sequence, for a component that must drive a DOM element.",
+          "`lib/duz-ui/read-text` — an element's text read the way a person reads it, with the boundaries `textContent` drops.",
+          "`lib/duz-ui/registry` and `lib/duz-ui/use-capabilities` — the live registry, and a React view of it.",
+        ],
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------- 6. security
   {
     slug: "security",
     title: "Security Boundary",
@@ -484,7 +747,7 @@ function getModelContext(): WebMCP.ModelContext | undefined {
     ],
   },
 
-  // ---------------------------------------------------------------- 6. cli
+  // ---------------------------------------------------------------- 7. cli
   {
     slug: "cli",
     title: "CLI",
@@ -537,25 +800,27 @@ function getModelContext(): WebMCP.ModelContext | undefined {
 ✓ tabs
 ✓ select
 ✓ checkbox
-✓ dialog
-✓ input
-✓ data-table
+✓ button
+- input       already agent-native
+
+Needs overwrite:
+- data-table  source differs from known stock
 
 Skipped:
 - card        presentation-only
-- badge       presentation-only
-- button      explicit business semantics required
+- carousel    not supported yet
 
-6 components upgraded`,
+4 components upgraded
+Run with --overwrite to replace the components listed above.`,
       },
       {
         type: "p",
-        text: "Migration is idempotent. An already-migrated file is recognised by its runtime import prefix and skipped, so running migrate twice produces no change. A locally modified component — one whose top-level statements do not match the stock signature — is reported as unsupported with a reason and left untouched.",
+        text: "Migration is idempotent. An already-migrated file is recognised by its runtime import prefix and reported as such, so running migrate twice produces no change. A component whose source has drifted from every known stock version is never rewritten silently: it is named under `Needs overwrite`, and only `--overwrite` replaces it. A component whose exports the replacement would not preserve is refused outright, and `--overwrite` does not override that.",
       },
       { type: "h2", text: "duz-ui doctor" },
       {
         type: "p",
-        text: "Inspects integration status. It reports facts: which runtime pieces are present, which components are agent-operable, which are presentation-only, and whether WebMCP is available. It never silently repairs architecture.",
+        text: "Inspects integration status and repairs nothing — repair belongs to `init`, `add` and `migrate`. Detection is structural: a file exists, an import is present, a function calls the binding. Nothing is inferred from what a component's text says.",
       },
       {
         type: "code",
@@ -568,29 +833,45 @@ Skipped:
         code: `Duz UI
 
 Runtime
-✓ capability registry
-✓ WebMCP adapter
+- primitive base: radix
+✓ capability registry     src/lib/duz-ui/registry.ts
+✓ WebMCP adapter          src/lib/duz-ui/webmcp.ts
+✓ React binding           src/lib/duz-ui/use-capability.ts
 
 Components
-✓ tabs
-✓ select
-✓ dialog
+✓ button
+✓ checkbox
 ✓ data-table
+✗ select                  installed, but not agent-native
 
 Presentation only
-- card
 - badge
+- card
 
-Requires explicit semantics
-- button
+Drawn without an agent-readable component
+✗ recharts                src/overview.tsx
+                          an agent cannot read it; add chart
+
+Addressed by text that changes
+✗ Button                  src/panel.tsx:8
+                          with no id, name or agent prop, an element is
+                          addressed by its own text — so its id moves when
+                          that text does. Give it an id an agent can hold.
+
+Stylesheet
+✓ src/app.css             shadcn/tailwind.css is in effect
 
 WebMCP
-✓ available`,
+- adapter installed; availability is a browser runtime property`,
+      },
+      {
+        type: "p",
+        text: "The last three sections are the ones that find what a clean install still gets wrong: a library drawn directly while the component that would make it readable is not installed, an element whose id moves when its own text does, and a stylesheet missing the state variants every component is written against.",
       },
     ],
   },
 
-  // ---------------------------------------------------------------- 7. guarantees
+  // ---------------------------------------------------------------- 8. guarantees
   {
     slug: "guarantees",
     title: "Guarantees",
@@ -630,7 +911,7 @@ WebMCP
         items: [
           "No DOM automation. Where a semantic action is missing the request is refused — nothing clicks, types, or scrolls on an agent's behalf to paper over the gap.",
           "No business meaning guessed from what a button says. Consequential actions exist only where you declared them with `AgentAction`.",
-          "No identity read out of presentation. A label that changes does not rename the element an agent is holding.",
+          "No identity that moves under an agent holding it. An element with no id, name or `agent` prop is named by what the document says it is — but that name is resolved once, when the capability registers, and kept for the rest of the mount. A button that reads \"Stop\" after being pressed is still addressed as the id the agent was given.",
           "Nothing hidden becomes readable. What the agent sees is what the component's `read()` returns, and no more.",
         ],
       },
