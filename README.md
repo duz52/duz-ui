@@ -12,10 +12,16 @@ its README is the place to start if you want to *use* this rather than work on
 it.
 
 ```bash
-npx duz-ui migrate     # upgrade the shadcn components a project already has
-npx duz-ui add data-table
-npx duz-ui doctor      # report integration status; repairs nothing
+npx duz-ui migrate --overwrite   # upgrade the components a project already has
+npx duz-ui add data-table        # install one directly
+npx duz-ui doctor                # report integration status; repairs nothing
 ```
+
+`migrate` replaces only what it recognises structurally, so on a project whose
+components have drifted from stock — a tweaked class, an earlier shadcn
+generation — the plain run names them and changes nothing. `--overwrite` is
+what hands them over, and it is the normal case; `--dry-run` prints the plan
+first.
 
 ## Architecture
 
