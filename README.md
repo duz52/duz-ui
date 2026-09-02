@@ -1,106 +1,118 @@
 # Duz UI
 
-An agent-native component library.
+An agent-native component library. shadcn-compatible React components that
+expose their own capabilities to WebMCP agents, with no agent code in the
+application.
 
-Duz UI is a shadcn-compatible component system where supported interactive
-components expose their semantic capabilities to WebMCP-capable agents
-automatically.
+> One interface. Two users: humans and agents.
 
-```bash
-npx duz-ui migrate
-```
-
-Run this on an existing shadcn-based React site. A component whose source is
-stock is upgraded automatically. A component that is recognised but has drifted
-from every known stock source is left untouched and named in the report; hand
-it over with `--overwrite`:
+**[ui.duz52.com](https://ui.duz52.com)** — components, documentation and a live
+WebMCP playground. The package is [`duz-ui`](https://www.npmjs.com/package/duz-ui);
+its README is the place to start if you want to *use* this rather than work on
+it.
 
 ```bash
-npx duz-ui migrate --overwrite
-```
-
-A component whose exports the replacement would not preserve is refused, and
-`--overwrite` does not override that. Either way the application writes no
-agent code and no call site changes. `migrate` accepts component names, so
-ownership can be handed over one component at a time:
-
-```bash
-npx duz-ui migrate checkbox --overwrite
-```
-
-```bash
+npx duz-ui migrate     # upgrade the shadcn components a project already has
 npx duz-ui add data-table
+npx duz-ui doctor      # report integration status; repairs nothing
 ```
-
-installs an agent-native component directly.
-
-> **One interface. Two users: humans and agents.**
 
 ## Architecture
 
+Five layers, one responsibility each. A mounted component becomes a tool going
+down; a tool call reaches the component coming back up.
+
 ```text
-React Component
+React Component        components/ui/*.tsx       component state
       ↓
-Capability
+Capability             lib/duz-ui/capability.ts  semantic interaction
       ↓
-Capability Registry
+Capability Registry    lib/duz-ui/registry.ts    live identity and dispatch
       ↓
-Protocol Adapter
+Protocol Adapter       lib/duz-ui/webmcp.ts      protocol exposure
       ↓
-WebMCP
+WebMCP                 document.modelContext     the browser's tool surface
 ```
 
-React owns component state. The capability owns semantic interaction. The
-registry owns live capability identity and dispatch. The WebMCP adapter owns
-protocol exposure. The CLI owns installation. The codemod owns migration. The
-gallery owns presentation and documentation.
+The CLI owns installation, the codemods own migration, and the gallery owns
+presentation and documentation. **No layer may independently reconstruct
+another layer's truth**: the registry is canonical for which capabilities are
+live, React is canonical for component state, and the adapter is the only thing
+that touches `document.modelContext`.
 
-No layer may independently reconstruct another layer's truth.
-
-The full specification is `internal/specs/mvp.spec`.
+The reasoning behind each layer is on the site:
+[capability kernel](https://ui.duz52.com/docs/capability-kernel),
+[React binding](https://ui.duz52.com/docs/react-binding),
+[WebMCP adapter](https://ui.duz52.com/docs/webmcp-adapter).
 
 ## Repository layout
 
 ```text
-packages/registry   source of truth for everything the CLI distributes
-  src/lib/duz-ui  capability kernel, React binding, WebMCP adapter
-  src/ui            agent-native components
-  registry.json     the shadcn-compatible registry manifest
-  build.ts          inlines sources into apps/gallery/public/r/*.json
+packages/registry     source of truth for everything the CLI distributes
+  src/lib/duz-ui      capability kernel, React binding, WebMCP adapter
+  src/bases/radix/ui  agent-native components on Radix UI
+  src/bases/base/ui   the same components on Base UI
+  registry.json       the shadcn-compatible manifest, and each item's sources
+  build.ts            inlines those sources into apps/gallery/public/r/*.json
 
-packages/cli        the `duz-ui` CLI: init, add, migrate, doctor
-  src/codemods      ts-morph migration of stock shadcn implementations
+packages/cli          the `duz-ui` CLI: init, add, migrate, doctor
+  src/codemods        ts-morph migration of stock shadcn implementations
 
-apps/gallery        docs, registry browser, WebMCP playground, challenge demo
-                    React Router v8 on a Cloudflare Worker
+apps/gallery          docs, component browser, WebMCP playground, admin demo
+                      React Router v8 on a Cloudflare Worker, served from
+                      ui.duz52.com — and the registry the CLI reads from
 ```
 
-The gallery contains **no demo-only implementation path**. Its
-`app/components/ui/` and `app/lib/duz-ui/` directories are produced by running
-the real CLI against the real registry (`pnpm sync:gallery`).
+Two rules hold this together, and both are enforced rather than remembered:
+
+- **The gallery has no demo-only implementation path.** Its
+  `app/components/{base,radix}/ui/` and `app/lib/duz-ui/` are produced by
+  running the real CLI against the real registry (`pnpm sync:gallery`), so the
+  site renders exactly what a user receives.
+- **Every kernel source must be shipped by some registry item.** `build.ts`
+  refuses to build a registry that would leave a runtime file unreachable.
 
 ## Development
 
 ```bash
 pnpm install
-pnpm build:registry     # emit apps/gallery/public/r/*.json
-pnpm build:cli          # build the duz-ui binary
-pnpm sync:gallery       # install the registry into the gallery with the CLI
-pnpm dev                # gallery at http://localhost:5173
+pnpm dev                # gallery, at the URL Vite prints
 ```
 
-Checks:
+`pnpm dev` serves the gallery from the registry output already committed under
+`apps/gallery/public/r/`. After changing anything in `packages/`, re-run the
+pipeline that puts it there:
 
 ```bash
-pnpm typecheck
-pnpm test               # codemod idempotence and recognition tests
+pnpm sync:gallery       # build the registry, build the CLI, install with it
 ```
 
-Deploy the gallery:
+Note that `sync:gallery` rewrites files underneath a running dev server; restart
+it afterwards rather than trusting what it serves.
+
+## Verifying
+
+```bash
+pnpm verify             # sync, typecheck, test, and build the gallery
+```
+
+That is the gate. It runs the registry suite — components mounted in jsdom and
+driven through the real registry, the WebMCP wire format, and identity — and the
+CLI suite, which materialises temporary projects and runs the built binary
+against them.
+
+Behaviour that only a browser can settle is not settled by these. WebMCP
+registration, whether a migrated app renders at all, and anything about how an
+agent actually experiences a page need real Chrome.
+
+## Deploying
 
 ```bash
 pnpm --filter gallery deploy
 ```
+
+The gallery is both the documentation site and the registry `duz-ui` installs
+from, so deploying it publishes the components.
 
 ## Trying the agent surface
 
@@ -108,8 +120,9 @@ WebMCP is a proposal. Chrome exposes it behind
 `chrome://flags/#enable-webmcp-testing`, or through the origin trial from
 Chrome 149.
 
-Without WebMCP the gallery is a normal React site and the playground executes
-the same tool definitions in-page, so the semantics are inspectable either way.
+Without WebMCP the gallery is an ordinary React site, and the
+[playground](https://ui.duz52.com/playground) executes the same tool
+definitions in-page — so the semantics are inspectable either way.
 
 ## License
 
