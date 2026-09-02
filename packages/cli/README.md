@@ -13,26 +13,24 @@ application.
 ## Start from a shadcn project you already have
 
 ```bash
-npx duz-ui migrate              # upgrade the components that are stock
-npx duz-ui migrate --overwrite  # and the ones that have drifted — usually the rest
+npx duz-ui migrate --overwrite
 ```
 
 Supported components are upgraded in place. Your imports do not change, your
 call sites do not change, and you write no WebMCP code.
 
-Both lines are there because the first one, on a real project, usually reports
-more than it changes. A component is replaced only when Duz UI recognises its
-source structurally; anything that has drifted — a tweaked class, an earlier
-shadcn generation — is named under `Needs overwrite` and left alone, because
-replacing it would change how your application looks. On
+The flag is there because a component is replaced only when Duz UI recognises
+its source structurally. Anything that has drifted — a tweaked class, an
+earlier shadcn generation — is named under `Needs overwrite` and left alone
+without it, because replacing it would change how your application looks. On
 `satnaing/shadcn-admin`, an ordinary dashboard nobody wrote for this project,
-that is every supported component it has: the plain run upgrades none of them
-and touches no tracked file.
+that is every supported component it has: the run without the flag upgrades
+none of them and touches no tracked file.
 
-`--overwrite` is what hands those over, and it buys permission to replace an
-implementation and nothing else — a component whose exports the replacement
-would not preserve is refused with the flag exactly as it is without it. Add
-`--dry-run` to either command to print the plan without writing anything.
+`--overwrite` buys permission to replace an implementation and nothing else —
+a component whose exports the replacement would not preserve is refused with
+the flag exactly as it is without it. `--dry-run` prints the plan before
+anything is written.
 
 Or install a component directly:
 

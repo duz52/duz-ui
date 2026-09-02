@@ -1,30 +1,13 @@
 import { Link, useParams, useRouteLoaderData } from "react-router"
 
 import type { Route } from "./+types/components"
-import { basesOf, listItems, type GalleryIndexItem } from "@/registry"
+import { basesOf, listItems, STATUS_GROUPS, type GalleryIndexItem } from "@/registry"
 import { KindBadge } from "@/components/site/kind-badge"
 import { PageHeader } from "@/components/site/page-header"
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Components — Duz UI" }]
 }
-
-type GalleryItemStatus = NonNullable<GalleryIndexItem["agentUi"]>["status"]
-
-// Ordered to answer the reader's first question: what an agent can operate
-// directly, what needs the app's meaning first, and what is display-only.
-const GROUPS: { status: GalleryItemStatus; label: string; note: string }[] = [
-  {
-    status: "agent-native",
-    label: "Agent-native",
-    note: "Registers a capability. An agent can read its state and act on it.",
-  },
-  {
-    status: "presentation",
-    label: "Presentation",
-    note: "No capability. Layout and display only.",
-  },
-]
 
 export default function Components(): React.JSX.Element {
   const index =
@@ -42,7 +25,7 @@ export default function Components(): React.JSX.Element {
         title="Components"
         description="Agent-native React components built on the shadcn registry."
       />
-      {GROUPS.map((group) => {
+      {STATUS_GROUPS.map((group) => {
         const groupItems = items.filter(
           (item) => item.agentUi?.status === group.status,
         )

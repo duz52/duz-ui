@@ -88,7 +88,12 @@ export default function Home() {
           {COMMANDS.map((cmd) => (
             <div
               key={cmd.name}
-              className="space-y-3 rounded-lg border border-border p-4"
+              // `min-w-0`: a grid item's default `min-width: auto` is its
+              // content's minimum, and `npx duz-ui migrate --overwrite` does
+              // not break — so the track grew past the viewport and the whole
+              // page scrolled sideways at 320px. The command scrolls inside
+              // its own block, which is what CodeBlock is for.
+              className="min-w-0 space-y-3 rounded-lg border border-border p-4"
             >
               <p className="font-mono text-sm font-medium">{cmd.name}</p>
               <CodeBlock code={cmd.command} lang="bash" />

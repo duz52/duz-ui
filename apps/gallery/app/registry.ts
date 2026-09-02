@@ -62,6 +62,28 @@ export interface GalleryIndexItem {
 }
 
 /** Human titles for the bases, keyed by registry directory name. */
+/**
+ * How the component list is grouped, everywhere it is shown — the index, the
+ * sidebar and the mobile menu. Ordered to answer the reader's first question:
+ * what an agent can operate directly, and what is display-only.
+ */
+export const STATUS_GROUPS: {
+  status: NonNullable<GalleryIndexItem["agentUi"]>["status"]
+  label: string
+  note: string
+}[] = [
+  {
+    status: "agent-native",
+    label: "Agent-native",
+    note: "Registers a capability. An agent can read its state and act on it.",
+  },
+  {
+    status: "presentation",
+    label: "Presentation",
+    note: "No capability. Layout and display only.",
+  },
+]
+
 export const BASE_TITLES: Record<string, string> = {
   base: "Base UI",
   radix: "Radix UI",

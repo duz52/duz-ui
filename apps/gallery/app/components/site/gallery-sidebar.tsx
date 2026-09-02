@@ -8,7 +8,7 @@
 
 import { Link, useLocation, useParams, useRouteLoaderData } from "react-router"
 
-import { basesOf, listItems, type GalleryIndexItem } from "@/registry"
+import { basesOf, listItems, STATUS_GROUPS, type GalleryIndexItem } from "@/registry"
 import {
   Sidebar,
   SidebarContent,
@@ -19,13 +19,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/radix/ui/sidebar"
-
-type GalleryItemStatus = NonNullable<GalleryIndexItem["agentUi"]>["status"]
-
-const GROUPS: { status: GalleryItemStatus; label: string }[] = [
-  { status: "agent-native", label: "Agent-native" },
-  { status: "presentation", label: "Presentation" },
-]
 
 export function GallerySidebar(): React.JSX.Element {
   const { base } = useParams()
@@ -67,7 +60,7 @@ export function GallerySidebar(): React.JSX.Element {
         className="absolute inset-y-4 right-0 w-px bg-[linear-gradient(to_bottom,transparent_0%,var(--border)_12%,var(--border)_88%,transparent_100%)]"
       />
       <SidebarContent className="gap-6 overflow-x-hidden py-6 pr-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {GROUPS.map((group) => {
+        {STATUS_GROUPS.map((group) => {
           const groupItems = items.filter(
             (item) => item.agentUi?.status === group.status,
           )
