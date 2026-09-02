@@ -1,6 +1,7 @@
 {
   "name": "duz-ui-monorepo",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.20.0",
   "scripts": {

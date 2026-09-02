@@ -110,3 +110,7 @@ Chrome 149.
 
 Without WebMCP the gallery is a normal React site and the playground executes
 the same tool definitions in-page, so the semantics are inspectable either way.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
