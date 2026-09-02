@@ -267,7 +267,7 @@ export function ScenarioRunner({
           transcript
         </p>
         {active === null ? (
-          <pre className="min-h-28 rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed">
+          <pre className="min-h-28 overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed">
             <code>
               <span className="text-muted-foreground">
                 Run a scenario to see every tool call it makes.

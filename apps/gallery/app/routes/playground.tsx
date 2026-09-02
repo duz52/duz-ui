@@ -381,7 +381,14 @@ function CapabilityInspector(): React.JSX.Element {
                   <path d="m6 3 5 5-5 5" />
                 </svg>
                 <KindBadge kind={cap.kind} />
-                <code className="shrink-0 font-mono text-[11px]">{cap.id}</code>
+                {/* Shrinkable, not `shrink-0`: a derived id runs to fifty characters
+                    — `content.maintenance.button.reset-the-contact-form` — and
+                    a row that refuses to give it up made the whole page scroll
+                    sideways on a phone. It has room on a wide viewport and
+                    truncates only where there is none. */}
+                <code className="min-w-0 truncate font-mono text-[11px]">
+                  {cap.id}
+                </code>
                 <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                   {cap.label ?? "—"}
                 </span>

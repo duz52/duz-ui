@@ -54,7 +54,11 @@ export function GallerySidebar(): React.JSX.Element {
       // frame still and `overscroll-none` stops the list handing its scroll
       // to the page when it reaches the end — both taken from shadcn's own
       // docs sidebar, where they are what make it feel anchored.
-      className="sticky top-14 z-30 h-[calc(100svh-3.5rem)] overflow-hidden overscroll-none bg-transparent"
+      // Hidden below `lg`, where 16rem of it would leave the reading column
+      // 134px wide. Mobile reaches the same list through the `/components`
+      // index and the ⌘K palette, which searches it — the same split shadcn's
+      // own docs sidebar makes.
+      className="sticky top-14 z-30 hidden h-[calc(100svh-3.5rem)] overflow-hidden overscroll-none bg-transparent lg:block"
     >
       {/* A hairline that fades out at both ends, rather than a hard border
           running the full height. */}
