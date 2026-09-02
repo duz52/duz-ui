@@ -2,6 +2,7 @@
 
 import * as React from "react"
 
+import { readText, type ReadableNode } from "./read-text"
 import type { AgentConfig, AgentProp } from "./use-capability"
 
 /**
@@ -52,31 +53,42 @@ export function agentWithElementId(
 const NAME_MAX_LENGTH = 100
 
 /**
- * Normalises text: trim, collapse internal whitespace runs to single
- * spaces. Returns null for an empty result so the caller can fall through.
+ * An attribute's text: trim, collapse whitespace runs, cap. Returns null for
+ * an empty result so the caller can fall through to the next source.
  */
-function normaliseText(text: string | null | undefined): string | null {
+function nameFromAttribute(text: string | null | undefined): string | null {
   if (text === null || text === undefined) return null
-  const trimmed = text.trim()
+  const trimmed = text.trim().replace(/\s+/g, " ")
   if (trimmed === "") return null
-  return trimmed.replace(/\s+/g, " ")
+  return trimmed.length > NAME_MAX_LENGTH
+    ? `${trimmed.slice(0, NAME_MAX_LENGTH)}…`
+    : trimmed
 }
 
-/** Caps text at NAME_MAX_LENGTH characters. */
-function capLength(text: string): string {
-  return text.length > NAME_MAX_LENGTH ? text.slice(0, NAME_MAX_LENGTH) : text
+/**
+ * An element's text, read the way a person reads it, or null when it has none.
+ *
+ * Through `readText`, never `textContent`: an accessible name assembled from
+ * more than one element is where `textContent` fuses two facts into one token
+ * — a paginator button named "Go to page 5050", a palette row named
+ * "DataTableA TanStack-powered data table…". ARIA composes a name from content
+ * with separators between the parts, and this is that separator.
+ */
+function nameFromElement(element: ReadableNode | null | undefined): string | null {
+  const text = readText(element, NAME_MAX_LENGTH)
+  return text === "" ? null : text
 }
 
 /**
  * Resolves the accessible name of a mounted element, in this precedence:
  *
  * 1. `aria-label`, when non-empty after trimming.
- * 2. `aria-labelledby`: for each id in the attribute, the `textContent` of
+ * 2. `aria-labelledby`: for each id in the attribute, the text of
  *    `document.getElementById(id)`, joined with a single space.
  * 3. The associated `<label>`: the element's `labels` collection when it has
  *    one (real form controls do); otherwise, when the element has an `id`,
  *    the first `label[for="<id>"]` in the document; otherwise
- *    `element.closest("label")`. Take its `textContent`.
+ *    `element.closest("label")`. Take its text.
  * 4. The element's own subtree text, when its role is one the accessible-name
  *    specification names from content — see NAME_FROM_CONTENT_ROLES. Other
  *    elements keep their own native mechanisms — a `<select>`'s name is never
@@ -84,8 +96,9 @@ function capLength(text: string): string {
  *    their roles are not in that set.
  * Nothing found returns undefined; the caller supplies what to show.
  *
- * Each source is normalised (trim, collapse whitespace) and an empty result
- * falls through to the next source. The final result is capped at
+ * Every element source is read through `readText`, so a name assembled from
+ * several elements keeps them apart instead of fusing them. An empty result
+ * falls through to the next source, and the result is capped at
  * NAME_MAX_LENGTH characters.
  */
 /**
@@ -97,12 +110,11 @@ function capLength(text: string): string {
  * `HTMLSelectElement extends HTMLElement` assignability over the `remove()`
  * overloads — a member this helper never touches.
  */
-interface NamedElement {
+interface NamedElement extends ReadableNode {
   id: string
   tagName: string
-  textContent: string | null
   getAttribute(name: string): string | null
-  closest(selectors: string): { textContent: string | null } | null
+  closest(selectors: string): ReadableNode | null
 }
 
 /**
@@ -171,8 +183,8 @@ function namesFromContent(element: NamedElement): boolean {
 
 function resolveAccessibleName(element: NamedElement): string | undefined {
   // 1. aria-label
-  const ariaLabel = normaliseText(element.getAttribute("aria-label"))
-  if (ariaLabel !== null) return capLength(ariaLabel)
+  const ariaLabel = nameFromAttribute(element.getAttribute("aria-label"))
+  if (ariaLabel !== null) return ariaLabel
 
   // 2. aria-labelledby
   const labelledBy = element.getAttribute("aria-labelledby")
@@ -182,10 +194,11 @@ function resolveAccessibleName(element: NamedElement): string | undefined {
       .filter(Boolean)
       .map((id) => document.getElementById(id))
       .filter((target): target is HTMLElement => target !== null)
-      .map((target) => target.textContent ?? "")
+      .map((target) => readText(target, NAME_MAX_LENGTH))
+      .filter(Boolean)
       .join(" ")
-    const label = normaliseText(text)
-    if (label !== null) return capLength(label)
+    const label = nameFromAttribute(text)
+    if (label !== null) return label
   }
 
   // 3. Associated <label>
@@ -193,32 +206,26 @@ function resolveAccessibleName(element: NamedElement): string | undefined {
   if ("labels" in element) {
     const labels = (element as HTMLInputElement).labels
     if (labels && labels.length > 0) {
-      const label = normaliseText(labels[0]?.textContent)
-      if (label !== null) return capLength(label)
+      const label = nameFromElement(labels[0])
+      if (label !== null) return label
     }
   }
 
   // 3b. label[for="<id>"]
   if (element.id) {
     const escapedId = element.id.replace(/["\\]/g, "\\$&")
-    const labelEl = document.querySelector(`label[for="${escapedId}"]`)
-    if (labelEl) {
-      const label = normaliseText(labelEl.textContent)
-      if (label !== null) return capLength(label)
-    }
+    const label = nameFromElement(document.querySelector(`label[for="${escapedId}"]`))
+    if (label !== null) return label
   }
 
   // 3c. closest("label")
-  const closestLabel = element.closest("label")
-  if (closestLabel) {
-    const label = normaliseText(closestLabel.textContent)
-    if (label !== null) return capLength(label)
-  }
+  const closestLabel = nameFromElement(element.closest("label"))
+  if (closestLabel !== null) return closestLabel
 
   // 4. The element's own subtree text, when its role is named from content.
   if (namesFromContent(element)) {
-    const label = normaliseText(element.textContent)
-    if (label !== null) return capLength(label)
+    const label = nameFromElement(element)
+    if (label !== null) return label
   }
 
   // Nothing named it. The caller owns what to show instead.

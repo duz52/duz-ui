@@ -9,7 +9,7 @@ import {
 } from "@/lib/duz-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
-import { readText } from "@/lib/duz-ui/agent-content"
+import { readText } from "@/lib/duz-ui/read-text"
 
 /** Cap for each table cell reported to an agent. */
 const CELL_MAX_LENGTH = 200

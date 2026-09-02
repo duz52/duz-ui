@@ -18,6 +18,7 @@
         "lib/duz-ui/agent-page.tsx",
         "lib/duz-ui/capability.ts",
         "lib/duz-ui/press.ts",
+        "lib/duz-ui/read-text.ts",
         "lib/duz-ui/registry.ts",
         "lib/duz-ui/runtime.ts",
         "lib/duz-ui/tools.ts",

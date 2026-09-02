@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Toaster as SonnerToaster, type ToasterProps } from "sonner"
 
-import { readText } from "@/lib/duz-ui/agent-content"
+import { readText } from "@/lib/duz-ui/read-text"
 import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
 

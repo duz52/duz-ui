@@ -38,7 +38,7 @@ import { useControllableState } from "@/lib/duz-ui/use-controllable-state"
 import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
 import { pressElement } from "@/lib/duz-ui/press"
 import { useAccessibleName, useAccessibleNameResolver } from "@/lib/duz-ui/agent-identity"
-import { readText } from "@/lib/duz-ui/agent-content"
+import { readText } from "@/lib/duz-ui/read-text"
 import { expectString, rejectState } from "@/lib/duz-ui/validate"
 import {
   Dialog,

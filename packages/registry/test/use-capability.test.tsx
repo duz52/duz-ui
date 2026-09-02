@@ -479,6 +479,40 @@ test("AgentContent holds adjacent elements apart but keeps a phrase whole", asyn
   await phrase.unmount()
 })
 
+test("an accessible name from several elements keeps them apart", async () => {
+  const registry = getCapabilityRegistry()
+
+  // A button naming itself from content, the way a palette row does: the title
+  // and its one-line description are separate elements a person sees held
+  // apart. `textContent` fuses them into "DataTableA TanStack-powered table",
+  // which also becomes the derived id — this is the "Go to page 5050" bug.
+  function Row() {
+    const elementRef = React.useRef<HTMLButtonElement>(null)
+    const name = useAccessibleName(elementRef, "Button")
+    const identitySource = useAccessibleNameResolver(elementRef)
+    useCapability<{ label: string }, Record<string, never>>({
+      agent: {},
+      kind: "button",
+      defaultLabel: name,
+      identitySource,
+      read: () => ({ label: name }),
+      actions: {},
+    })
+    return React.createElement(
+      "button",
+      { ref: elementRef },
+      React.createElement("span", null, "DataTable"),
+      React.createElement("span", null, "A TanStack-powered table"),
+    )
+  }
+
+  const tree = await mount(React.createElement(Row))
+  const [capability] = registry.describeAll()
+  assert.equal(capability?.label, "DataTable A TanStack-powered table")
+  assert.equal(capability?.id, "button.datatable-a-tanstack-powered-table")
+  await tree.unmount()
+})
+
 /**
  * A button-shaped element: it knows its own name by reading the DOM, and what
  * it says changes when it is pressed. The label is description and must follow

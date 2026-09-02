@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { AgentContainerProvider } from "@/lib/duz-ui/agent-container"
 import { useCapability, type AgentProp } from "@/lib/duz-ui/use-capability"
 import { useMergedRef } from "@/lib/duz-ui/use-merged-ref"
-import { readText } from "@/lib/duz-ui/agent-content"
+import { readText } from "@/lib/duz-ui/read-text"
 
 /** Cap for each card field reported to an agent. */
 const FIELD_MAX_LENGTH = 500
